@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import google.generativeai as genai
 from datetime import datetime
 
@@ -7,6 +8,12 @@ genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
 
 # ✅ Page setup
 st.set_page_config(page_title="⚛️ Quantora AI", layout="centered")
+
+# ✅ Inject Google AdSense script
+components.html("""
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8690347389484903"
+     crossorigin="anonymous"></script>
+""", height=0)
 
 # ✅ Session state for chat history
 if "chat" not in st.session_state:
@@ -30,7 +37,7 @@ if selected_mode == "Premium":
     else:
         st.info("🔒 Please enter the secret code to unlock Premium features.")
 
-# ✅ Model selection (No display of model name)
+# ✅ Model selection
 model = genai.GenerativeModel("gemini-2.0-flash" if mode == "Premium" else "gemini-1.5-flash")
 
 # ✅ Prompt handler
