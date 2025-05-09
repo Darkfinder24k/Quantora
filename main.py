@@ -242,7 +242,7 @@ else:
 
 # ✅ Header
 st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>Welcome to <b>Quantora</b> Premium — Your Genius Companion <span style='font-size: 1.2em;'>⚛️</span></h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Welcome to <b>Quantora</b>— Your Genius Companion <span style='font-size: 1.2em;'>⚛️</span></h2>", unsafe_allow_html=True)
 st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True) # Subtle divider
 
 # ✅ Chat Display
