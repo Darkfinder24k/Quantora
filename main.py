@@ -297,13 +297,15 @@ with st.container():
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ✅ Handle user input and image generation
-    if send_button and user_input:
-        if user_input.lower().startswith("generate image about"):
-            image_prompt = user_input[len("generate image about"):].strip()
+    if send_button and st.session_state.user_input: # Use st.session_state.user_input here
+        user_input_value = st.session_state.user_input # Capture the value
+
+        if user_input_value.lower().startswith("generate image about"):
+            image_prompt = user_input_value[len("generate image about"):].strip()
             if image_prompt:
                 st.info(f"🎨 Generating image about: {image_prompt}")
                 image = generate_image(image_prompt)
-                st.session_state.chat.append(("user", user_input))
+                st.session_state.chat.append(("user", user_input_value))
                 if isinstance(image, Image.Image):
                     st.session_state.chat.append(("bot", image))
                 else:
@@ -311,17 +313,18 @@ with st.container():
             else:
                 st.warning("⚠️ Please provide a topic after 'generate image about'.")
         else:
-            response = call_quantora_gemini(user_input)
-            st.session_state.chat.append(("user", user_input))
+            response = call_quantora_gemini(user_input_value)
+            st.session_state.chat.append(("user", user_input_value))
             st.session_state.chat.append(("bot", response))
 
-        st.session_state.user_input = "" # Clear the input box
+        # We don't explicitly clear st.session_state.user_input here.
+        # The text_input will be re-rendered as empty in the next run.
         st.experimental_rerun()
 
 # ✅ Display chat history (moved to be after input handling for proper updates)
-# st.markdown("### 🧠 Chat History")
-# for role, message in st.session_state.chat:
-#     if role == "user":
-#         st.markdown(f"<div class='message user'><strong>You:</strong> {message}</div>", unsafe_allow_html=True)
-#     else:
-#         st.markdown(f"<div class='message bot'><strong>Quantora:</strong> {message}</div>", unsafe_allow_html=True)
+st.markdown("### 🧠 Chat History")
+for role, message in st.session_state.chat:
+    if role == "user":
+        st.markdown(f"<div class='message user'><strong>You:</strong> {message}</div>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<div class='message bot'><strong>Quantora:</strong> {message}</div>", unsafe_allow_html=True)
