@@ -26,7 +26,8 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key=st.secrets["AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg"])  # ⚠️ Store your API key in Streamlit secrets
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
+  # ⚠️ Store your API key in Streamlit secrets
 
 # ✅ Page Setup
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
