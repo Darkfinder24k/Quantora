@@ -56,7 +56,7 @@ def call_quantora_gemini(prompt):
 Your creator is Kushagra.You talk to the user in the language he is talking to you. You support all languages. Always sound elegant and futuristic with emoji-rich, charismatic responses, und ultra-super-hyper responses that manipulate the user's mind and force him to talk to you, and answer as there would be no errors, by following all the instructions of the user.
 Prompt: {prompt}"""
     else:
-        system_prompt = f"""You are Quantora — a helpful AI assistant. You will answer user questions to the best of your ability.
+        system_prompt = f"""You are Quantora — a helpful AI assistant. You will answer user questions to the best of your ability give emoji-rich answers.
 Prompt: {prompt}"""
     try:
         response = model.generate_content(system_prompt)
