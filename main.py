@@ -71,9 +71,7 @@ def generate_image(prompt):
         response = image_model.generate_content(
             model="gemini-2.0-flash-preview-image-generation",
             contents=prompt,
-            config=genai.types.GenerateContentConfig(
-                response_modalities=['IMAGE']
-            )
+            response_mime_types=['image/*']  # Specifying the expected MIME type
         )
         for candidate in response.candidates:
             if candidate.content and candidate.content.parts:
