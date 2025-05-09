@@ -342,7 +342,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ✅ Input Box (Floating)
 with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
-    user_input = st.text_input("💬 Ask Quantora anything...", key="user_input", label_visibility="collapsed")
+    user_input = st.text_input("💬 Ask Quantora anything...", key=f"user_input_{uuid.uuid4()}", label_visibility="collapsed")
     send = st.button("🚀 Send")
 
     if send and user_input:
@@ -350,17 +350,15 @@ with st.container():
         with st.spinner("🤖 Quantora is processing..."):
             try:
                 response = call_quantora_gemini(user_input)
-                # Simulate typing delay with a more subtle effect
                 animated_response = ""
                 for char in response:
                     animated_response += char
                     time.sleep(0.002)
                 st.session_state.chat.append(("quantora", animated_response))
-                # Force a re-render to display the new message immediately
                 st.rerun()
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
-        st.query_params.clear() # Reset query parameters, effectively clearing the input
+        st.query_params.clear() # This line clears the query parameters, effectively deleting the input
     st.markdown('</div>', unsafe_allow_html=True)
 
 # The footer is now included within the if/else block for UI consistency based on the mode.
