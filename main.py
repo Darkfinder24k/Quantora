@@ -242,6 +242,6 @@ with st.container():
                 animated_response += char
                 time.sleep(0.002)
             st.session_state.chat.append(("quantora", animated_response))
-        st.session_state.user_input = ""  # Auto-clear input
+        st.session_state["user_input"] = ""  # Auto-clear input  # Auto-clear input
         st.experimental_rerun()
     st.markdown('</div>', unsafe_allow_html=True)
