@@ -69,7 +69,6 @@ Prompt: {prompt}"""
 def generate_image(prompt):
     try:
         response = image_model.generate_content(
-            model="gemini-2.0-flash-preview-image-generation",
             contents=prompt,
             response_mime_types=['image/*']  # Specifying the expected MIME type
         )
