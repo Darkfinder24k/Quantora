@@ -341,27 +341,26 @@ for speaker, msg in st.session_state.chat:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ✅ Input Box (Floating)
+# ✅ Input Box (Floating)
 with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
-    user_input = st.text_input("💬 Ask Quantora anything...", key="user_input", label_visibility="collapsed")
-    send = st.button("🚀 Send")
+    with st.form(key="chat_form", clear_on_submit=True):
+        user_input = st.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
+        submitted = st.form_submit_button("🚀 Send")
 
-    if send and user_input:
-        st.session_state.chat.append(("user", user_input))
-        with st.spinner("🤖 Quantora is processing..."):
-            try:
-                response = call_quantora_gemini(user_input)
-                animated_response = ""
-                for char in response:
-                    animated_response += char
-                    time.sleep(0.002)
-                st.session_state.chat.append(("quantora", animated_response))
-                # ✅ Auto-clear the input field
-                st.session_state.user_input = ""
-                st.rerun()
-            except Exception as e:
-                st.error(f"An error occurred while processing your request: {e}")
-        # st.query_params.clear() # Remove this line
+        if submitted and user_input:
+            st.session_state.chat.append(("user", user_input))
+            with st.spinner("🤖 Quantora is processing..."):
+                try:
+                    response = call_quantora_gemini(user_input)
+                    animated_response = ""
+                    for char in response:
+                        animated_response += char
+                        time.sleep(0.002)
+                    st.session_state.chat.append(("quantora", animated_response))
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"An error occurred while processing your request: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # The footer is now included within the if/else block for UI consistency based on the mode.
