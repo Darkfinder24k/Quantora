@@ -8,13 +8,10 @@ if "verified" not in st.session_state:
     st.session_state.verified = False
 
 if not st.session_state.verified:
-    st.set_page_config(page_title="🔐 Human Verification", layout="centered")
     st.title("🔐 Human Verification")
     st.write("Please verify you are human before using Quantora AI.")
 
-    # 🧠 Simple checkbox method (replace with real reCAPTCHA if needed)
     agree = st.checkbox("✅ I am not a robot")
-
     if agree:
         st.session_state.verified = True
         st.success("Verification successful. Welcome! 🎉")
@@ -37,6 +34,9 @@ components.html("""
 # ✅ Session state
 if "chat" not in st.session_state:
     st.session_state.chat = []
+
+if "user_input" not in st.session_state:
+    st.session_state.user_input = ""
 
 # ✅ Mode selector
 selected_mode = st.selectbox("🧠 Choose Your Plan", ["Normal", "Premium"])
@@ -169,13 +169,15 @@ with col3:
         st.markdown('[Check Weather](https://www.google.com/search?q=weather)', unsafe_allow_html=True)
 
 # ✅ Prompt input
-user_input = st.text_input("💬 Ask Quantora anything...")
+st.session_state.user_input = st.text_input("💬 Ask Quantora anything...", value=st.session_state.user_input)
 
 # ✅ Response
-if user_input:
-    st.session_state.chat.append(("user", user_input))
+if st.session_state.user_input:
+    prompt = st.session_state.user_input
+    st.session_state.chat.append(("user", prompt))
     with st.spinner("⚛️ Quantora is processing..."):
-        response = call_quantora_gemini(user_input)
+        response = call_quantora_gemini(prompt)
     st.session_state.chat.append(("quantora", response))
+    st.session_state.user_input = ""  # Auto-clear input
 
 st.markdown('</div>', unsafe_allow_html=True)
