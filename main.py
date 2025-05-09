@@ -26,7 +26,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your actual API key
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # ⚠️ Store your API key in Streamlit secrets
 
 # ✅ Page Setup
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
@@ -74,10 +74,12 @@ def generate_image(prompt):
                 response_modalities=['IMAGE']
             )
         )
-        for part in response.candidates[-1].content.parts:  # Access the last candidate
-            if part.inline_data is not None:
-                image = Image.open(BytesIO(part.inline_data.data))
-                return image
+        for candidate in response.candidates:
+            if candidate.content and candidate.content.parts:
+                for part in candidate.content.parts:
+                    if part.inline_data is not None:
+                        image = Image.open(BytesIO(part.inline_data.data))
+                        return image
         return None
     except Exception as e:
         return f"❌ Error generating image: {e}"
@@ -288,38 +290,37 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ✅ Input Box (Floating)
 with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
-    user_input = st.text_input("💬 Ask Quantora anything... (Type 'generate image <prompt>' to create an image)", key="user_input", label_visibility="collapsed")
-    send = st.button("🚀 Send")
-
-    if send and user_input:
-        st.session_state.chat.append(("user", user_input))
-        if user_input.lower().startswith("generate image"):
-            image_prompt = user_input.split("generate image", 1)[-1].strip()
-            if image_prompt:
-                st.session_state.chat.append(("quantora", f"Generating image: {image_prompt}"))
-                with st.spinner(f"🎨 Crafting '{image_prompt}'..."):
-                    generated_image = generate_image(image_prompt)
-                    if isinstance(generated_image, Image.Image):
-                        st.session_state.chat.append(("quantora", generated_image))
-                    else:
-                        st.session_state.chat.append(("quantora", generated_image)) # Display error message
-            else:
-                st.session_state.chat.append(("quantora", "Please provide a description for the image after 'generate image'."))
-        else:
-            with st.spinner("🤖 Quantora is processing..."):
-                try:
-                    response = call_quantora_gemini(user_input)
-                    # Simulate typing delay with a more subtle effect
-                    animated_response = ""
-                    for char in response:
-                        animated_response += char
-                        time.sleep(0.002)
-                    st.session_state.chat.append(("quantora", animated_response))
-                except Exception as e:
-                    st.error(f"An error occurred while processing your request: {e}")
-        st.experimental_set_query_params() # Reset query parameters, effectively clearing the input
-        st.experimental_rerun()
+    # ✅ Input box for user prompt
+    user_input = st.text_input("💬 Enter your prompt", key="user_input", label_visibility="collapsed")
+    send_button = st.button("🚀 Send")
     st.markdown('</div>', unsafe_allow_html=True)
-    # ✅ Footer
-st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #777;'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
+
+    # ✅ Handle user input and image generation
+    if send_button and user_input:
+        if user_input.lower().startswith("generate image about"):
+            image_prompt = user_input[len("generate image about"):].strip()
+            if image_prompt:
+                st.info(f"🎨 Generating image about: {image_prompt}")
+                image = generate_image(image_prompt)
+                st.session_state.chat.append(("user", user_input))
+                if isinstance(image, Image.Image):
+                    st.session_state.chat.append(("bot", image))
+                else:
+                    st.session_state.chat.append(("bot", image))
+            else:
+                st.warning("⚠️ Please provide a topic after 'generate image about'.")
+        else:
+            response = call_quantora_gemini(user_input)
+            st.session_state.chat.append(("user", user_input))
+            st.session_state.chat.append(("bot", response))
+
+        st.session_state.user_input = "" # Clear the input box
+        st.experimental_rerun()
+
+# ✅ Display chat history (moved to be after input handling for proper updates)
+# st.markdown("### 🧠 Chat History")
+# for role, message in st.session_state.chat:
+#     if role == "user":
+#         st.markdown(f"<div class='message user'><strong>You:</strong> {message}</div>", unsafe_allow_html=True)
+#     else:
+#         st.markdown(f"<div class='message bot'><strong>Quantora:</strong> {message}</div>", unsafe_allow_html=True)
