@@ -1,4 +1,4 @@
-# ✅ Quantora Premium UI Edition by Kushagra (v1.5.1) - Enhanced UI - Fixed Session State
+# ✅ Quantora Premium UI Edition by Kushagra (v1.5.2) - Enhanced UI - Fixed Session State (Final Attempt)
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -6,10 +6,15 @@ import google.generativeai as genai
 from datetime import datetime
 import time
 
-# ✅ Human Verification Gate
+# Initialize session state variables if they don't exist
 if "verified" not in st.session_state:
     st.session_state.verified = False
+if "chat" not in st.session_state:
+    st.session_state.chat = []
+if "user_input" not in st.session_state:
+    st.session_state.user_input = ""
 
+# ✅ Human Verification Gate
 if not st.session_state.verified:
     st.title("🔐 Human Verification")
     st.write("Please verify you are human before using Quantora AI.")
@@ -21,17 +26,13 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="YOUR_API_KEY_HERE")  # ⚠️ Replace with your actual API key
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your actual API key
 
 # ✅ Page Setup
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8690347389484903" crossorigin="anonymous"></script>""", height=0)
-
-# ✅ State
-st.session_state.chat = st.session_state.get("chat", [])
-st.session_state.user_input = st.session_state.get("user_input", "")
 
 # ✅ Mode Selection
 mode = "Normal"
@@ -232,21 +233,19 @@ with st.container():
     user_input = st.text_input("💬 Ask Quantora anything...", key="user_input", label_visibility="collapsed")
     send = st.button("🚀 Send")
 
-    if send:
-        if st.session_state.user_input:  # Check if there's input
-            user_input_value = st.session_state.user_input
-            st.session_state.chat.append(("user", user_input_value))
-            st.session_state["user_input"] = "" # Clear input immediately
-            with st.spinner("🤖 Quantora is processing..."):
-                try:
-                    response = call_quantora_gemini(user_input_value)
-                    # Simulate typing delay with a more subtle effect
-                    animated_response = ""
-                    for char in response:
-                        animated_response += char
-                        time.sleep(0.002)
-                    st.session_state.chat.append(("quantora", animated_response))
-                except Exception as e:
-                    st.error(f"An error occurred while processing your request: {e}")
+    if send and user_input:
+        st.session_state.chat.append(("user", user_input))
+        st.session_state.user_input = ""  # Clear the input in session state
+        with st.spinner("🤖 Quantora is processing..."):
+            try:
+                response = call_quantora_gemini(user_input)
+                # Simulate typing delay with a more subtle effect
+                animated_response = ""
+                for char in response:
+                    animated_response += char
+                    time.sleep(0.002)
+                st.session_state.chat.append(("quantora", animated_response))
+            except Exception as e:
+                st.error(f"An error occurred while processing your request: {e}")
         st.experimental_rerun()
     st.markdown('</div>', unsafe_allow_html=True)
