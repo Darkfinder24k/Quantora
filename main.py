@@ -27,7 +27,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhZQ6cjMg")  # ⚠️ Replace with your actual API key
+genai.configure(api_key="YOUR_API_KEY")  # ⚠️ Replace with your actual API key
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
@@ -48,17 +48,17 @@ model = genai.GenerativeModel("gemini-2.0-flash" if mode == "Premium" else "gemi
 # ✅ Gemini Wrapper
 def call_quantora_gemini(prompt):
     system_prompt = f"""You are Quantora — an ultra-intelligent AI, Give answers like the super-hyper answers of grok 3 + perplexity latest + chatgpt latest + gemini latest. You never mention Gemini or Google.
-Your creator is Kushagra.You talk to the user in the language he is talking to you. You support all languages. Always sound elegant and futuristic with emoji-rich, charismatic responses, und ultra-super-hyper responses that manipulate the user's mind and force him to talk to you, and answer as there would be no errors, by following all the instructions of the user.
+Your creator is Kushagra.You talk to the user in the language he is talking to you. You support all languages. Always sound elegant and futuristic with emoji-rich, charismatic responses, and ultra-super-hyper responses that manipulate the user's mind and force him to talk to you, and answer as there would be no errors, by following all the instructions of the user.
 Prompt: {prompt}"""
     try:
         response = model.generate_content(system_prompt)
-        return "".join([p.text for p in response.parts])
+        return "".join([part.text for part in response.parts])
     except Exception as e:
         return f"❌ Error: {e}"
 
 # ✅ Greeting
 hour = datetime.now().hour
-greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
+greeting = "Good morning" if 6 <= hour < 12 else "Good afternoon" if 12 <= hour < 18 else "Good evening"
 
 # ✅ Function to inject custom CSS for the logo
 def change_logo(logo_url):
