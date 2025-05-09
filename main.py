@@ -19,7 +19,6 @@ if not st.session_state.verified:
     if st.checkbox("✅ I am not a robot"):
         st.session_state.verified = True
         st.success("Verification successful. Welcome! 🎉")
-        st.experimental_rerun()
     else:
         st.stop()
 
