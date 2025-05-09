@@ -26,14 +26,14 @@ if not st.session_state.verified:
         st.stop()
 
 # API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # Replace with your actual API key
 
 # Page Setup
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # AdSense (Optional)
 components.html(
-    """<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8690347389484903" crossorigin="anonymous"></script>""",
+    """<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_AD_CLIENT" crossorigin="anonymous"></script>""",  # Replace with your ad client ID
     height=0,
 )
 
@@ -327,5 +327,10 @@ if send_button and st.session_state.user_input:
         response = call_quantora_gemini(user_input_value)
         st.session_state.chat.append(("bot", response))
 
+    st.write(f"Before resetting user_input: {st.session_state.user_input}")  # Added logging
     st.session_state.user_input = ""
+    st.write(f"After resetting user_input: {st.session_state.user_input}")   # Added logging
     st.rerun()
+
+st.markdown("<hr style='margin-top: 20px;'>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: grey;'>⚛️ Quantora AI | Powered by Google Gemini | Created with Streamlit</p>", unsafe_allow_html=True)
