@@ -1,5 +1,4 @@
-# (Paste this FULL version over your existing one. All sections are already upgraded)
-# ✅ Quantora Premium UI Edition by Kushagra (v1.5.1)
+# ✅ Quantora Premium UI Edition by Kushagra (v1.5.1) - Enhanced UI
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -67,103 +66,158 @@ if mode == "Premium":
     st.markdown("""
     <style>
     body {
-        background: linear-gradient(135deg, #000428, #004e92);
-        color: #fff;
+        background: linear-gradient(135deg, #2c3e50, #000000); /* Darker, more premium gradient */
+        color: #ecf0f1; /* Light, readable text */
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    .chat-box {
-        background: rgba(255, 255, 255, 0.1);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(15px);
-        border-radius: 20px;
-        padding: 1rem;
-        margin-bottom: 7rem;
+    .chat-container {
+        max-height: 70vh; /* Limit chat height with scroll */
+        overflow-y: auto;
+        padding-bottom: 80px; /* Space for the fixed input */
     }
-    .user-msg, .bot-msg {
-        margin-bottom: 1rem;
-        padding: 1rem;
-        border-radius: 15px;
-        transition: all 0.3s ease-in-out;
-    }
-    .user-msg {
-        background: rgba(255, 255, 255, 0.15);
-        color: #fff;
-    }
-    .bot-msg {
-        background: rgba(0, 255, 255, 0.1);
-        color: #0ff;
-        font-style: italic;
-    }
-    .stButton>button {
-        background: linear-gradient(90deg, #0f0, #0ff);
-        color: #000;
+    .message {
+        background-color: rgba(255, 255, 255, 0.05); /* Subtle background for messages */
         border-radius: 10px;
-        font-weight: bold;
+        padding: 0.8rem;
+        margin-bottom: 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
     }
-    .fixed-bottom {
+    .user {
+        background-color: #34495e; /* Darker user message */
+        color: #ffffff;
+        text-align: right;
+    }
+    .bot {
+        background-color: #2ecc71; /* Vibrant bot message */
+        color: #ffffff;
+        text-align: left;
+        font-style: normal; /* Remove italics for better readability */
+    }
+    .message strong {
+        color: #f39c12; /* Accent color for speaker name */
+    }
+    .send-box {
         position: fixed;
         bottom: 0;
+        left: 0;
         width: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        border-top: 1px solid #0ff;
-        padding: 1rem;
+        background-color: rgba(0, 0, 0, 0.8); /* Dark background for input */
+        padding: 0.8rem;
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        border-top: 1px solid #555;
     }
-    .option-bar button {
-        background: linear-gradient(to right, #222, #555);
-        color: cyan;
-        border-radius: 10px;
+    .send-box input[type="text"] {
+        flex-grow: 1;
+        padding: 0.7rem;
+        border: 1px solid #777;
+        border-radius: 8px;
+        background-color: #444;
+        color: #eee;
+        font-size: 1rem;
+    }
+    .stButton>button {
+        background: linear-gradient(to right, #2980b9, #6dd5ed); /* Modern button gradient */
+        color: #ffffff;
+        border-radius: 8px;
         font-weight: bold;
+        padding: 0.7rem 1.2rem;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(to right, #6dd5ed, #2980b9);
+    }
+    h1 {
+        color: #f1c40f; /* Gold-like header */
+    }
+    h2 {
+        color: #e67e22; /* Orange-like subheader */
+        font-weight: normal;
     }
     </style>
     """, unsafe_allow_html=True)
-    st.success("🔥 Premium UI Activated — Welcome to the most beautiful AI experience!")
+    st.success("🔥 Premium UI Activated — Enjoy the sleek and enhanced experience! ✨")
 else:
     st.markdown("""
     <style>
     body {
-        background-color: #111;
-        color: white;
+        background-color: #1e1e1e; /* Dark background */
+        color: #dcdcdc; /* Light gray text */
+        font-family: 'Consolas', monospace; /* Monospace font for a code-like feel */
     }
-    .chat-box {
-        background-color: #222;
-        padding: 1rem;
-        border-radius: 8px;
-        margin-bottom: 7rem;
+    .chat-container {
+        max-height: 70vh;
+        overflow-y: auto;
+        padding-bottom: 80px;
     }
-    .user-msg, .bot-msg {
-        margin-bottom: 1rem;
-        padding: 0.7rem;
-        border-radius: 8px;
-    }
-    .user-msg {
+    .message {
         background-color: #333;
-        color: white;
+        border-radius: 5px;
+        padding: 0.6rem;
+        margin-bottom: 0.4rem;
     }
-    .bot-msg {
-        background-color: #1a1a1a;
-        color: #0ff;
+    .user {
+        background-color: #555;
+        color: #fff;
+        text-align: right;
+    }
+    .bot {
+        background-color: #007acc; /* Blue accent for bot */
+        color: #fff;
+        text-align: left;
         font-style: italic;
     }
-    .stButton>button {
-        background-color: #444;
-        color: white;
-        border-radius: 5px;
+    .message strong {
+        color: #eee;
     }
-    .fixed-bottom {
+    .send-box {
         position: fixed;
         bottom: 0;
+        left: 0;
         width: 100%;
-        background: #000;
-        padding: 1rem;
-        border-top: 1px solid #333;
+        background-color: #222;
+        padding: 0.6rem;
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        border-top: 1px solid #444;
+    }
+    .send-box input[type="text"] {
+        flex-grow: 1;
+        padding: 0.5rem;
+        border: 1px solid #666;
+        border-radius: 4px;
+        background-color: #444;
+        color: #ccc;
+        font-size: 0.9rem;
+    }
+    .stButton>button {
+        background-color: #666;
+        color: #fff;
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        border: none;
+        cursor: pointer;
+    }
+    h1 {
+        color: #00bfff; /* Cyan header */
+    }
+    h2 {
+        color: #999;
+        font-weight: normal;
     }
     </style>
     """, unsafe_allow_html=True)
-    st.warning("🔓 You're using the Normal version. Upgrade to Premium for a stunning new UI ✨")
+    st.warning("🔓 You're using the Normal version. Upgrade to Premium for a sleek and enhanced UI ✨")
 
 
 # ✅ Header
-st.markdown(f"<h1>{greeting}, Explorer 👋</h1>", unsafe_allow_html=True)
-st.markdown("<h2>Welcome to <b>Quantora</b> Premium — Your Genius Companion ⚛️</h2>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Welcome to <b>Quantora</b> Premium — Your Genius Companion <span style='font-size: 1.2em;'>⚛️</span></h2>", unsafe_allow_html=True)
+st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True) # Subtle divider
 
 # ✅ Chat Display
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
@@ -180,13 +234,13 @@ with st.container():
 
     if send and user_input:
         st.session_state.chat.append(("user", user_input))
-        with st.spinner("🤖 Quantora is thinking..."):
+        with st.spinner("🤖 Quantora is processing..."):
             response = call_quantora_gemini(user_input)
-            # Simulate typing delay
+            # Simulate typing delay with a more subtle effect
             animated_response = ""
             for char in response:
                 animated_response += char
-                time.sleep(0.005)
+                time.sleep(0.002)
             st.session_state.chat.append(("quantora", animated_response))
         st.session_state.user_input = ""  # Auto-clear input
         st.experimental_rerun()
