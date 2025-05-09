@@ -1,5 +1,3 @@
-# ✅ Quantora Premium UI Edition by Kushagra (v1.5.2) - Enhanced UI - Fixed Session State (Final Attempt)
-
 import streamlit as st
 import streamlit.components.v1 as components
 import google.generativeai as genai
@@ -61,6 +59,33 @@ Prompt: {prompt}"""
 # ✅ Greeting
 hour = datetime.now().hour
 greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
+
+# ✅ Function to inject custom CSS for the logo
+def change_logo(logo_url):
+    st.markdown(
+        f"""
+        <style>
+            [data-testid="stAppViewContainer"] > div{{
+                background-image: url("{logo_url}");
+                background-repeat: no-repeat;
+                background-position: top left;
+                padding-top: 120px; /* Adjust top padding to move content below the logo */
+                background-size: contain;
+            }}
+            [data-testid="stHeader"] {{
+                background-color: rgba(0,0,0,0);
+            }}
+            [data-testid="stToolbar"] {{
+                right: 2rem;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# ✅ Apply the Quantora logo
+quantora_logo_url = "https://www.flaticon.com/free-icon/quantum_7343843"  # ⚠️ Replace with the actual URL of the Quantora logo
+change_logo(quantora_logo_url)
 
 # ✅ UI Styling based on Plan
 if mode == "Premium":
