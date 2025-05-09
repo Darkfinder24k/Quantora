@@ -299,7 +299,6 @@ with st.container():
     # ✅ Handle user input and image generation
     if send_button and st.session_state.user_input: # Use st.session_state.user_input here
         user_input_value = st.session_state.user_input # Capture the value
-        st.session_state.user_input = "" # Clear the input box immediately after sending
 
         if user_input_value.lower().startswith("generate image about"):
             image_prompt = user_input_value[len("generate image about"):].strip()
@@ -318,6 +317,7 @@ with st.container():
             st.session_state.chat.append(("user", user_input_value))
             st.session_state.chat.append(("bot", response))
 
+        # Rely on st.experimental_rerun() to clear the input
         st.experimental_rerun()
 
 # ✅ Display chat history (moved to be after input handling for proper updates)
