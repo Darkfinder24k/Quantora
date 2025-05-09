@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import google.generativeai as genai
 from datetime import datetime
 import time
+import uuid
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
@@ -26,7 +27,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your actual API key
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhZQ6cjMg")  # ⚠️ Replace with your actual API key
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
@@ -68,8 +69,14 @@ def change_logo(logo_url):
                 background-image: url("{logo_url}");
                 background-repeat: no-repeat;
                 background-position: top left;
-                padding-top: 120px; /* Adjust top padding to move content below the logo */
+                padding-top: 120px;
                 background-size: contain;
+                animation: logo-pulse 3s infinite ease-in-out;
+            }}
+            @keyframes logo-pulse {{
+                0% {{ transform: scale(1); opacity: 0.8; }}
+                50% {{ transform: scale(1.05); opacity: 1; }}
+                100% {{ transform: scale(1); opacity: 0.8; }}
             }}
             [data-testid="stHeader"] {{
                 background-color: rgba(0,0,0,0);
@@ -91,87 +98,126 @@ if mode == "Premium":
     st.markdown("""
     <style>
     body {
-        background: linear-gradient(135deg, #2c3e50, #000000); /* Darker, more premium gradient */
-        color: #ecf0f1; /* Light, readable text */
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1a1a2e, #0f0f23);
+        color: #e0e0e0;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        letter-spacing: 0.02em;
     }
     .chat-container {
-        max-height: 70vh; /* Limit chat height with scroll */
+        max-height: 70vh;
         overflow-y: auto;
-        padding-bottom: 80px; /* Space for the fixed input */
+        padding-bottom: 100px;
+        scrollbar-width: thin;
+        scrollbar-color: #4b5eaae6 #1a1a2e;
+    }
+    .chat-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    .chat-container::-webkit-scrollbar-track {
+        background: #1a1a2e;
+    }
+    .chat-container::-webkit-scrollbar-thumb {
+        background-color: #4b5eaae6;
+        border-radius: 10px;
     }
     .message {
-        background-color: rgba(255, 255, 255, 0.05); /* Subtle background for messages */
-        border-radius: 10px;
-        padding: 0.8rem;
-        margin-bottom: 0.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .message:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
     .user {
-        background-color: #34495e; /* Darker user message */
+        background: linear-gradient(145deg, #2c3e50, #34495e);
         color: #ffffff;
         text-align: right;
     }
     .bot {
-        background-color: #2ecc71; /* Vibrant bot message */
+        background: linear-gradient(145deg, #2ecc71, #27ae60);
         color: #ffffff;
         text-align: left;
-        font-style: normal; /* Remove italics for better readability */
     }
     .message strong {
-        color: #f39c12; /* Accent color for speaker name */
+        color: #ffd700;
+        font-weight: 600;
     }
     .send-box {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        background-color: rgba(0, 0, 0, 0.8); /* Dark background for input */
-        padding: 0.8rem;
+        background: rgba(10, 10, 30, 0.9);
+        backdrop-filter: blur(12px);
+        padding: 1rem;
         display: flex;
-        gap: 0.5rem;
+        gap: 0.75rem;
         align-items: center;
-        border-top: 1px solid #555;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
     }
     .send-box input[type="text"] {
         flex-grow: 1;
-        padding: 0.7rem;
-        border: 1px solid #777;
-        border-radius: 8px;
-        background-color: #444;
-        color: #eee;
+        padding: 0.9rem;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #e0e0e0;
         font-size: 1rem;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .send-box input[type="text"]:focus {
+        border-color: #4b5eaae6;
+        box-shadow: 0 0 8px rgba(75, 94, 170, 0.5);
+        outline: none;
     }
     .stButton>button {
-        background: linear-gradient(to right, #2980b9, #6dd5ed); /* Modern button gradient */
+        background: linear-gradient(90deg, #4b5eaae6, #7f9cf5e6);
         color: #ffffff;
-        border-radius: 8px;
-        font-weight: bold;
-        padding: 0.7rem 1.2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        padding: 0.9rem 1.5rem;
         border: none;
         cursor: pointer;
-        transition: background-color 0.3s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
     .stButton>button:hover {
-        background: linear-gradient(to right, #6dd5ed, #2980b9);
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(75, 94, 170, 0.4);
     }
     h1 {
-        color: #f1c40f; /* Gold-like header */
+        color: #ffd700;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
     h2 {
-        color: #e67e22; /* Orange-like subheader */
-        font-weight: normal;
+        color: #ffaa33;
+        font-weight: 500;
+    }
+    .stSelectbox > div > div {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        color: #e0e0e0;
+    }
+    .stTextInput > div > div > input {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        color: #e0e0e0;
     }
     </style>
     """, unsafe_allow_html=True)
-    st.success("🔥 Premium UI Activated — Enjoy the sleek and enhanced experience! ✨")
+    st.success("🔥 Premium UI Activated — Experience the Ultimate Quantora Interface! ✨")
 else:
     st.markdown("""
     <style>
     body {
-        background-color: #1e1e1e; /* Dark background */
-        color: #dcdcdc; /* Light gray text */
-        font-family: 'Consolas', monospace; /* Monospace font for a code-like feel */
+        background: linear-gradient(135deg, #2c2c2c, #1e1e1e);
+        color: #dcdcdc;
+        font-family: 'Consolas', monospace;
     }
     .chat-container {
         max-height: 70vh;
@@ -179,18 +225,18 @@ else:
         padding-bottom: 80px;
     }
     .message {
-        background-color: #333;
-        border-radius: 5px;
-        padding: 0.6rem;
-        margin-bottom: 0.4rem;
+        background: #333;
+        border-radius: 8px;
+        padding: 0.8rem;
+        margin-bottom: 0.5rem;
     }
     .user {
-        background-color: #555;
+        background: #555;
         color: #fff;
         text-align: right;
     }
     .bot {
-        background-color: #007acc; /* Blue accent for bot */
+        background: #007acc;
         color: #fff;
         text-align: left;
         font-style: italic;
@@ -203,32 +249,32 @@ else:
         bottom: 0;
         left: 0;
         width: 100%;
-        background-color: #222;
-        padding: 0.6rem;
+        background: #222;
+        padding: 0.8rem;
         display: flex;
-        gap: 0.4rem;
+        gap: 0.5rem;
         align-items: center;
         border-top: 1px solid #444;
     }
     .send-box input[type="text"] {
         flex-grow: 1;
-        padding: 0.5rem;
+        padding: 0.7rem;
         border: 1px solid #666;
-        border-radius: 4px;
-        background-color: #444;
+        border-radius: 8px;
+        background: #444;
         color: #ccc;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
     }
     .stButton>button {
-        background-color: #666;
+        background: #666;
         color: #fff;
-        border-radius: 4px;
-        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        padding: 0.7rem 1.2rem;
         border: none;
         cursor: pointer;
     }
     h1 {
-        color: #00bfff; /* Cyan header */
+        color: #00bfff;
     }
     h2 {
         color: #999;
@@ -238,14 +284,13 @@ else:
     """, unsafe_allow_html=True)
     st.warning("🔓 You're using the Normal version. Upgrade to Premium for a sleek and enhanced UI ✨")
 
-
 # ✅ Header
 st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
 if mode == "Premium":
-    st.markdown("<h2 style='text-align: center; color: #f39c12; font-weight: bold; text-shadow: 2px 2px 4px #000;'>✨ Welcome to <span style='font-size: 1.2em;'>⚛️</span> <span style='color: #ffcc00;'>Quantora Premium</span> — Your Genius AI Companion <span style='font-size: 1.2em;'>⚛️</span> ✨</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; font-weight: bold; text-shadow: 2px 2px 4px #000;'>✨ Welcome to <span style='font-size: 1.2em;'>⚛️</span> <span style='color: #ffd700;'>Quantora Premium</span> — Your Genius AI Companion <span style='font-size: 1.2em;'>⚛️</span> ✨</h2>", unsafe_allow_html=True)
 else:
     st.markdown("<h2 style='text-align: center;'>Welcome to <b>Quantora</b> — Your Genius AI Companion <span style='font-size: 1.2em;'>⚛️</span></h2>", unsafe_allow_html=True)
-st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True) # Subtle divider
+st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
 
 # ✅ Chat Display
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
@@ -257,7 +302,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ✅ Input Box (Floating)
 with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
-    user_input = st.text_input("💬 Ask Quantora anything...", key="user_input", label_visibility="collapsed")
+    user_input = st.text_input("💬 Ask Quantora anything...", key=f"user_input_{uuid.uuid4()}", label_visibility="collapsed")
     send = st.button("🚀 Send")
 
     if send and user_input:
@@ -265,17 +310,15 @@ with st.container():
         with st.spinner("🤖 Quantora is processing..."):
             try:
                 response = call_quantora_gemini(user_input)
-                # Simulate typing delay with a more subtle effect
                 animated_response = ""
                 for char in response:
                     animated_response += char
                     time.sleep(0.002)
                 st.session_state.chat.append(("quantora", animated_response))
-                # Force a re-render to display the new message immediately
                 st.rerun()
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
-        st.query_params.clear() # Reset query parameters, effectively clearing the input
+        st.query_params.clear()
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ✅ Footer
