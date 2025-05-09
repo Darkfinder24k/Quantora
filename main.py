@@ -3,6 +3,25 @@ import streamlit.components.v1 as components
 import google.generativeai as genai
 from datetime import datetime
 
+# ✅ Human Verification Gate (before any other code runs)
+if "verified" not in st.session_state:
+    st.session_state.verified = False
+
+if not st.session_state.verified:
+    st.set_page_config(page_title="🔐 Human Verification", layout="centered")
+    st.title("🔐 Human Verification")
+    st.write("Please verify you are human before using Quantora AI.")
+
+    # 🧠 Simple checkbox method (replace with real reCAPTCHA if needed)
+    agree = st.checkbox("✅ I am not a robot")
+
+    if agree:
+        st.session_state.verified = True
+        st.success("Verification successful. Welcome! 🎉")
+        st.experimental_rerun()
+    else:
+        st.stop()
+
 # ✅ Configure Gemini API
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
 
