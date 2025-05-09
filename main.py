@@ -4,6 +4,9 @@ import google.generativeai as genai
 from datetime import datetime
 import time
 
+# ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
+st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
+
 # Initialize session state variables if they don't exist
 if "verified" not in st.session_state:
     st.session_state.verified = False
@@ -24,9 +27,6 @@ if not st.session_state.verified:
 
 # ✅ API Configuration
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your actual API key
-
-# ✅ Page Setup
-st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8690347389484903" crossorigin="anonymous"></script>""", height=0)
