@@ -235,7 +235,6 @@ with st.container():
 
     if send and user_input:
         st.session_state.chat.append(("user", user_input))
-        st.session_state.user_input = ""  # Clear the input in session state
         with st.spinner("🤖 Quantora is processing..."):
             try:
                 response = call_quantora_gemini(user_input)
@@ -247,5 +246,6 @@ with st.container():
                 st.session_state.chat.append(("quantora", animated_response))
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
+        st.experimental_set_query_params() # Reset query parameters, effectively clearing the input
         st.experimental_rerun()
     st.markdown('</div>', unsafe_allow_html=True)
