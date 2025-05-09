@@ -69,8 +69,7 @@ Prompt: {prompt}"""
 def generate_image(prompt):
     try:
         response = image_model.generate_content(
-            contents=prompt,
-            response_mime_types=['image/*']  # Specifying the expected MIME type
+            contents=prompt  # Removed the 'response_mime_types' argument
         )
         for candidate in response.candidates:
             if candidate.content and candidate.content.parts:
@@ -81,6 +80,7 @@ def generate_image(prompt):
         return None
     except Exception as e:
         return f"❌ Error generating image: {e}"
+
 
 # ✅ Greeting
 hour = datetime.now().hour
