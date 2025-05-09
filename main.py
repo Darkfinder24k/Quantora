@@ -27,7 +27,7 @@ if not st.session_state.verified:
 
 # ✅ API Configuration
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
-  # ⚠️ Store your API key in Streamlit secrets
+# ⚠️ Store your API key in Streamlit secrets
 
 # ✅ Page Setup
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
@@ -299,6 +299,7 @@ with st.container():
     # ✅ Handle user input and image generation
     if send_button and st.session_state.user_input: # Use st.session_state.user_input here
         user_input_value = st.session_state.user_input # Capture the value
+        st.session_state.user_input = "" # Clear the input box immediately after sending
 
         if user_input_value.lower().startswith("generate image about"):
             image_prompt = user_input_value[len("generate image about"):].strip()
@@ -317,14 +318,7 @@ with st.container():
             st.session_state.chat.append(("user", user_input_value))
             st.session_state.chat.append(("bot", response))
 
-        # We don't explicitly clear st.session_state.user_input here.
-        # The text_input will be re-rendered as empty in the next run.
         st.experimental_rerun()
 
 # ✅ Display chat history (moved to be after input handling for proper updates)
-st.markdown("### 🧠 Chat History")
-for role, message in st.session_state.chat:
-    if role == "user":
-        st.markdown(f"<div class='message user'><strong>You:</strong> {message}</div>", unsafe_allow_html=True)
-    else:
-        st.markdown(f"<div class='message bot'><strong>Quantora:</strong> {message}</div>", unsafe_allow_html=True)
+# Removed the redundant chat history display here as it's already being rendered above.
