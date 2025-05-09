@@ -1,4 +1,4 @@
-# ✅ Quantora Premium UI Edition by Kushagra (v1.5.1) - Enhanced UI
+# ✅ Quantora Premium UI Edition by Kushagra (v1.5.1) - Enhanced UI - Fixed Session State
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -21,7 +21,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
+genai.configure(api_key="YOUR_API_KEY_HERE")  # ⚠️ Replace with your actual API key
 
 # ✅ Page Setup
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
@@ -232,16 +232,21 @@ with st.container():
     user_input = st.text_input("💬 Ask Quantora anything...", key="user_input", label_visibility="collapsed")
     send = st.button("🚀 Send")
 
-    if send and user_input:
-        st.session_state.chat.append(("user", user_input))
-        with st.spinner("🤖 Quantora is processing..."):
-            response = call_quantora_gemini(user_input)
-            # Simulate typing delay with a more subtle effect
-            animated_response = ""
-            for char in response:
-                animated_response += char
-                time.sleep(0.002)
-            st.session_state.chat.append(("quantora", animated_response))
-        st.session_state["user_input"] = ""  # Auto-clear input  # Auto-clear input
+    if send:
+        if st.session_state.user_input:  # Check if there's input
+            user_input_value = st.session_state.user_input
+            st.session_state.chat.append(("user", user_input_value))
+            st.session_state["user_input"] = "" # Clear input immediately
+            with st.spinner("🤖 Quantora is processing..."):
+                try:
+                    response = call_quantora_gemini(user_input_value)
+                    # Simulate typing delay with a more subtle effect
+                    animated_response = ""
+                    for char in response:
+                        animated_response += char
+                        time.sleep(0.002)
+                    st.session_state.chat.append(("quantora", animated_response))
+                except Exception as e:
+                    st.error(f"An error occurred while processing your request: {e}")
         st.experimental_rerun()
     st.markdown('</div>', unsafe_allow_html=True)
