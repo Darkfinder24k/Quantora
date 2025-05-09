@@ -274,7 +274,6 @@ with st.container():
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
         st.experimental_set_query_params() # Reset query parameters, effectively clearing the input
-        st.experimental_rerun()
     st.markdown('</div>', unsafe_allow_html=True)# ✅ Footer
 st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #777;'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
