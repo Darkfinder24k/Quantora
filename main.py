@@ -29,7 +29,7 @@ if not st.session_state.verified:
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your actual API key
 
 # ✅ AdSense (Optional)
-components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8690347389484903" crossorigin="anonymous"></script>""", height=0)
+components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
 
 # ✅ Mode Selection
 mode = "Normal"
@@ -271,6 +271,8 @@ with st.container():
                     animated_response += char
                     time.sleep(0.002)
                 st.session_state.chat.append(("quantora", animated_response))
+                # Force a re-render to display the new message immediately
+                st.rerun()
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
         st.query_params.clear() # Reset query parameters, effectively clearing the input
