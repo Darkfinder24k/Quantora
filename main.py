@@ -12,7 +12,7 @@ st.set_page_config(page_title="⚛️ Quantora AI", layout="centered")
 # ✅ Inject Google AdSense script
 components.html("""
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8690347389484903"
-            crossorigin="anonymous"></script>
+                    crossorigin="anonymous"></script>
 """, height=0)
 
 # ✅ Session state for chat history
@@ -67,6 +67,10 @@ if mode == "Normal":
         background: radial-gradient(circle, #0d0d0d, #000);
         color: #fff;
         font-family: 'Segoe UI', sans-serif;
+        margin: 0; /* Remove default body margin */
+        padding-bottom: 80px; /* Add padding for the fixed input bar */
+        box-sizing: border-box; /* Ensure padding doesn't affect viewport height */
+        position: relative; /* For positioning the fixed input bar */
     }
     h1, h2 {
         text-align: center;
@@ -90,14 +94,34 @@ if mode == "Normal":
         background-color: #1e1e1e;
         font-style: italic;
     }
-    input, textarea {
-        background-color: #222 !important;
-        color: #fff !important;
+    .fixed-input-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: #222;
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.2);
     }
-    .stButton>button {
+    .fixed-input-bar input[type="text"] {
+        flex-grow: 1;
+        background-color: #333 !important;
+        color: #fff !important;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem;
+        font-size: 1rem;
+    }
+    .fixed-input-bar button {
         background-color: #333;
         color: #fff;
+        border: none;
         border-radius: 8px;
+        padding: 0.6rem 1rem;
+        cursor: pointer;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -109,6 +133,10 @@ else:
         font-family: 'Orbitron', sans-serif;
         color: #00fdfd;
         background-attachment: fixed;
+        margin: 0; /* Remove default body margin */
+        padding-bottom: 80px; /* Add padding for the fixed input bar */
+        box-sizing: border-box; /* Ensure padding doesn't affect viewport height */
+        position: relative; /* For positioning the fixed input bar */
     }
     h1, h2 {
         text-align: center;
@@ -122,6 +150,7 @@ else:
         border-radius: 25px;
         box-shadow: 0 0 30px #0ff3;
         backdrop-filter: blur(10px);
+        margin-bottom: 80px; /* Adjust margin to account for fixed bar */
     }
     .user-msg {
         background-color: #111132;
@@ -136,20 +165,39 @@ else:
         border-radius: 15px;
         font-style: italic;
     }
-    input, textarea {
+    .fixed-input-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: #070722;
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        border-top: 1px solid #00eaff;
+        box-shadow: 0 -5px 15px #00eaff33;
+    }
+    .fixed-input-bar input[type="text"] {
+        flex-grow: 1;
         background-color: #070722 !important;
         color: #00fff7 !important;
         border: 1px solid #00eaff;
         border-radius: 10px;
+        padding: 0.8rem;
+        font-size: 1rem;
     }
-    .stButton>button {
+    .fixed-input-bar button {
         background-color: #00eaff !important;
         color: #000 !important;
+        border: none;
         border-radius: 12px;
+        padding: 0.8rem 1.2rem;
+        cursor: pointer;
         box-shadow: 0 0 15px #00eaff;
         font-weight: bold;
     }
-    .stButton>button:hover {
+    .fixed-input-bar button:hover {
         background-color: #00fff7 !important;
     }
     </style>
@@ -163,21 +211,11 @@ st.markdown("<h2>Welcome to <b>Quantora</b> — your intelligent, elegant AI ⚛
 # ✅ Instructions
 with st.expander("📘 How to Use Quantora"):
     st.markdown("""
-- Type anything below.
-- Click **Send** to get a powerful answer.
+- Type anything in the search bar at the bottom.
+- Click **Send** (or press Enter) to get a powerful answer.
 - Your conversation stays here until refresh.
 - Quantora supports all languages and all minds 🌐.
 """)
-
-# ✅ Prompt input
-user_input = st.text_input("💬 Ask Quantora anything...")
-
-# ✅ Process and respond
-if user_input:
-    st.session_state.chat.append(("user", user_input))
-    with st.spinner("⚛️ Quantora is processing..."):
-        response = call_quantora_gemini(user_input)
-    st.session_state.chat.append(("quantora", response))
 
 # ✅ Display chat history
 st.markdown('<div class="chat-box">', unsafe_allow_html=True)
@@ -187,3 +225,19 @@ for speaker, msg in st.session_state.chat:
     else:
         st.markdown(f'<div class="bot-msg"><strong>Quantora:</strong><br>{msg}</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
+
+# ✅ Fixed prompt input bar
+with st.container():
+    cols = st.columns([0.8, 0.2])
+    with cols[0]:
+        user_input = st.text_input("💬 Ask Quantora...", key="bottom_input", label_visibility="collapsed")
+    with cols[1]:
+        send_button = st.button("Send", key="bottom_send")
+
+    if send_button and user_input:
+        st.session_state.chat.append(("user", user_input))
+        with st.spinner("⚛️ Quantora is processing..."):
+            response = call_quantora_gemini(user_input)
+        st.session_state.chat.append(("quantora", response))
+        # Clear the input field after sending
+        st.session_state["bottom_input"] = ""
