@@ -242,7 +242,10 @@ else:
 
 # ✅ Header
 st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>Welcome to <b>Quantora</b>— Your Genius Companion <span style='font-size: 1.2em;'>⚛️</span></h2>", unsafe_allow_html=True)
+if mode == "Premium":
+    st.markdown("<h2 style='text-align: center; color: #f39c12; font-weight: bold; text-shadow: 2px 2px 4px #000;'>✨ Welcome to <span style='font-size: 1.2em;'>⚛️</span> <span style='color: #ffcc00;'>Quantora Premium</span> — Your Genius AI Companion <span style='font-size: 1.2em;'>⚛️</span> ✨</h2>", unsafe_allow_html=True)
+else:
+    st.markdown("<h2 style='text-align: center;'>Welcome to <b>Quantora</b> — Your Genius AI Companion <span style='font-size: 1.2em;'>⚛️</span></h2>", unsafe_allow_html=True)
 st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True) # Subtle divider
 
 # ✅ Chat Display
@@ -274,3 +277,6 @@ with st.container():
         st.experimental_set_query_params() # Reset query parameters, effectively clearing the input
         st.experimental_rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+    # ✅ Footer
+st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #777;'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
