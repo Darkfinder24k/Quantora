@@ -5,73 +5,50 @@ from datetime import datetime
 import time
 import uuid
 import speech_recognition as sr
-import requests  # For verifying reCAPTCHA server-side
-
+from captcha.image import ImageCaptcha
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # Initialize session state variables if they don't exist
+# ✅ Session state init
 if "verified" not in st.session_state:
     st.session_state.verified = False
+if "captcha_text" not in st.session_state:
+    st.session_state.captcha_text = ""
+if "captcha_input" not in st.session_state:
+    st.session_state.captcha_input = ""
 if "chat" not in st.session_state:
     st.session_state.chat = []
-if "user_input" not in st.session_state:
-    st.session_state.user_input = ""
-if "recaptcha_response" not in st.session_state:
-    st.session_state.recaptcha_response = ""
 
-# ✅ reCAPTCHA Configuration
-RECAPTCHA_SITE_KEY = "6LdipDQrAAAAAJy8Zj7gEwGttrUKyNJ2zzWK3J7v"  # Replace with your real site key
-RECAPTCHA_SECRET_KEY = "6LdipDQrAAAAAN8gd1m34schDuLVa16772hr03ko"  # Replace with your real secret key
-RECAPTCHA_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify"
+# ✅ Captcha Generation
+def generate_captcha():
+    image = ImageCaptcha()
+    captcha_text = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+    filename = f"captcha_{captcha_text}.png"
+    image.write(captcha_text, filename)
+    return filename, captcha_text
 
-# ✅ Function to render reCAPTCHA and pass response to Streamlit
-def render_recaptcha():
-    components.html(
-        f"""
-        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-        <form id="recaptcha-form">
-            <div class="g-recaptcha" data-sitekey="{RECAPTCHA_SITE_KEY}" data-callback="onSubmit"></div>
-        </form>
-        <script>
-            function onSubmit(token) {{
-                const streamlitInput = window.parent.document.querySelector('input[data-testid="stTextInput"]');
-                if (streamlitInput) {{
-                    streamlitInput.value = token;
-                    const inputEvent = new Event('input', {{ bubbles: true }});
-                    streamlitInput.dispatchEvent(inputEvent);
-                }}
-            }}
-        </script>
-        """,
-        height=130,
-    )
-
-# ✅ Human Verification Gate
+# ✅ Human Verification (Image Captcha)
 if not st.session_state.verified:
     st.title("🔐 Human Verification")
-    st.write("Please complete the reCAPTCHA below to continue.")
+    st.write("Please complete the image CAPTCHA below:")
 
-    # Hidden input to catch reCAPTCHA token
-    recaptcha_token = st.text_input("reCAPTCHA Token", type="default", label_visibility="collapsed")
+    captcha_file, generated_text = generate_captcha()
+    st.session_state.captcha_text = generated_text
 
-    render_recaptcha()
+    st.image(captcha_file, caption="Enter the text you see above", use_column_width=False)
+    user_input = st.text_input("🔏 Enter Captcha Text")
 
     if st.button("Verify"):
-        if recaptcha_token:
-            response = requests.post(RECAPTCHA_VERIFY_URL, data={
-                'secret': RECAPTCHA_SECRET_KEY,
-                'response': recaptcha_token
-            })
-            result = response.json()
-            if result.get("success"):
-                st.session_state.verified = True
-                st.success("✅ Human verification successful!")
-                st.rerun()
-            else:
-                st.error("❌ reCAPTCHA verification failed. Please try again.")
+        if user_input.strip().upper() == st.session_state.captcha_text:
+            st.success("✅ Verification successful!")
+            st.session_state.verified = True
+            os.remove(captcha_file)
+            st.rerun()
         else:
-            st.warning("⚠️ Please complete the reCAPTCHA before clicking verify.")
+            st.error("❌ Incorrect CAPTCHA. Please try again.")
+            os.remove(captcha_file)
+            st.rerun()
 
     st.stop()
 
