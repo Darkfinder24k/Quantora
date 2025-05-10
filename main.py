@@ -12,6 +12,7 @@ from PIL import Image
 import os
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
+# ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # Initialize session state variables if they don't exist
@@ -44,7 +45,7 @@ if not st.session_state.verified:
     st.session_state.captcha_text = generated_text
 
     st.image(captcha_file, caption="Enter the text you see above", use_column_width=False)
-    user_input = st.text_input("🔏 Enter Captcha Text")
+    user_input = st.text_input("🔏 Enter Captcha Text", key="captcha_input_field") # Added a key
 
     if st.button("Verify"):
         if user_input.strip().upper() == st.session_state.captcha_text:
@@ -54,8 +55,9 @@ if not st.session_state.verified:
             st.rerun()
         else:
             st.error("❌ Incorrect CAPTCHA. Please try again.")
-            os.remove(captcha_file)
-            st.rerun()
+            if os.path.exists(captcha_file): # Ensure file exists before trying to remove
+                os.remove(captcha_file)
+            # No need to rerun immediately here; the next script execution will show the CAPTCHA again
 
     st.stop()
 
