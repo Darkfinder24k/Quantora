@@ -1,6 +1,6 @@
 streamlit==1.14.0
-streamlit-components==0.6.0
-google-generativeai==0.3.0
-speechrecognition==3.8.1
-captcha==0.4
-pillow==9.0.1
+google-generativeai
+datetime
+speechrecognition
+Pillow
+captcha
