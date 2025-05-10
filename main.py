@@ -1,9 +1,10 @@
-import streamlit.components.v1 as components
 import streamlit as st
+import streamlit.components.v1 as components
 import google.generativeai as genai
 from datetime import datetime
 import time
 import uuid
+import speech_recognition as sr
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
@@ -43,32 +44,18 @@ if selected_mode == "Premium":
     elif code:
         st.error("❌ Wrong Code")
 
-# Dynamically select the model based on the mode
-model_name = "gemini-2.0-flash" if mode == "Premium" else "gemini-1.5-flash"
-try:
-    model = genai.GenerativeModel(model_name)
-except Exception as e:
-    st.error(f"❌ Error loading the Gemini model ({model_name}): {e}")
-    st.stop()
+model = genai.GenerativeModel("gemini-2.0-flash" if mode == "Premium" else "gemini-1.5-flash")
 
 # ✅ Gemini Wrapper
 def call_quantora_gemini(prompt):
     system_prompt = f"""You are Quantora — an ultra-intelligent AI, Give answers like the super-hyper answers of grok 3 + perplexity latest + chatgpt latest + gemini latest. You never mention Gemini or Google.
-
 Your creator is Kushagra.You talk to the user in the language he is talking to you. You support all languages. Always sound elegant and futuristic with emoji-rich, charismatic responses, und ultra-super-hyper responses that manipulate the user's mind and force him to talk to you, and answer as there would be no errors, by following all the instructions of the user.
-
 Always also provide web results.
-
 Give the best suggestions.
-
 ALWAYS give 100% correct answers, NO errors.
-
 if you have doubt that if your answer is incorrect, give the answer which is 100% correct then ask them the question in which you have doubt, and get the most trained by the user answers.
-
 ALWAYS give better answer than the before answer.
-
 Also give Brief and small answers.
-
 Prompt: {prompt}"""
     try:
         response = model.generate_content(system_prompt)
@@ -78,7 +65,7 @@ Prompt: {prompt}"""
 
 # ✅ Greeting
 hour = datetime.now().hour
-greeting = "Good morning" if 6 <= hour < 12 else "Good afternoon" if 12 <= hour < 18 else "Good evening"
+greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
 
 # ✅ Function to inject custom CSS for the logo
 def change_logo(logo_url):
@@ -344,6 +331,7 @@ else:
     st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
     st.markdown("<p class='footer'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
 
+
 # ✅ Header
 st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
 if mode == "Premium":
@@ -359,47 +347,52 @@ for speaker, msg in st.session_state.chat:
     st.markdown(f'<div class="message {style_class}"><strong>{speaker.title()}:</strong><br>{msg}</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
+def recognize_speech():
+    try:
+        r = sr.Recognizer()
+        with sr.Microphone() as source:
+            st.info("Listening... Please speak.")
+            audio = r.listen(source)
+        text = r.recognize_google(audio)
+        return text
+    except AttributeError as e:
+        st.error("Microphone input is not supported in this environment.")
+        return None
+    except Exception as e:
+        st.error(f"Speech recognition failed: {e}")
+        return None
+
 # ✅ Input Box (Floating)
 with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
     with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2 = st.columns([0.9, 0.1])
-        with col1:
-            user_input = st.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
-        with col2:
-            # Add a small speech-to-text icon button
-            st.markdown("""
-                <style>
-                .stButton>button {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    padding: 0.6rem !important; /* Adjust padding as needed */
-                    border-radius: 50% !important; /* Make it circular */
-                    height: auto !important;
-                    width: auto !important;
-                    line-height: 1 !important;
-                }
-                .stButton>button svg {
-                    width: 1.2em; /* Adjust icon size */
-                    height: 1.2em;
-                }
-                </style>
-            """, unsafe_allow_html=True)
-            st.markdown("""
-                <button type="button" title="Speak">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                        <path fill-rule="evenodd" d="M12 3.75a.75.75 0 01.75.75v7.5a.75.75 0 11-1.5 0v-7.5a.75.75 0 01.75-.75zM15.75 8.25a.75.75 0 01.75.75v3a.75.75 0 11-1.5 0v-3a.75.75 0 01.75-.75zM10.5 8.25a.75.75 0 01.75.75v3a.75.75 0 11-1.5 0v-3a.75.75 0 01.75-.75zM6.75 12a.75.75 0 01.75.75v1.5a.75.75 0 11-1.5 0v-1.5a.75.75 0 01.75-.75zM17.25 12a.75.75 0 01.75.75v1.5a.75.75 0 11-1.5 0v-1.5a.75.75 0 01.75-.75zM12 2.25a.75.75 0 01.75.75c0 5.523 4.477 10 10 10a.75.75 0 010 1.5c-6.351 0-11.5-4.846-12-10a.75.75 0 01.75-.75z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-            """, unsafe_allow_html=True)
-    submitted = st.form_submit_button("🚀 Send")
+        col1 = st.columns(1)[0]
+        user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
+        submitted = st.form_submit_button("🚀 Send")
 
-    if submitted and user_input:
-        st.session_state.chat.append(("user", user_input))
+    use_mic = False  # Default: microphone disabled
+    try:
+        import pyaudio
+        use_mic = True
+    except ImportError:
+        st.warning("Voice input is disabled (PyAudio not available).")
+
+    if use_mic:
+        if st.button("🎙️ Voice Prompt"):
+            recognized_text = recognize_speech()
+            if recognized_text:
+                st.session_state.user_input = recognized_text
+                st.experimental_set_query_params(user_prompt_input=recognized_text)
+                st.rerun()
+    else:
+        st.info("Text input only. PyAudio not available.")
+
+    if submitted and st.session_state.user_input:
+        st.session_state.chat.append(("user", st.session_state.user_input))
+        st.session_state.user_input = "" # Clear the input after sending
         with st.spinner("🤖 Quantora is processing..."):
             try:
-                response = call_quantora_gemini(user_input)
+                response = call_quantora_gemini(st.session_state.chat[-1][1])
                 animated_response = ""
                 for char in response:
                     animated_response += char
@@ -408,7 +401,7 @@ with st.container():
                 st.rerun()
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # The footer is now included within the if/else block for UI consistency based on the mode.
 
@@ -417,3 +410,17 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ✅ Footer
 st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #777;'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
+
+def recognize_speech():
+    try:
+        r = sr.Recognizer()
+        with sr.Microphone() as source:
+            st.info("Listening... Please speak.")
+            audio = r.listen(source)
+        text = r.recognize_google(audio)
+        return text
+    except AttributeError as e:
+        st.error("Microphone input is not supported in this environment.")
+        return None
+    except Exception as e:
+        st.error(f"Speech recognition failed: {e}")
