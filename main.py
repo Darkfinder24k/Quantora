@@ -55,11 +55,12 @@ if not st.session_state.verified:
             st.rerun()
         else:
             st.error("❌ Incorrect CAPTCHA. Please try again.")
-            if os.path.exists(captcha_file): # Ensure file exists before trying to remove
+            if os.path.exists(captcha_file):
                 os.remove(captcha_file)
-            # No need to rerun immediately here; the next script execution will show the CAPTCHA again
+            # No immediate rerun here
 
     st.stop()
+            # No need to rerun immediately here; the next script execution will show the CAPTCHA again
 
 # ✅ API Configuration
 # ⚠️ SECURITY WARNING: Never hardcode your API key directly in your code.
