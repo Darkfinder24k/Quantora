@@ -25,7 +25,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
@@ -395,7 +395,7 @@ try:
     import pyaudio
     use_mic = True
 except ImportError:
-    st.warning("Voice input is disabled (PyAudio not available).")
+    st.warning("Voice Recognition will be added in future...")
 
 if use_mic:
     if st.button("🎙️ Voice Prompt"):
@@ -410,11 +410,8 @@ if use_mic:
                         animated_response += char
                         time.sleep(0.002)
                     st.session_state.chat.append(("quantora", animated_response))
-                    st.rerun()
                 except Exception as e:
                     st.error(f"An error occurred while processing your request: {e}")
-else:
-    st.info("Text input only. PyAudio not available.")
 
 if submitted and user_input:
     st.session_state.chat.append(("user", user_input))
@@ -426,6 +423,8 @@ if submitted and user_input:
                 animated_response += char
                 time.sleep(0.002)
             st.session_state.chat.append(("quantora", animated_response))
-            st.rerun()
         except Exception as e:
             st.error(f"An error occurred while processing your request: {e}")
+
+else:
+    st.warning("The date is not fixed")
