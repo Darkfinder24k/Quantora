@@ -370,22 +370,14 @@ with st.container():
         user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
         submitted = st.form_submit_button("🚀 Send")
 
-    use_mic = False  # Default: microphone disabled
-    try:
-        import pyaudio
-        use_mic = True
-    except ImportError:
-        st.warning("Voice input is disabled (PyAudio not available).")
-
-    if use_mic:
-        if st.button("🎙️ Voice Prompt"):
+    col1_mic, _ = st.columns([0.9, 0.1])
+    with col1_mic.columns([0.9, 0.1])[1]:
+        if st.button("🎤", help="Speak your query"):
             recognized_text = recognize_speech()
             if recognized_text:
                 st.session_state.user_input = recognized_text
                 st.experimental_set_query_params(user_prompt_input=recognized_text)
                 st.rerun()
-    else:
-        st.info("Text input only. PyAudio not available.")
 
     if submitted and st.session_state.user_input:
         st.session_state.chat.append(("user", st.session_state.user_input))
@@ -424,3 +416,4 @@ def recognize_speech():
         return None
     except Exception as e:
         st.error(f"Speech recognition failed: {e}")
+        return None
