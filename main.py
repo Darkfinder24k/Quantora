@@ -378,10 +378,7 @@ else:
     """, unsafe_allow_html=True)
     st.warning("🔓 You're using the Normal version. Upgrade to Premium for a sleek and enhanced UI ✨")
     st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
-    st.markdown("<p class='footer'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
-
-
-# ✅ Header
+    st.markdown("<p class='footer'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)# ✅ Header
 st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
 if mode == "Premium":
     st.markdown("<h2 style='text-align: center; color: #8be9fd; font-weight: bold; text-shadow: 2px 2px 4px #000;'>✨ Welcome to <span style='font-size: 1.2em;'>⚛️</span> <span style='color: #ff79c6;'>Quantora Premium</span> — Your Genius AI Companion <span style='font-size: 1.2em;'>⚛️</span> ✨</h2>", unsafe_allow_html=True)
