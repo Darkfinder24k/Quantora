@@ -28,18 +28,15 @@ if "chat" not in st.session_state:
     st.session_state.chat = []
 if "user_input" not in st.session_state:
     st.session_state.user_input = ""
-if "a" not in st.session_state:
-    st.session_state.a = False
 
 # ✅ Captcha Generation
 def generate_captcha():
     image = ImageCaptcha()
-    captcha_text = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+    captcha_text = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5)).upper()
     filename = f"captcha_{captcha_text}.png"
-    image.write(captcha_text, filename)
+    image.write(captcha_text.lower(), filename)
     return filename, captcha_text
 
-# ✅ Human Verification (Image Captcha)
 # ✅ Human Verification (Image Captcha)
 if not st.session_state.verified:
     st.title("🔐 Human Verification")
@@ -57,25 +54,26 @@ if not st.session_state.verified:
     user_input = st.text_input("🔏 Enter Captcha Text", key="captcha_input_field")
 
     if st.button("Verify"):
-        if user_input.strip().upper() == st.session_state.captcha_text: # Now comparing against the stored text
+        if user_input.strip().upper() == st.session_state.captcha_text:
             st.success("✅ Verification successful!")
             st.session_state.verified = True
             if os.path.exists(st.session_state.captcha_filename):
                 os.remove(st.session_state.captcha_filename)
             st.session_state.captcha_filename = ""
-            st.session_state.captcha_text = "" # Clear the stored text
+            st.session_state.captcha_text = ""
             genai.configure(api_key="YOUR_GEMINI_API_KEY") # Replace with your actual API key
-            st.rerun() # Force a rerun to exit the verification block
+            st.rerun()
         else:
             st.error("❌ Incorrect CAPTCHA. Please try again.")
             if os.path.exists(st.session_state.captcha_filename):
                 os.remove(st.session_state.captcha_filename)
             st.session_state.captcha_filename = ""
-            st.session_state.captcha_text = "" # Clear the stored text
+            st.session_state.captcha_text = ""
             st.rerun()
 
-    st.stop() # Stop here if not verified
+    st.stop()
 
+# ✅ Main AI Interface (This block will only run if st.session_state.verified is True)
 if st.session_state.verified:
     components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
 
@@ -451,3 +449,4 @@ Prompt: {prompt}"""
     # ✅ Footer (Ensuring it's placed only once at the end of the main content area)
     if mode == "Normal":
         st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
+        st.markdown("<p class='footer'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
