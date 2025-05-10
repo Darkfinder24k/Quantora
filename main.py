@@ -439,14 +439,14 @@ with st.container():
 if mode == "Normal":
     st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
 
-    if st.button("Verify"):
-        else:
-            st.error("❌ Incorrect CAPTCHA. Please try again.")
-            if os.path.exists(st.session_state.captcha_filename):
-                os.remove(st.session_state.captcha_filename)
-            st.session_state.captcha_filename = ""
-            st.session_state.captcha_text = "" # Clear the stored text
-            st.rerun()
+if st.button("Verify"):
+    else:
+        st.error("❌ Incorrect CAPTCHA. Please try again.")
+        if os.path.exists(st.session_state.captcha_filename):
+            os.remove(st.session_state.captcha_filename)
+        st.session_state.captcha_filename = ""
+        st.session_state.captcha_text = "" # Clear the stored text
+        st.rerun()
 
     st.stop() # Prevent the rest of the app from running until verified
 
