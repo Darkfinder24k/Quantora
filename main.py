@@ -382,50 +382,50 @@ def recognize_speech():
         return None
 
 # ✅ Input Box (Floating)
+# ✅ Input Box (Floating)
+st.markdown('<div class="send-box">', unsafe_allow_html=True)
 with st.form(key="chat_form", clear_on_submit=True):
-            col1, col2 = st.columns([5, 1])
-            user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
-            submitted = col2.form_submit_button("🚀 Send")
-    st.markdown('</div>', unsafe_allow_html=True)
+    col1, col2 = st.columns([5, 1])
+    user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
+    submitted = col2.form_submit_button("🚀 Send")
+st.markdown('</div>', unsafe_allow_html=True)
 
-    use_mic = False  # Default: microphone disabled
-    try:
-        import pyaudio
-        use_mic = True
-    except ImportError:
-        st.warning("Voice input is disabled (PyAudio not available).")
+use_mic = False  # Default: microphone disabled
+try:
+    import pyaudio
+    use_mic = True
+except ImportError:
+    st.warning("Voice input is disabled (PyAudio not available).")
 
-    if use_mic:
-        if st.button("🎙️ Voice Prompt"):
-            recognized_text = recognize_speech()
-            if recognized_text:
-                st.session_state.chat.append(("user", recognized_text))
-                with st.spinner("🤖 Quantora is processing your voice input..."):
-                    try:
-                        response = call_quantora_gemini(recognized_text)
-                        animated_response = ""
-                        for char in response:
-                            animated_response += char
-                            time.sleep(0.002)
-                        st.session_state.chat.append(("quantora", animated_response))
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"An error occurred while processing your request: {e}")
-    else:
-        st.info("Text input only. PyAudio not available.")
+if use_mic:
+    if st.button("🎙️ Voice Prompt"):
+        recognized_text = recognize_speech()
+        if recognized_text:
+            st.session_state.chat.append(("user", recognized_text))
+            with st.spinner("🤖 Quantora is processing your voice input..."):
+                try:
+                    response = call_quantora_gemini(recognized_text)
+                    animated_response = ""
+                    for char in response:
+                        animated_response += char
+                        time.sleep(0.002)
+                    st.session_state.chat.append(("quantora", animated_response))
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"An error occurred while processing your request: {e}")
+else:
+    st.info("Text input only. PyAudio not available.")
 
-    if submitted and user_input:
-        st.session_state.chat.append(("user", user_input))
-        with st.spinner("🤖 Quantora is processing..."):
-            try:
-                response = call_quantora_gemini(user_input)
-                animated_response = ""
-                for char in response:
-                    animated_response += char
-                    time.sleep(0.002)
-                st.session_state.chat.append(("quantora", animated_response))
-                st.rerun()
-            except Exception as e:
-                st.error(f"An error occurred while processing your request: {e}")
-
-# The footer is now included within the if/else block for UI consistency based on the mode.
+if submitted and user_input:
+    st.session_state.chat.append(("user", user_input))
+    with st.spinner("🤖 Quantora is processing..."):
+        try:
+            response = call_quantora_gemini(user_input)
+            animated_response = ""
+            for char in response:
+                animated_response += char
+                time.sleep(0.002)
+            st.session_state.chat.append(("quantora", animated_response))
+            st.rerun()
+        except Exception as e:
+            st.error(f"An error occurred while processing your request: {e}")
