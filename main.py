@@ -10,6 +10,7 @@ import string
 from captcha.image import ImageCaptcha
 from PIL import Image
 import os
+
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
@@ -23,6 +24,8 @@ if "captcha_input" not in st.session_state:
     st.session_state.captcha_input = ""
 if "chat" not in st.session_state:
     st.session_state.chat = []
+if "user_input" not in st.session_state:
+    st.session_state.user_input = ""
 
 # ✅ Captcha Generation
 def generate_captcha():
@@ -57,7 +60,10 @@ if not st.session_state.verified:
     st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your actual API key
+# ⚠️ SECURITY WARNING: Never hardcode your API key directly in your code.
+# Use Streamlit Secrets Management (https://docs.streamlit.io/streamlit-cloud/get-started/deploy-an-app/secrets-management)
+# or environment variables instead.
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
@@ -358,7 +364,9 @@ else:
     """, unsafe_allow_html=True)
     st.warning("🔓 You're using the Normal version. Upgrade to Premium for a sleek and enhanced UI ✨")
     st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
-    st.markdown("<p class='footer'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)# ✅ Header
+    st.markdown("<p class='footer'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
+
+# ✅ Header
 st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
 if mode == "Premium":
     st.markdown("<h2 style='text-align: center; color: #8be9fd; font-weight: bold; text-shadow: 2px 2px 4px #000;'>✨ Welcome to <span style='font-size: 1.2em;'>⚛️</span> <span style='color: #ff79c6;'>Quantora Premium</span> — Your Genius AI Companion <span style='font-size: 1.2em;'>⚛️</span> ✨</h2>", unsafe_allow_html=True)
@@ -393,7 +401,7 @@ with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
     with st.form(key="chat_form", clear_on_submit=True):
         col1 = st.columns(1)[0]
-        user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
+        st.session_state.user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
         submitted = st.form_submit_button("🚀 Send")
 
     use_mic = False  # Default: microphone disabled
@@ -429,25 +437,7 @@ with st.container():
                 st.error(f"An error occurred while processing your request: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# The footer is now included within the if/else block for UI consistency based on the mode.
-
-# The footer is now included within the if/else block for UI consistency based on the mode.
-
-# ✅ Footer
-st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #777;'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
-
-def recognize_speech():
-    try:
-        r = sr.Recognizer()
-        with sr.Microphone() as source:
-            st.info("Listening... Please speak.")
-            audio = r.listen(source)
-        text = r.recognize_google(audio)
-        return text
-    except AttributeError as e:
-        st.error("Microphone input is not supported in this environment.")
-        return None
-    except Exception as e:
-        st.error(f"Speech recognition failed: {e}")
-        return None
+# ✅ Footer (Ensuring it's placed only once at the end of the main content area)
+if mode == "Normal":
+    st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #777;'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
