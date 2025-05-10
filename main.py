@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import google.generativeai as genai
 from datetime import datetime
 import time
+import uuid
 import speech_recognition as sr
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
@@ -27,7 +28,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your actual API key
+genai.configure(api_key="YOUR_API_KEY")  # ⚠️ Replace with your actual API key
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
@@ -347,43 +348,44 @@ for speaker, msg in st.session_state.chat:
 st.markdown('</div>', unsafe_allow_html=True)
 
 def recognize_speech():
-    """Listens for speech and converts it to text."""
-    r = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.info("Say something!")
-        try:
-            audio = r.listen(source, phrase_time_limit=5) # Adjust time limit as needed
-            st.info("Recognizing...")
-            text = r.recognize_google(audio)
-            st.info(f"You said: {text}")
-            return text
-        except sr.WaitTimeoutError:
-            st.info("No speech detected.")
-            return None
-        except sr.UnknownValueError:
-            st.error("Could not understand audio")
-            return None
-        except sr.RequestError as e:
-            st.error(f"Could not request results from Google Speech Recognition service; {e}")
-            return None
+    try:
+        r = sr.Recognizer()
+        with sr.Microphone() as source:
+            st.info("Listening... Please speak.")
+            audio = r.listen(source)
+        text = r.recognize_google(audio)
+        return text
+    except AttributeError as e:
+        st.error("Microphone input is not supported in this environment.")
+        return None
+    except Exception as e:
+        st.error(f"Speech recognition failed: {e}")
+        return None
 
 # ✅ Input Box (Floating)
 with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
     with st.form(key="chat_form", clear_on_submit=True):
-        col1, _ = st.columns([0.9, 0.1]) # Use underscore for the second column as it will be outside the form
-        with col1:
-            user_input = st.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
+        col1 = st.columns(1)[0]
+        user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
         submitted = st.form_submit_button("🚀 Send")
 
-    col1_mic, _ = st.columns([0.9, 0.1]) # Separate columns for the mic button
-    with col1_mic.columns([0.9, 0.1])[1]: # Place the mic button in the second sub-column
-        if st.button("🎤", help="Speak your query"):
+    use_mic = False  # Default: microphone disabled
+    try:
+        import pyaudio
+        use_mic = True
+    except ImportError:
+        st.warning("Voice input is disabled (PyAudio not available).")
+
+    if use_mic:
+        if st.button("🎙️ Voice Prompt"):
             recognized_text = recognize_speech()
             if recognized_text:
                 st.session_state.user_input = recognized_text
                 st.experimental_set_query_params(user_prompt_input=recognized_text)
                 st.rerun()
+    else:
+        st.info("Text input only. PyAudio not available.")
 
     if submitted and st.session_state.user_input:
         st.session_state.chat.append(("user", st.session_state.user_input))
@@ -410,25 +412,16 @@ st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=Tr
 st.markdown("<p style='text-align: center; color: #777;'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
 
 def recognize_speech():
-    """Listens for speech and converts it to text."""
-    r = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.info("Say something!")
-        try:
-            audio = r.listen(source, phrase_time_limit=5) # Adjust time limit as needed
-            st.info("Recognizing...")
-            text = r.recognize_google(audio)
-            st.info(f"You said: {text}")
-            return text
-        except sr.WaitTimeoutError:
-            st.info("No speech detected.")
-            return None
-        except sr.UnknownValueError:
-            st.error("Could not understand audio")
-            return None
-        except sr.RequestError as e:
-            st.error(f"Could not request results from Google Speech Recognition service; {e}")
-            return None
-
-if __name__ == "__main__":
-    pass # Streamlit app will handle the speech recognition within the UI
+    try:
+        r = sr.Recognizer()
+        with sr.Microphone() as source:
+            st.info("Listening... Please speak.")
+            audio = r.listen(source)
+        text = r.recognize_google(audio)
+        return text
+    except AttributeError as e:
+        st.error("Microphone input is not supported in this environment.")
+        return None
+    except Exception as e:
+        st.error(f"Speech recognition failed: {e}")
+        return None
