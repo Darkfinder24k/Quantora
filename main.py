@@ -32,7 +32,7 @@ def handle_recaptcha():
         <div class="g-recaptcha" data-sitekey="{RECAPTCHA_SITE_KEY}" data-callback="recaptchaCallback"></div>
         <script type="text/javascript">
             function recaptchaCallback(response) {
-                window.streamlitSet({'recaptcha_response': response});
+                window.streamlitSet({{ 'recaptcha_response': response }});
             }
         </script>
     """
