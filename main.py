@@ -40,6 +40,7 @@ def generate_captcha():
     return filename, captcha_text
 
 # ✅ Human Verification (Image Captcha)
+# ✅ Human Verification (Image Captcha)
 if not st.session_state.verified:
     st.title("🔐 Human Verification")
     st.write("Please complete the image CAPTCHA below:")
@@ -58,13 +59,13 @@ if not st.session_state.verified:
     if st.button("Verify"):
         if user_input.strip().upper() == st.session_state.captcha_text: # Now comparing against the stored text
             st.success("✅ Verification successful!")
-            st.session_state.a = True
             st.session_state.verified = True
             if os.path.exists(st.session_state.captcha_filename):
                 os.remove(st.session_state.captcha_filename)
             st.session_state.captcha_filename = ""
             st.session_state.captcha_text = "" # Clear the stored text
-            genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
+            genai.configure(api_key="YOUR_GEMINI_API_KEY") # Replace with your actual API key
+            st.rerun() # Force a rerun to exit the verification block
         else:
             st.error("❌ Incorrect CAPTCHA. Please try again.")
             if os.path.exists(st.session_state.captcha_filename):
@@ -73,7 +74,7 @@ if not st.session_state.verified:
             st.session_state.captcha_text = "" # Clear the stored text
             st.rerun()
 
-    st.stop()
+    st.stop() # Stop here if not verified
 
 if st.session_state.verified:
     components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
