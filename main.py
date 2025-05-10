@@ -5,7 +5,11 @@ from datetime import datetime
 import time
 import uuid
 import speech_recognition as sr
+import random
+import string
 from captcha.image import ImageCaptcha
+from PIL import Image
+import os
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
