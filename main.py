@@ -61,19 +61,7 @@ if not st.session_state.verified:
                 os.remove(st.session_state.captcha_filename)
             st.session_state.captcha_filename = ""
             st.session_state.captcha_text = "" # Clear the stored text
-        else:
-            st.error("❌ Incorrect CAPTCHA. Please try again.")
-            if os.path.exists(st.session_state.captcha_filename):
-                os.remove(st.session_state.captcha_filename)
-            st.session_state.captcha_filename = ""
-            st.session_state.captcha_text = "" # Clear the stored text
-            st.rerun()
-
-    st.stop() # Prevent the rest of the app from running until verified
-
-# ✅ Main AI Interface (This block will only run if st.session_state.verified is True)
-# It is now OUTSIDE the 'if not st.session_state.verified:' block
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
+            genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
@@ -450,4 +438,18 @@ with st.container():
 # ✅ Footer (Ensuring it's placed only once at the end of the main content area)
 if mode == "Normal":
     st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #777;'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
+
+    if st.button("Verify"):
+        else:
+            st.error("❌ Incorrect CAPTCHA. Please try again.")
+            if os.path.exists(st.session_state.captcha_filename):
+                os.remove(st.session_state.captcha_filename)
+            st.session_state.captcha_filename = ""
+            st.session_state.captcha_text = "" # Clear the stored text
+            st.rerun()
+
+    st.stop() # Prevent the rest of the app from running until verified
+
+# ✅ Main AI Interface (This block will only run if st.session_state.verified is True)
+# It is now OUTSIDE the 'if not st.session_state.verified:' block
+
