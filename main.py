@@ -38,6 +38,7 @@ def generate_captcha():
     return filename, captcha_text
 
 # ✅ Human Verification (Image Captcha)
+# ✅ Human Verification (Image Captcha)
 if not st.session_state.verified:
     st.title("🔐 Human Verification")
     st.write("Please complete the image CAPTCHA below:")
@@ -46,15 +47,23 @@ if not st.session_state.verified:
         captcha_file, generated_text = generate_captcha()
         st.session_state.captcha_text = generated_text
         st.session_state.captcha_filename = captcha_file
+        st.write(f"Generated Captcha Text (Initial): {st.session_state.captcha_text}") # Debugging
     else:
         captcha_file = st.session_state.captcha_filename
         generated_text = st.session_state.captcha_text
+        st.write(f"Stored Captcha Text (Rerun): {st.session_state.captcha_text}") # Debugging
 
     st.image(captcha_file, caption="Enter the text you see above", use_column_width=False)
     user_input = st.text_input("🔏 Enter Captcha Text", key="captcha_input_field")
 
     if st.button("Verify"):
-        if user_input.strip().upper() == st.session_state.captcha_text:
+        user_input_upper = user_input.strip().upper()
+        stored_captcha_upper = st.session_state.captcha_text.strip().upper() # Ensure no extra whitespace
+
+        st.write(f"User Input (Upper, Stripped): {user_input_upper}") # Debugging
+        st.write(f"Stored Captcha Text (Upper, Stripped): {stored_captcha_upper}") # Debugging
+
+        if user_input_upper == stored_captcha_upper:
             st.success("✅ Verification successful!")
             st.session_state.verified = True
             if os.path.exists(st.session_state.captcha_filename):
