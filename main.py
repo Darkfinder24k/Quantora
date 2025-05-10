@@ -3,7 +3,6 @@ import streamlit.components.v1 as components
 import google.generativeai as genai
 from datetime import datetime
 import time
-import uuid
 import speech_recognition as sr
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
