@@ -368,23 +368,22 @@ def recognize_speech():
             return None
 
 # ✅ Input Box (Floating)
-# ✅ Input Box (Floating)
 with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
     with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2 = st.columns([0.9, 0.1])
+        col1, _ = st.columns([0.9, 0.1]) # Use underscore for the second column as it will be outside the form
         with col1:
             user_input = st.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
-        # Microphone button outside the form
-        if col2.button("🎤", help="Speak your query"):
+        submitted = st.form_submit_button("🚀 Send")
+
+    col1_mic, _ = st.columns([0.9, 0.1]) # Separate columns for the mic button
+    with col1_mic.columns([0.9, 0.1])[1]: # Place the mic button in the second sub-column
+        if st.button("🎤", help="Speak your query"):
             recognized_text = recognize_speech()
             if recognized_text:
                 st.session_state.user_input = recognized_text
-                # Manually set the text input value (needs a rerun to update immediately)
                 st.experimental_set_query_params(user_prompt_input=recognized_text)
                 st.rerun()
-
-        submitted = st.form_submit_button("🚀 Send")
 
     if submitted and st.session_state.user_input:
         st.session_state.chat.append(("user", st.session_state.user_input))
