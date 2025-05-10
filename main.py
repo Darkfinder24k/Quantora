@@ -13,8 +13,6 @@ if "verified" not in st.session_state:
     st.session_state.verified = False
 if "chat" not in st.session_state:
     st.session_state.chat = []
-if "user_input" not in st.session_state:
-    st.session_state.user_input = ""
 
 # ✅ Human Verification Gate
 if not st.session_state.verified:
@@ -27,12 +25,11 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
 
-# ✅ Mode Selection
 # ✅ Mode Selection
 mode = "Normal"
 selected_mode = st.selectbox("🧠 Choose Your Plan", ["Normal", "Premium"])
@@ -44,7 +41,7 @@ if selected_mode == "Premium":
         mode = "Premium"
     elif code:
         st.error("❌ Wrong Code")
-        
+
 model = genai.GenerativeModel("gemini-2.0-flash" if mode == "Premium" else "gemini-1.5-flash")
 
 # ✅ Gemini Wrapper
@@ -386,11 +383,10 @@ def recognize_speech():
 
 # ✅ Input Box (Floating)
 with st.container():
-    st.markdown('<div class="send-box">', unsafe_allow_html=True)
-    with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2 = st.columns([5, 1])
-        user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
-        submitted = col2.form_submit_button("🚀 Send")
+    st.markdown('<div class="send-box">with st.form(key="chat_form", clear_on_submit=True):
+            col1, col2 = st.columns([5, 1])
+            user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
+            submitted = col2.form_submit_button("🚀 Send")
 
     use_mic = False  # Default: microphone disabled
     try:
@@ -403,18 +399,26 @@ with st.container():
         if st.button("🎙️ Voice Prompt"):
             recognized_text = recognize_speech()
             if recognized_text:
-                st.session_state.user_input = recognized_text
-                st.experimental_set_query_params(user_prompt_input=recognized_text)
-                st.rerun()
+                st.session_state.chat.append(("user", recognized_text))
+                with st.spinner("🤖 Quantora is processing your voice input..."):
+                    try:
+                        response = call_quantora_gemini(recognized_text)
+                        animated_response = ""
+                        for char in response:
+                            animated_response += char
+                            time.sleep(0.002)
+                        st.session_state.chat.append(("quantora", animated_response))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"An error occurred while processing your request: {e}")
     else:
         st.info("Text input only. PyAudio not available.")
 
-    if submitted and st.session_state.user_input:
-        st.session_state.chat.append(("user", st.session_state.user_input))
-        st.session_state.user_input = "" # Clear the input after sending
+    if submitted and user_input:
+        st.session_state.chat.append(("user", user_input))
         with st.spinner("🤖 Quantora is processing..."):
             try:
-                response = call_quantora_gemini(st.session_state.chat[-1][1])
+                response = call_quantora_gemini(user_input)
                 animated_response = ""
                 for char in response:
                     animated_response += char
