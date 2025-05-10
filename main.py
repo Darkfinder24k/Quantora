@@ -1,3 +1,5 @@
+Python
+
 import streamlit as st
 import streamlit.components.v1 as components
 import google.generativeai as genai
@@ -61,7 +63,7 @@ if not st.session_state.verified:
                 os.remove(st.session_state.captcha_filename)
             st.session_state.captcha_filename = ""
             st.session_state.captcha_text = "" # Clear the stored text
-            st.rerun()
+            # No immediate rerun here
         else:
             st.error("❌ Incorrect CAPTCHA. Please try again.")
             if os.path.exists(st.session_state.captcha_filename):
@@ -72,13 +74,9 @@ if not st.session_state.verified:
 
     st.stop()
 
-# ... (rest of your code)
-            # No need to rerun immediately here; the next script execution will show the CAPTCHA again
-
 # ✅ API Configuration
 # ⚠️ SECURITY WARNING: Never hardcode your API key directly in your code.
 # Use Streamlit Secrets Management (https://docs.streamlit.io/streamlit-cloud/get-started/deploy-an-app/secrets-management)
-# or environment variables instead.
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
 
 # ✅ AdSense (Optional)
