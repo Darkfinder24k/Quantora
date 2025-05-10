@@ -28,12 +28,14 @@ if "chat" not in st.session_state:
     st.session_state.chat = []
 if "user_input" not in st.session_state:
     st.session_state.user_input = ""
+if "captcha_attempt" not in st.session_state:
+    st.session_state.captcha_attempt = 0
 
 # ✅ Captcha Generation
 def generate_captcha():
     image = ImageCaptcha()
     captcha_text = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
-    filename = f"captcha_{captcha_text}.png"
+    filename = f"captcha_{captcha_text}_{st.session_state.captcha_attempt}.png" # Include attempt number
     image.write(captcha_text, filename)
     return filename, captcha_text
 
@@ -42,10 +44,13 @@ if not st.session_state.verified:
     st.title("🔐 Human Verification")
     st.write("Please complete the image CAPTCHA below:")
 
-    if not st.session_state.captcha_filename:
+    if not st.session_state.captcha_filename or st.session_state.captcha_attempt > 0: # Regenerate on first load or incorrect attempt
+        if st.session_state.captcha_filename and os.path.exists(st.session_state.captcha_filename):
+            os.remove(st.session_state.captcha_filename)
         captcha_file, generated_text = generate_captcha()
         st.session_state.captcha_text = generated_text
         st.session_state.captcha_filename = captcha_file
+        st.session_state.captcha_attempt += 1
     else:
         captcha_file = st.session_state.captcha_filename
         generated_text = st.session_state.captcha_text
@@ -61,6 +66,7 @@ if not st.session_state.verified:
                 os.remove(st.session_state.captcha_filename)
             st.session_state.captcha_filename = ""
             st.session_state.captcha_text = "" # Clear the stored text
+            st.session_state.captcha_attempt = 0
             st.rerun()
         else:
             st.error("❌ Incorrect CAPTCHA. Please try again.")
