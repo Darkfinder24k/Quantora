@@ -43,7 +43,13 @@ if selected_mode == "Premium":
     elif code:
         st.error("❌ Wrong Code")
 
-model = genai.GenerativeModel("gemini-2.0-flash" if mode == "Premium" else "gemini-1.5-flash")
+# Dynamically select the model based on the mode
+model_name = "gemini-2.0-flash" if mode == "Premium" else "gemini-1.5-flash"
+try:
+    model = genai.GenerativeModel(model_name)
+except Exception as e:
+    st.error(f"❌ Error loading the Gemini model ({model_name}): {e}")
+    st.stop()
 
 # ✅ Gemini Wrapper
 def call_quantora_gemini(prompt):
@@ -72,7 +78,7 @@ Prompt: {prompt}"""
 
 # ✅ Greeting
 hour = datetime.now().hour
-greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
+greeting = "Good morning" if 6 <= hour < 12 else "Good afternoon" if 12 <= hour < 18 else "Good evening"
 
 # ✅ Function to inject custom CSS for the logo
 def change_logo(logo_url):
@@ -380,28 +386,29 @@ with st.container():
                 }
                 </style>
             """, unsafe_allow_html=True)
-                    <button type="button" title="Speak">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                            <path fill-rule="evenodd" d="M12 3.75a.75.75 0 01.75.75v7.5a.75.75 0 11-1.5 0v-7.5a.75.75 0 01.75-.75zM15.75 8.25a.75.75 0 01.75.75v3a.75.75 0 11-1.5 0v-3a.75.75 0 01.75-.75zM10.5 8.25a.75.75 0 01.75.75v3a.75.75 0 11-1.5 0v-3a.75.75 0 01.75-.75zM6.75 12a.75.75 0 01.75.75v1.5a.75.75 0 11-1.5 0v-1.5a.75.75 0 01.75-.75zM17.25 12a.75.75 0 01.75.75v1.5a.75.75 0 11-1.5 0v-1.5a.75.75 0 01.75-.75zM12 2.25a.75.75 0 01.75.75c0 5.523 4.477 10 10 10a.75.75 0 010 1.5c-6.351 0-11.5-4.846-12-10a.75.75 0 01.75-.75z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
+            st.markdown("""
+                <button type="button" title="Speak">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                        <path fill-rule="evenodd" d="M12 3.75a.75.75 0 01.75.75v7.5a.75.75 0 11-1.5 0v-7.5a.75.75 0 01.75-.75zM15.75 8.25a.75.75 0 01.75.75v3a.75.75 0 11-1.5 0v-3a.75.75 0 01.75-.75zM10.5 8.25a.75.75 0 01.75.75v3a.75.75 0 11-1.5 0v-3a.75.75 0 01.75-.75zM6.75 12a.75.75 0 01.75.75v1.5a.75.75 0 11-1.5 0v-1.5a.75.75 0 01.75-.75zM17.25 12a.75.75 0 01.75.75v1.5a.75.75 0 11-1.5 0v-1.5a.75.75 0 01.75-.75zM12 2.25a.75.75 0 01.75.75c0 5.523 4.477 10 10 10a.75.75 0 010 1.5c-6.351 0-11.5-4.846-12-10a.75.75 0 01.75-.75z" clip-rule="evenodd" />
+                    </svg>
+                </button>
             """, unsafe_allow_html=True)
-        submitted = st.form_submit_button("🚀 Send")
+    submitted = st.form_submit_button("🚀 Send")
 
-        if submitted and user_input:
-            st.session_state.chat.append(("user", user_input))
-            with st.spinner("🤖 Quantora is processing..."):
-                try:
-                    response = call_quantora_gemini(user_input)
-                    animated_response = ""
-                    for char in response:
-                        animated_response += char
-                        time.sleep(0.002)
-                    st.session_state.chat.append(("quantora", animated_response))
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"An error occurred while processing your request: {e}")
-    st.markdown('</div>', unsafe_allow_html=True)
+    if submitted and user_input:
+        st.session_state.chat.append(("user", user_input))
+        with st.spinner("🤖 Quantora is processing..."):
+            try:
+                response = call_quantora_gemini(user_input)
+                animated_response = ""
+                for char in response:
+                    animated_response += char
+                    time.sleep(0.002)
+                st.session_state.chat.append(("quantora", animated_response))
+                st.rerun()
+            except Exception as e:
+                st.error(f"An error occurred while processing your request: {e}")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # The footer is now included within the if/else block for UI consistency based on the mode.
 
