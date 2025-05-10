@@ -21,59 +21,58 @@ if "recaptcha_response" not in st.session_state:
     st.session_state.recaptcha_response = ""
 
 # ✅ reCAPTCHA Configuration
-RECAPTCHA_SITE_KEY = "6LdipDQrAAAAAJy8Zj7gEwGttrUKyNJ2zzWK3J7v"  # ⚠️ Replace with your actual site key
-RECAPTCHA_SECRET_KEY = "6LdipDQrAAAAAN8gd1m34schDuLVa16772hr03ko"  # ⚠️ Replace with your actual secret key
+RECAPTCHA_SITE_KEY = "6LdipDQrAAAAAJy8Zj7gEwGttrUKyNJ2zzWK3J7v"  # Replace with your real site key
+RECAPTCHA_SECRET_KEY = "6LdipDQrAAAAAN8gd1m34schDuLVa16772hr03ko"  # Replace with your real secret key
 RECAPTCHA_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify"
 
-# ✅ Function to handle reCAPTCHA response
-def handle_recaptcha():
-    js_code = f"""
+# ✅ Function to render reCAPTCHA and pass response to Streamlit
+def render_recaptcha():
+    components.html(
+        f"""
         <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-        <div class="g-recaptcha" data-sitekey="{RECAPTCHA_SITE_KEY}" data-callback="recaptchaCallback"></div>
-        <script type="text/javascript">
-            function recaptchaCallback(response) {
-                window.streamlitSet({{ 'recaptcha_response': response }});
-            }
+        <form id="recaptcha-form">
+            <div class="g-recaptcha" data-sitekey="{RECAPTCHA_SITE_KEY}" data-callback="onSubmit"></div>
+        </form>
+        <script>
+            function onSubmit(token) {{
+                const streamlitInput = window.parent.document.querySelector('input[data-testid="stTextInput"]');
+                if (streamlitInput) {{
+                    streamlitInput.value = token;
+                    const inputEvent = new Event('input', {{ bubbles: true }});
+                    streamlitInput.dispatchEvent(inputEvent);
+                }}
+            }}
         </script>
-    """
-    components.html(js_code, height=100)
-    st.session_state.recaptcha_response = st.session_state.get("recaptcha_response", "")
+        """,
+        height=130,
+    )
 
-# ✅ Function to verify reCAPTCHA server-side
-def verify_recaptcha(response):
-    if not response:
-        return False
-    params = {
-        "secret": RECAPTCHA_SECRET_KEY,
-        "response": response,
-    }
-    try:
-        r = requests.post(RECAPTCHA_VERIFY_URL, params=params)
-        r.raise_for_status()  # Raise an exception for bad status codes
-        result = r.json()
-        return result.get("success", False)
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error verifying reCAPTCHA: {e}")
-        return False
-
-# ✅ Human Verification Gate with Real reCAPTCHA
+# ✅ Human Verification Gate
 if not st.session_state.verified:
     st.title("🔐 Human Verification")
-    st.write("Please complete the reCAPTCHA to verify you are human.")
-    handle_recaptcha()
+    st.write("Please complete the reCAPTCHA below to continue.")
 
-    verify_button = st.button("Verify")
-    if verify_button:
-        if st.session_state.recaptcha_response:
-            if verify_recaptcha(st.session_state.recaptcha_response):
+    # Hidden input to catch reCAPTCHA token
+    recaptcha_token = st.text_input("reCAPTCHA Token", type="default", label_visibility="collapsed")
+
+    render_recaptcha()
+
+    if st.button("Verify"):
+        if recaptcha_token:
+            response = requests.post(RECAPTCHA_VERIFY_URL, data={
+                'secret': RECAPTCHA_SECRET_KEY,
+                'response': recaptcha_token
+            })
+            result = response.json()
+            if result.get("success"):
                 st.session_state.verified = True
-                st.success("Verification successful. Welcome! 🎉")
-                st.session_state.recaptcha_response = "" # Clear the response after successful verification
+                st.success("✅ Human verification successful!")
                 st.rerun()
             else:
-                st.error("reCAPTCHA verification failed. Please try again.")
+                st.error("❌ reCAPTCHA verification failed. Please try again.")
         else:
-            st.warning("Please complete the reCAPTCHA.")
+            st.warning("⚠️ Please complete the reCAPTCHA before clicking verify.")
+
     st.stop()
 
 # ✅ API Configuration
