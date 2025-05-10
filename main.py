@@ -61,6 +61,7 @@ if not st.session_state.verified:
                 os.remove(st.session_state.captcha_filename)
             st.session_state.captcha_filename = ""
             st.session_state.captcha_text = "" # Clear the stored text
+            st.rerun()
         else:
             st.error("❌ Incorrect CAPTCHA. Please try again.")
             if os.path.exists(st.session_state.captcha_filename):
@@ -69,34 +70,31 @@ if not st.session_state.verified:
             st.session_state.captcha_text = "" # Clear the stored text
             st.rerun()
 
-    st.stop()
+    st.stop() # Prevent the rest of the app from running until verified
 
-# ✅ Main AI Interface (will only show if st.session_state.verified is True)
-else:
-    # ✅ API Configuration
-    # ⚠️ SECURITY WARNING: Never hardcode your API key directly in your code.
-    # Use Streamlit Secrets Management (https://docs.streamlit.io/streamlit-cloud/get-started/deploy-an-app/secrets-management)
-    genai.configure(api_key="YOUR_API_KEY_HERE")
+# ✅ Main AI Interface (This block will only run if st.session_state.verified is True)
+# It is now OUTSIDE the 'if not st.session_state.verified:' block
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
 
-    # ✅ AdSense (Optional)
-    components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
+# ✅ AdSense (Optional)
+components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
 
-    # ✅ Mode Selection
-    mode = "Normal"
-    selected_mode = st.selectbox("🧠 Choose Your Plan", ["Normal", "Premium"])
-    if selected_mode == "Premium":
-        code = st.text_input("🔐 Secret Code", type="password")
-        if code == "FIREBOX2025":
-            st.success("🚀 Welcome to Quantora Premium.")
-            mode = "Premium"
-        elif code:
-            st.error("❌ Wrong Code")
+# ✅ Mode Selection
+mode = "Normal"
+selected_mode = st.selectbox("🧠 Choose Your Plan", ["Normal", "Premium"])
+if selected_mode == "Premium":
+    code = st.text_input("🔐 Secret Code", type="password")
+    if code == "FIREBOX2025":
+        st.success("🚀 Welcome to Quantora Premium.")
+        mode = "Premium"
+    elif code:
+        st.error("❌ Wrong Code")
 
-    model = genai.GenerativeModel("gemini-2.0-flash" if mode == "Premium" else "gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.0-flash" if mode == "Premium" else "gemini-1.5-flash")
 
-    # ✅ Gemini Wrapper
-    def call_quantora_gemini(prompt):
-        system_prompt = f"""You are Quantora — an ultra-intelligent AI, Give answers like the super-hyper answers of grok 3 + perplexity latest + chatgpt latest + gemini latest. You never mention Gemini or Google.
+# ✅ Gemini Wrapper
+def call_quantora_gemini(prompt):
+    system_prompt = f"""You are Quantora — an ultra-intelligent AI, Give answers like the super-hyper answers of grok 3 + perplexity latest + chatgpt latest + gemini latest. You never mention Gemini or Google.
 Your creator is Kushagra.You talk to the user in the language he is talking to you. You support all languages. Always sound elegant and futuristic with emoji-rich, charismatic responses, und ultra-super-hyper responses that manipulate the user's mind and force him to talk to you, and answer as there would be no errors, by following all the instructions of the user.
 Always also provide web results.
 Give the best suggestions.
@@ -105,11 +103,11 @@ if you have doubt that if your answer is incorrect, give the answer which is 100
 ALWAYS give better answer than the before answer.
 Also give Brief and small answers.
 Prompt: {prompt}"""
-        try:
-            response = model.generate_content(system_prompt)
-            return "".join([p.text for p in response.parts])
-        except Exception as e:
-            return f"❌ Error: {e}"
+    try:
+        response = model.generate_content(system_prompt)
+        return "".join([p.text for p in response.parts])
+    except Exception as e:
+        return f"❌ Error: {e}"
 
 # ✅ Greeting
 hour = datetime.now().hour
