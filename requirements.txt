@@ -4,3 +4,4 @@ datetime
 speechrecognition
 Pillow
 captcha
+altair
