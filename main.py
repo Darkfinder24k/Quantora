@@ -427,4 +427,4 @@ if submitted and user_input:
             st.error(f"An error occurred while processing your request: {e}")
 
 else:
-    st.warning("The date is not fixed")
+    st.warning("Quantoria can make mistakes. Help it imporve.")
