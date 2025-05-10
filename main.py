@@ -14,8 +14,7 @@ import os
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
-# Initialize session state variables if they don't exist
-# ✅ Session state init
+# Initialize session state variables
 if "verified" not in st.session_state:
     st.session_state.verified = False
 if "captcha_text" not in st.session_state:
@@ -28,6 +27,8 @@ if "chat" not in st.session_state:
     st.session_state.chat = []
 if "user_input" not in st.session_state:
     st.session_state.user_input = ""
+if "verification_complete" not in st.session_state:
+    st.session_state.verification_complete = False
 
 # ✅ Captcha Generation
 def generate_captcha():
@@ -38,7 +39,6 @@ def generate_captcha():
     return filename, captcha_text
 
 # ✅ Human Verification (Image Captcha)
-# ✅ Human Verification (Image Captcha)
 if not st.session_state.verified:
     st.title("🔐 Human Verification")
     st.write("Please complete the image CAPTCHA below:")
@@ -47,25 +47,18 @@ if not st.session_state.verified:
         captcha_file, generated_text = generate_captcha()
         st.session_state.captcha_text = generated_text
         st.session_state.captcha_filename = captcha_file
-        st.write(f"Generated Captcha Text (Initial): {st.session_state.captcha_text}") # Debugging
     else:
         captcha_file = st.session_state.captcha_filename
         generated_text = st.session_state.captcha_text
-        st.write(f"Stored Captcha Text (Rerun): {st.session_state.captcha_text}") # Debugging
 
     st.image(captcha_file, caption="Enter the text you see above", use_column_width=False)
     user_input = st.text_input("🔏 Enter Captcha Text", key="captcha_input_field")
 
     if st.button("Verify"):
-        user_input_upper = user_input.strip().upper()
-        stored_captcha_upper = st.session_state.captcha_text.strip().upper() # Ensure no extra whitespace
-
-        st.write(f"User Input (Upper, Stripped): {user_input_upper}") # Debugging
-        st.write(f"Stored Captcha Text (Upper, Stripped): {stored_captcha_upper}") # Debugging
-
-        if user_input_upper == stored_captcha_upper:
+        if user_input.strip().upper() == st.session_state.captcha_text:
             st.success("✅ Verification successful!")
             st.session_state.verified = True
+            st.session_state.verification_complete = True # Set the flag
             if os.path.exists(st.session_state.captcha_filename):
                 os.remove(st.session_state.captcha_filename)
             st.session_state.captcha_filename = ""
@@ -82,8 +75,8 @@ if not st.session_state.verified:
 
     st.stop()
 
-# ✅ Main AI Interface (This block will only run if st.session_state.verified is True)
-if st.session_state.verified:
+# ✅ Main AI Interface (This block will only run if st.session_state.verification_complete is True)
+if st.session_state.verification_complete:
     components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
 
     # ✅ Mode Selection
