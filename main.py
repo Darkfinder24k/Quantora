@@ -368,38 +368,38 @@ def recognize_speech():
             return None
 
 # ✅ Input Box (Floating)
+# ✅ Input Box (Floating)
 with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
     with st.form(key="chat_form", clear_on_submit=True):
         col1, col2 = st.columns([0.9, 0.1])
         with col1:
             user_input = st.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
-        with col2:
-            # Add a small speech-to-text icon button
-            if st.button("🎤", help="Speak your query"):
-                recognized_text = recognize_speech()
-                if recognized_text:
-                    st.session_state.user_input = recognized_text
-                    # Manually set the text input value
-                    st.experimental_set_query_params(user_prompt_input=recognized_text)
-                    st.rerun() # Rerun to update the text input
+        # Microphone button outside the form
+        if col2.button("🎤", help="Speak your query"):
+            recognized_text = recognize_speech()
+            if recognized_text:
+                st.session_state.user_input = recognized_text
+                # Manually set the text input value (needs a rerun to update immediately)
+                st.experimental_set_query_params(user_prompt_input=recognized_text)
+                st.rerun()
 
         submitted = st.form_submit_button("🚀 Send")
 
-        if submitted and st.session_state.user_input:
-            st.session_state.chat.append(("user", st.session_state.user_input))
-            st.session_state.user_input = "" # Clear the input after sending
-            with st.spinner("🤖 Quantora is processing..."):
-                try:
-                    response = call_quantora_gemini(st.session_state.chat[-1][1])
-                    animated_response = ""
-                    for char in response:
-                        animated_response += char
-                        time.sleep(0.002)
-                    st.session_state.chat.append(("quantora", animated_response))
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"An error occurred while processing your request: {e}")
+    if submitted and st.session_state.user_input:
+        st.session_state.chat.append(("user", st.session_state.user_input))
+        st.session_state.user_input = "" # Clear the input after sending
+        with st.spinner("🤖 Quantora is processing..."):
+            try:
+                response = call_quantora_gemini(st.session_state.chat[-1][1])
+                animated_response = ""
+                for char in response:
+                    animated_response += char
+                    time.sleep(0.002)
+                st.session_state.chat.append(("quantora", animated_response))
+                st.rerun()
+            except Exception as e:
+                st.error(f"An error occurred while processing your request: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # The footer is now included within the if/else block for UI consistency based on the mode.
