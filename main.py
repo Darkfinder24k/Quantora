@@ -61,7 +61,6 @@ if not st.session_state.verified:
                 os.remove(st.session_state.captcha_filename)
             st.session_state.captcha_filename = ""
             st.session_state.captcha_text = "" # Clear the stored text
-            st.rerun()
         else:
             st.error("❌ Incorrect CAPTCHA. Please try again.")
             if os.path.exists(st.session_state.captcha_filename):
