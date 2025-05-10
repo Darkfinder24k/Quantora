@@ -27,7 +27,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key=st.secrets["AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg"])  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
