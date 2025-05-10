@@ -470,3 +470,4 @@ def recognize_speech():
         return None
     except Exception as e:
         st.error(f"Speech recognition failed: {e}")
+        return None
