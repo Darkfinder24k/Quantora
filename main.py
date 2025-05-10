@@ -4,6 +4,7 @@ import google.generativeai as genai
 from datetime import datetime
 import time
 import uuid
+import speech_recognition as sr
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
@@ -346,19 +347,52 @@ for speaker, msg in st.session_state.chat:
     st.markdown(f'<div class="message {style_class}"><strong>{speaker.title()}:</strong><br>{msg}</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ✅ Input Box (Floating)
+def recognize_speech():
+    """Listens for speech and converts it to text."""
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.info("Say something!")
+        try:
+            audio = r.listen(source, phrase_time_limit=5) # Adjust time limit as needed
+            st.info("Recognizing...")
+            text = r.recognize_google(audio)
+            st.info(f"You said: {text}")
+            return text
+        except sr.WaitTimeoutError:
+            st.info("No speech detected.")
+            return None
+        except sr.UnknownValueError:
+            st.error("Could not understand audio")
+            return None
+        except sr.RequestError as e:
+            st.error(f"Could not request results from Google Speech Recognition service; {e}")
+            return None
+
 # ✅ Input Box (Floating)
 with st.container():
     st.markdown('<div class="send-box">', unsafe_allow_html=True)
     with st.form(key="chat_form", clear_on_submit=True):
-        user_input = st.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
+        col1, col2 = st.columns([0.9, 0.1])
+        with col1:
+            user_input = st.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
+        with col2:
+            # Add a small speech-to-text icon button
+            if st.button("🎤", help="Speak your query"):
+                recognized_text = recognize_speech()
+                if recognized_text:
+                    st.session_state.user_input = recognized_text
+                    # Manually set the text input value
+                    st.experimental_set_query_params(user_prompt_input=recognized_text)
+                    st.rerun() # Rerun to update the text input
+
         submitted = st.form_submit_button("🚀 Send")
 
-        if submitted and user_input:
-            st.session_state.chat.append(("user", user_input))
+        if submitted and st.session_state.user_input:
+            st.session_state.chat.append(("user", st.session_state.user_input))
+            st.session_state.user_input = "" # Clear the input after sending
             with st.spinner("🤖 Quantora is processing..."):
                 try:
-                    response = call_quantora_gemini(user_input)
+                    response = call_quantora_gemini(st.session_state.chat[-1][1])
                     animated_response = ""
                     for char in response:
                         animated_response += char
@@ -376,3 +410,27 @@ with st.container():
 # ✅ Footer
 st.markdown("<hr style='border-top: 1px dashed #8c8b8b;'>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #777;'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
+
+def recognize_speech():
+    """Listens for speech and converts it to text."""
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.info("Say something!")
+        try:
+            audio = r.listen(source, phrase_time_limit=5) # Adjust time limit as needed
+            st.info("Recognizing...")
+            text = r.recognize_google(audio)
+            st.info(f"You said: {text}")
+            return text
+        except sr.WaitTimeoutError:
+            st.info("No speech detected.")
+            return None
+        except sr.UnknownValueError:
+            st.error("Could not understand audio")
+            return None
+        except sr.RequestError as e:
+            st.error(f"Could not request results from Google Speech Recognition service; {e}")
+            return None
+
+if __name__ == "__main__":
+    pass # Streamlit app will handle the speech recognition within the UI
