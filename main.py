@@ -382,11 +382,11 @@ def recognize_speech():
         return None
 
 # ✅ Input Box (Floating)
-with st.container():
-    st.markdown('<div class="send-box">with st.form(key="chat_form", clear_on_submit=True):
+with st.form(key="chat_form", clear_on_submit=True):
             col1, col2 = st.columns([5, 1])
             user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
             submitted = col2.form_submit_button("🚀 Send")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     use_mic = False  # Default: microphone disabled
     try:
@@ -427,6 +427,5 @@ with st.container():
                 st.rerun()
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # The footer is now included within the if/else block for UI consistency based on the mode.
