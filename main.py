@@ -12,7 +12,6 @@ from PIL import Image
 import os
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
-# ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # Initialize session state variables if they don't exist
@@ -21,6 +20,8 @@ if "verified" not in st.session_state:
     st.session_state.verified = False
 if "captcha_text" not in st.session_state:
     st.session_state.captcha_text = ""
+if "captcha_filename" not in st.session_state:
+    st.session_state.captcha_filename = ""
 if "captcha_input" not in st.session_state:
     st.session_state.captcha_input = ""
 if "chat" not in st.session_state:
@@ -41,25 +42,37 @@ if not st.session_state.verified:
     st.title("🔐 Human Verification")
     st.write("Please complete the image CAPTCHA below:")
 
-    captcha_file, generated_text = generate_captcha()
-    st.session_state.captcha_text = generated_text
+    if not st.session_state.captcha_filename:
+        captcha_file, generated_text = generate_captcha()
+        st.session_state.captcha_text = generated_text
+        st.session_state.captcha_filename = captcha_file
+    else:
+        captcha_file = st.session_state.captcha_filename
+        generated_text = st.session_state.captcha_text
 
     st.image(captcha_file, caption="Enter the text you see above", use_column_width=False)
-    user_input = st.text_input("🔏 Enter Captcha Text", key="captcha_input_field") # Added a key
+    user_input = st.text_input("🔏 Enter Captcha Text", key="captcha_input_field")
 
     if st.button("Verify"):
-        if user_input.strip().upper() == st.session_state.captcha_text:
+        if user_input.strip().upper() == st.session_state.captcha_text: # Now comparing against the stored text
             st.success("✅ Verification successful!")
             st.session_state.verified = True
-            os.remove(captcha_file)
+            if os.path.exists(st.session_state.captcha_filename):
+                os.remove(st.session_state.captcha_filename)
+            st.session_state.captcha_filename = ""
+            st.session_state.captcha_text = "" # Clear the stored text
             st.rerun()
         else:
             st.error("❌ Incorrect CAPTCHA. Please try again.")
-            if os.path.exists(captcha_file):
-                os.remove(captcha_file)
-            # No immediate rerun here
+            if os.path.exists(st.session_state.captcha_filename):
+                os.remove(st.session_state.captcha_filename)
+            st.session_state.captcha_filename = ""
+            st.session_state.captcha_text = "" # Clear the stored text
+            st.rerun()
 
     st.stop()
+
+# ... (rest of your code)
             # No need to rerun immediately here; the next script execution will show the CAPTCHA again
 
 # ✅ API Configuration
