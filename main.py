@@ -33,16 +33,18 @@ genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_ID" crossorigin="anonymous"></script>""", height=0)
 
 # ✅ Mode Selection
+# ✅ Mode Selection
 mode = "Normal"
 selected_mode = st.selectbox("🧠 Choose Your Plan", ["Normal", "Premium"])
+PREMIUM_CODE = "FIREBOX2025"  # ⚠️ DEFINE YOUR PREMIUM CODE HERE
 if selected_mode == "Premium":
     code = st.text_input("🔐 Secret Code", type="password")
-    if code == st.secrets["PREMIUM_CODE"]:  # ⚠️ Use Streamlit secrets for premium code
+    if code == PREMIUM_CODE:
         st.success("🚀 Welcome to Quantora Premium.")
         mode = "Premium"
     elif code:
         st.error("❌ Wrong Code")
-
+        
 model = genai.GenerativeModel("gemini-2.0-flash" if mode == "Premium" else "gemini-1.5-flash")
 
 # ✅ Gemini Wrapper
