@@ -431,18 +431,21 @@ if social_media_button:
     time.sleep(1)
     st.markdown("[Click here to open Quatora Social Media 📱](https://firebox-social.streamlit.app)", unsafe_allow_html=True)
 
-if submitted and user_input:
-    st.session_state.chat.append(("user", user_input))
-    with st.spinner("🤖 Quantora is processing..."):
-        try:
-            response = call_quantora_gemini(user_input)
-            animated_response = ""
-            for char in response:
-                animated_response += char
-                time.sleep(0.002)
-            st.session_state.chat.append(("quantora", animated_response))
-        except Exception as e:
-            st.error(f"An error occurred while processing your request: {e}")
+if submitted:
+    if user_input:
+        st.session_state.chat.append(("user", user_input))
+        with st.spinner("🤖 Quantora is processing..."):
+            try:
+                response = call_quantora_gemini(user_input)
+                animated_response = ""
+                for char in response:
+                    animated_response += char
+                    time.sleep(0.002)
+                st.session_state.chat.append(("quantora", animated_response))
+            except Exception as e:
+                st.error(f"An error occurred while processing your request: {e}")
+    # Clear the input field after successful submission (optional, but often desired)
+    st.session_state["user_prompt_input"] = ""
 
 else:
     st.warning("Quantora can make mistakes. Help it improve.")
