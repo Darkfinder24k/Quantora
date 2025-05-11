@@ -399,7 +399,7 @@ with st.form(key="chat_form", clear_on_submit=True):
     if search_button:
         st.info("🌐 Opening Quantora search engine...")
         # Replace 'https://quantora-search-engine.streamlit.app/' with the actual URL of your search engine
-        st.markdown("[Click here to open your search engine 🌐](YOUR_SEARCH_ENGINE_URL)", unsafe_allow_html=True)
+        st.markdown("[Click here to open your search engine 🌐](https://quantora-search-engine.streamlit.app/)", unsafe_allow_html=True)
 
     if news_button:
         st.info("📰 Fetching the latest news...")
