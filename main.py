@@ -379,7 +379,7 @@ def recognize_speech():
     except sr.UnknownValueError:
         st.warning("Could not understand audio.")
         return None
-    exceptAttributeError as e:
+    except AttributeError as e:
         st.error("Microphone input is not supported in this environment.")
         return None
     except Exception as e:
@@ -420,7 +420,7 @@ with st.form(key="chat_form", clear_on_submit=True):
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-use_mic = False  # Default: microphone disabled
+use_mic = False # Default: microphone disabled
 try:
     import pyaudio
     use_mic = True
