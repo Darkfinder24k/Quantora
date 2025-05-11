@@ -419,7 +419,7 @@ if news_button:
     # Replace this with your actual news fetching logic
     news_placeholder = st.empty()
     time.sleep(1)
-    webbrowser.open('quantoranews.streamlit.app')
+    st.markdown("[Click here to open Quatora News 📰](https://quantoranews.streamlit.app)", unsafe_allow_html=True)
 
 if submitted and user_input:
     st.session_state.chat.append(("user", user_input))
@@ -435,4 +435,4 @@ if submitted and user_input:
             st.error(f"An error occurred while processing your request: {e}")
 
 else:
-    st.warning("Quantoria can make mistakes. Help it improve.")
+    st.warning("Quantora can make mistakes. Help it improve.")
