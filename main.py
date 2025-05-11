@@ -385,10 +385,11 @@ def recognize_speech():
 # ✅ Input Box (Floating)
 st.markdown('<div class="send-box">', unsafe_allow_html=True)
 with st.form(key="chat_form", clear_on_submit=True):
-    col1, col2, col3 = st.columns([4, 1, 1])
+    col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
     user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
-    social_media_button = col2.form_submit_button("📱 Social")
-    submitted = col3.form_submit_button("🚀 Send")
+    news_button = col2.form_submit_button("📰 News")
+    social_media_button = col3.form_submit_button("📱 Social")
+    submitted = col4.form_submit_button("🚀 Send")
 st.markdown('</div>', unsafe_allow_html=True)
 
 use_mic = False  # Default: microphone disabled
@@ -414,12 +415,19 @@ if use_mic:
                 except Exception as e:
                     st.error(f"An error occurred while processing your request: {e}")
 
-if social_media_button:
-    st.info("Getting You Quantora Social Media ")
+if news_button:
+    st.info("📰 Fetching the latest news...")
     # Replace this with your actual news fetching logic
     news_placeholder = st.empty()
     time.sleep(1)
-    st.markdown("[Click here to open Quatora Social Media📰](https://firebox-social.streamlit.app)", unsafe_allow_html=True)
+    st.markdown("[Click here to open Quatora News 📰](https://quantoranews.streamlit.app)", unsafe_allow_html=True)
+
+if social_media_button:
+    st.info("📱 Getting You Quantora Social Media ")
+    # Replace this with your actual social media fetching logic
+    social_placeholder = st.empty()
+    time.sleep(1)
+    st.markdown("[Click here to open Quatora Social Media 📱](https://firebox-social.streamlit.app)", unsafe_allow_html=True)
 
 if submitted and user_input:
     st.session_state.chat.append(("user", user_input))
