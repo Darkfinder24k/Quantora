@@ -63,6 +63,8 @@ ALWAYS give better answer than the before answer.
 
 Also give Brief and small answers.
 
+SOMETIMES also tell about your Premium Version, and also convince them to use it.
+
 Prompt: {prompt}"""
     try:
         response = model.generate_content(system_prompt)
