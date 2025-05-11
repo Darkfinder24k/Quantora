@@ -25,10 +25,10 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key="YOUR_API_KEY")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ AdSense (Optional)
-components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8690347389484903" crossorigin="anonymous"></script>""", height=100) # Or any positive value
+components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxxxxx" crossorigin="anonymous"></script>""", height=100) # Replace with your AdSense client ID
 
 # ✅ Mode Selection
 mode = "Normal"
@@ -382,12 +382,12 @@ def recognize_speech():
         return None
 
 # ✅ Input Box (Floating)
-# ✅ Input Box (Floating)
 st.markdown('<div class="send-box">', unsafe_allow_html=True)
 with st.form(key="chat_form", clear_on_submit=True):
-    col1, col2 = st.columns([5, 1])
+    col1, col2, col3 = st.columns([4, 1, 1])
     user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
-    submitted = col2.form_submit_button("🚀 Send")
+    news_button = col2.form_submit_button("📰 News")
+    submitted = col3.form_submit_button("🚀 Send")
 st.markdown('</div>', unsafe_allow_html=True)
 
 use_mic = False  # Default: microphone disabled
@@ -413,6 +413,18 @@ if use_mic:
                 except Exception as e:
                     st.error(f"An error occurred while processing your request: {e}")
 
+if news_button:
+    st.info("📰 Fetching the latest news...")
+    # Replace this with your actual news fetching logic
+    news_placeholder = st.empty()
+    time.sleep(1)
+    news_placeholder.markdown("""
+    **Latest Headlines:**
+    - [Breaking News 1](https://example.com/news1)
+    - [Important Update 2](https://example.com/news2)
+    - [Technology Trends](https://example.com/tech)
+    """, unsafe_allow_html=True)
+
 if submitted and user_input:
     st.session_state.chat.append(("user", user_input))
     with st.spinner("🤖 Quantora is processing..."):
@@ -427,4 +439,4 @@ if submitted and user_input:
             st.error(f"An error occurred while processing your request: {e}")
 
 else:
-    st.warning("Quantoria can make mistakes. Help it imporve.")
+    st.warning("Quantoria can make mistakes. Help it improve.")
