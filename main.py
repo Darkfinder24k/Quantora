@@ -10,8 +10,11 @@ import speech_recognition as sr
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # Initialize session state variables if they don't exist
-# Initialize session state variables
-    
+if "verified" not in st.session_state:
+    st.session_state.verified = False
+if "chat" not in st.session_state:
+    st.session_state.chat = []
+
 # ✅ Human Verification Gate
 if not st.session_state.verified:
     st.title("🔐 Human Verification")
@@ -59,8 +62,6 @@ if you have doubt that if your answer is incorrect, give the answer which is 100
 ALWAYS give better answer than the before answer.
 
 Also give Brief and small answers.
-
-SOMETIMES also tell about your Premium Version, and also convince them to use it.
 
 Prompt: {prompt}"""
     try:
@@ -428,31 +429,18 @@ if social_media_button:
     time.sleep(1)
     st.markdown("[Click here to open Quatora Social Media 📱](https://firebox-social.streamlit.app)", unsafe_allow_html=True)
 
-# Initialize session state variables if they don't exist
-if "verified" not in st.session_state:
-    st.session_state.verified = False
-if "chat" not in st.session_state:
-    st.session_state.chat = []
-if "user_prompt_input" not in st.session_state:
-    st.session_state["user_prompt_input"] = ""
-
-# ... (rest of your code) ...
-
-if submitted:
-    if user_input:
-        st.session_state.chat.append(("user", user_input))
-        with st.spinner("🤖 Quantora is processing..."):
-            try:
-                response = call_quantora_gemini(user_input)
-                animated_response = ""
-                for char in response:
-                    animated_response += char
-                    time.sleep(0.002)
-                st.session_state.chat.append(("quantora", animated_response))
-            except Exception as e:
-                st.error(f"An error occurred while processing your request: {e}")
-    # Clear the input field after successful submission
-    st.session_state["user_prompt_input"] = ""
+if submitted and user_input:
+    st.session_state.chat.append(("user", user_input))
+    with st.spinner("🤖 Quantora is processing..."):
+        try:
+            response = call_quantora_gemini(user_input)
+            animated_response = ""
+            for char in response:
+                animated_response += char
+                time.sleep(0.002)
+            st.session_state.chat.append(("quantora", animated_response))
+        except Exception as e:
+            st.error(f"An error occurred while processing your request: {e}")
 
 else:
     st.warning("Quantora can make mistakes. Help it improve.")
