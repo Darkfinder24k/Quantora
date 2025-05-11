@@ -4,6 +4,7 @@ import google.generativeai as genai
 from datetime import datetime
 import time
 import speech_recognition as sr
+import webbrowser
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
@@ -418,12 +419,7 @@ if news_button:
     # Replace this with your actual news fetching logic
     news_placeholder = st.empty()
     time.sleep(1)
-    news_placeholder.markdown("""
-    **Latest Headlines:**
-    - [Breaking News 1](https://example.com/news1)
-    - [Important Update 2](https://example.com/news2)
-    - [Technology Trends](https://example.com/tech)
-    """, unsafe_allow_html=True)
+    webbrowser.open('quantoranews.streamlit.app')
 
 if submitted and user_input:
     st.session_state.chat.append(("user", user_input))
