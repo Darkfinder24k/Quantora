@@ -28,7 +28,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="YOUR_GEMINI_API_KEY")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxxxxx" crossorigin="anonymous"></script>""", height=100) # Replace with your AdSense client ID
@@ -76,7 +76,7 @@ Prompt: {prompt}"""
 
 # ✅ Greeting
 hour = datetime.now().hour
-greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
+greeting = "Good morning" if 6 <= hour < 12 else "Good afternoon" if 12 <= hour < 18 else "Good evening"
 
 # ✅ Function to inject custom CSS for the logo
 def change_logo(logo_url):
@@ -360,7 +360,7 @@ st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 for speaker, msg in st.session_state.chat:
     style_class = "user" if speaker == "user" else "bot"
     st.markdown(f'<div class="message {style_class}"><strong>{speaker.title()}:</strong><br>{msg}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 def recognize_speech():
     try:
@@ -379,7 +379,7 @@ def recognize_speech():
     except sr.UnknownValueError:
         st.warning("Could not understand audio.")
         return None
-    except AttributeError as e:
+    exceptAttributeError as e:
         st.error("Microphone input is not supported in this environment.")
         return None
     except Exception as e:
@@ -391,9 +391,33 @@ st.markdown('<div class="send-box">', unsafe_allow_html=True)
 with st.form(key="chat_form", clear_on_submit=True):
     col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
     user_input = col1.text_input("💬 Ask Quantora anything...", key="user_prompt_input", label_visibility="collapsed")
-    news_button = col2.form_submit_button("📰 News")
-    social_media_button = col3.form_submit_button("📱 Social")
-    submitted = col4.form_submit_button("🚀 Send")
+    search_button = col2.form_submit_button("🔎 Search Engine")
+    news_button = col3.form_submit_button("📰 News")
+    social_media_button = col4.form_submit_button("📱 Social")
+    submitted = False # Initialize submitted to False
+
+    if search_button:
+        st.info("🌐 Opening Quantora search engine...")
+        # Replace 'https://quantora-search-engine.streamlit.app/' with the actual URL of your search engine
+        st.markdown("[Click here to open your search engine 🌐](YOUR_SEARCH_ENGINE_URL)", unsafe_allow_html=True)
+
+    if news_button:
+        st.info("📰 Fetching the latest news...")
+        # Replace this with your actual news fetching logic
+        news_placeholder = st.empty()
+        time.sleep(1)
+        st.markdown("[Click here to open Quatora News 📰](https://quantoranews.streamlit.app)", unsafe_allow_html=True)
+
+    if social_media_button:
+        st.info("📱 Getting You Quantora Social Media ")
+        # Replace this with your actual social media fetching logic
+        social_placeholder = st.empty()
+        time.sleep(1)
+        st.markdown("[Click here to open Quatora Social Media 📱](https://firebox-social.streamlit.app)", unsafe_allow_html=True)
+
+    if col1.form_submit_button("🚀 Send"): # Separate submit button for regular chat
+        submitted = True
+
 st.markdown('</div>', unsafe_allow_html=True)
 
 use_mic = False  # Default: microphone disabled
@@ -419,33 +443,18 @@ if use_mic:
                 except Exception as e:
                     st.error(f"An error occurred while processing your request: {e}")
 
-if news_button:
-    st.info("📰 Fetching the latest news...")
-    # Replace this with your actual news fetching logic
-    news_placeholder = st.empty()
-    time.sleep(1)
-    st.markdown("[Click here to open Quatora News 📰](https://quantoranews.streamlit.app)", unsafe_allow_html=True)
-
-if social_media_button:
-    st.info("📱 Getting You Quantora Social Media ")
-    # Replace this with your actual social media fetching logic
-    social_placeholder = st.empty()
-    time.sleep(1)
-    st.markdown("[Click here to open Quatora Social Media 📱](https://firebox-social.streamlit.app)", unsafe_allow_html=True)
-
-if submitted:
-    if user_input:
-        st.session_state.chat.append(("user", user_input))
-        with st.spinner("🤖 Quantora is processing..."):
-            try:
-                response = call_quantora_gemini(user_input)
-                animated_response = ""
-                for char in response:
-                    animated_response += char
-                    time.sleep(0.002)
-                st.session_state.chat.append(("quantora", animated_response))
-            except Exception as e:
-                st.error(f"An error occurred while processing your request: {e}")
+elif submitted and user_input and not any([news_button, social_media_button, search_button]):
+    st.session_state.chat.append(("user", user_input))
+    with st.spinner("🤖 Quantora is processing..."):
+        try:
+            response = call_quantora_gemini(user_input)
+            animated_response = ""
+            for char in response:
+                animated_response += char
+                time.sleep(0.002)
+            st.session_state.chat.append(("quantora", animated_response))
+        except Exception as e:
+            st.error(f"An error occurred while processing your request: {e}")
     # Clear the input field after successful submission
     st.session_state["user_prompt_input"] = ""
 
