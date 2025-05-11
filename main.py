@@ -431,6 +431,16 @@ if social_media_button:
     time.sleep(1)
     st.markdown("[Click here to open Quatora Social Media 📱](https://firebox-social.streamlit.app)", unsafe_allow_html=True)
 
+# Initialize session state variables if they don't exist
+if "verified" not in st.session_state:
+    st.session_state.verified = False
+if "chat" not in st.session_state:
+    st.session_state.chat = []
+if "user_prompt_input" not in st.session_state:
+    st.session_state["user_prompt_input"] = ""
+
+# ... (rest of your code) ...
+
 if submitted:
     if user_input:
         st.session_state.chat.append(("user", user_input))
@@ -444,7 +454,7 @@ if submitted:
                 st.session_state.chat.append(("quantora", animated_response))
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
-    # Clear the input field after successful submission (optional, but often desired)
+    # Clear the input field after successful submission
     st.session_state["user_prompt_input"] = ""
 
 else:
