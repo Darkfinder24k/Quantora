@@ -10,11 +10,14 @@ import speech_recognition as sr
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # Initialize session state variables if they don't exist
+# Initialize session state variables
 if "verified" not in st.session_state:
     st.session_state.verified = False
 if "chat" not in st.session_state:
     st.session_state.chat = []
-
+if "user_prompt_input" not in st.session_state:
+    st.session_state["user_prompt_input"] = ""
+    
 # ✅ Human Verification Gate
 if not st.session_state.verified:
     st.title("🔐 Human Verification")
