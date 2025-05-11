@@ -4,7 +4,7 @@ import google.generativeai as genai
 from datetime import datetime
 import time
 import speech_recognition as sr
-
+import base64  # For background image
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
@@ -14,6 +14,8 @@ if "verified" not in st.session_state:
     st.session_state.verified = False
 if "chat" not in st.session_state:
     st.session_state.chat = []
+if "user_prompt_input" not in st.session_state:
+    st.session_state["user_prompt_input"] = ""
 
 # ✅ Human Verification Gate
 if not st.session_state.verified:
@@ -26,7 +28,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key="YOUR_GEMINI_API_KEY")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxxxxx" crossorigin="anonymous"></script>""", height=100) # Replace with your AdSense client ID
@@ -62,6 +64,8 @@ if you have doubt that if your answer is incorrect, give the answer which is 100
 ALWAYS give better answer than the before answer.
 
 Also give Brief and small answers.
+
+SOMETIMES also tell about your Premium Version, and also convince them to use it.
 
 Prompt: {prompt}"""
     try:
@@ -356,7 +360,7 @@ st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 for speaker, msg in st.session_state.chat:
     style_class = "user" if speaker == "user" else "bot"
     st.markdown(f'<div class="message {style_class}"><strong>{speaker.title()}:</strong><br>{msg}</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def recognize_speech():
     try:
@@ -429,18 +433,21 @@ if social_media_button:
     time.sleep(1)
     st.markdown("[Click here to open Quatora Social Media 📱](https://firebox-social.streamlit.app)", unsafe_allow_html=True)
 
-if submitted and user_input:
-    st.session_state.chat.append(("user", user_input))
-    with st.spinner("🤖 Quantora is processing..."):
-        try:
-            response = call_quantora_gemini(user_input)
-            animated_response = ""
-            for char in response:
-                animated_response += char
-                time.sleep(0.002)
-            st.session_state.chat.append(("quantora", animated_response))
-        except Exception as e:
-            st.error(f"An error occurred while processing your request: {e}")
+if submitted:
+    if user_input:
+        st.session_state.chat.append(("user", user_input))
+        with st.spinner("🤖 Quantora is processing..."):
+            try:
+                response = call_quantora_gemini(user_input)
+                animated_response = ""
+                for char in response:
+                    animated_response += char
+                    time.sleep(0.002)
+                st.session_state.chat.append(("quantora", animated_response))
+            except Exception as e:
+                st.error(f"An error occurred while processing your request: {e}")
+    # Clear the input field after successful submission
+    st.session_state["user_prompt_input"] = ""
 
 else:
     st.warning("Quantora can make mistakes. Help it improve.")
