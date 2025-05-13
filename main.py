@@ -28,7 +28,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ AdSense (Optional)
 components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxxxxx" crossorigin="anonymous"></script>""", height=100) # Replace with your AdSense client ID
@@ -428,7 +428,7 @@ with st.form(key="chat_form", clear_on_submit=True):
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
         # Clear the input field after successful submission (now within the form's submit block)
-        st.session_state["user_prompt_input"] = ""
+        st.session_state.user_prompt_input = ""
 
 st.markdown('</div>', unsafe_allow_html=True)
 
