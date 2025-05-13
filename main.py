@@ -91,7 +91,7 @@ def project_hologram(logo_url):
 elite_logo_url = "https://www.flaticon.com/free-icon/artificial-intelligence_953817"  # ⚠️ Replace with a high-end AI/robotic logo URL
 project_hologram(elite_logo_url)
 
-# ✅ Elite Cybernetic Interface Styling (with Floating Elements)
+# ✅ Elite Cybernetic Interface Styling (with Fixed Bottom Input)
 st.markdown(
     """
     <style>
@@ -124,10 +124,10 @@ st.markdown(
     }
 
     .chat-container {
-        max-height: 75vh; /* Adjust height to accommodate floating input */
+        max-height: 78vh; /* Adjust height to accommodate fixed footer */
         overflow-y: auto;
         padding: 1.2rem;
-        padding-bottom: 120px; /* Space for the floating input */
+        padding-bottom: 160px; /* Increased padding for fixed footer */
         scrollbar-width: thin;
         scrollbar-color: #37474f #000000;
     }
@@ -179,25 +179,24 @@ st.markdown(
         text-shadow: 0 0 5px #a7ffeb;
     }
 
-    /* Floating Input Bar */
-    .floating-input-container {
+    /* Fixed Bottom Input Bar */
+    .fixed-input-container {
         position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: rgba(0, 0, 0, 0.85);
-        padding: 1rem 1.5rem;
-        border-radius: 25px;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: rgba(0, 0, 0, 0.95);
+        padding: 0.8rem 1.5rem;
         display: flex;
-        align-items: center;
         gap: 0.8rem;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
-        border: 1px solid #263238;
-        z-index: 1000; /* Ensure it's above chat */
+        align-items: center;
+        border-top: 1px solid #263238;
+        z-index: 1000; /* Ensure it stays on top */
+        box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.7);
         backdrop-filter: blur(15px);
     }
 
-    .floating-input {
+    .fixed-input {
         flex-grow: 1;
         padding: 0.9rem 1.5rem;
         border: 1px solid #455a64;
@@ -208,15 +207,14 @@ st.markdown(
         font-family: 'Exo 2', sans-serif;
         transition: background-color 0.2s ease, border-color 0.2s ease;
     }
-    .floating-input:focus {
+    .fixed-input:focus {
         background-color: #37474f;
         border-color: #00ffff; /* Electric cyan focus */
         outline: none;
         box-shadow: 0 0 10px #00ffff;
     }
 
-    /* Floating Transmit Button */
-    .floating-transmit-button {
+    .fixed-transmit-button {
         background: linear-gradient(to right, #ff4081, #c51162); /* Luxurious magenta gradient */
         color: #fff;
         border: none;
@@ -227,12 +225,12 @@ st.markdown(
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
         transition: background 0.2s ease, transform 0.1s ease;
     }
-    .floating-transmit-button:hover {
+    .fixed-transmit-button:hover {
         background: linear-gradient(to right, #f50057, #ad1457); /* Darker hover gradient */
         transform: scale(1.05);
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     }
-    .floating-transmit-button:active {
+    .fixed-transmit-button:active {
         transform: scale(1);
     }
 
@@ -284,21 +282,12 @@ def initiate_audio_reception():
         st.error(f"❌ Audio Stream Interruption: {e}")
         return None
 
-# ✅ Integrated Elite Input Module (Floating)
-st.markdown('<div class="floating-input-container">', unsafe_allow_html=True)
+# ✅ Fixed Bottom Input Module
+st.markdown('<div class="fixed-input-container">', unsafe_allow_html=True)
 with st.form(key="elite_chat_form", clear_on_submit=True):
     col1, col_button = st.columns([5, 1])
-    user_input = col1.text_input("Initiate Query", key="user_prompt_input", label_visibility="collapsed", placeholder="Engage Cognitive Core...")
-    submitted = col_button.form_submit_button("⚡️ Transmit", use_container_width=True, type="primary", css_classes=["floating-transmit-button"])
-
-    # ✅ Integrated Elite Input Module (Floating)
-st.markdown('<div class="floating-input-container">', unsafe_allow_html=True)
-with st.form(key="elite_chat_form", clear_on_submit=True):
-    col1, col_button = st.columns([5, 1])
-    user_input = col1.text_input("Initiate Query", key="user_prompt_input", label_visibility="collapsed", placeholder="Engage Cognitive Core...", class="floating-input") # Keep the class here for styling the input
-    submitted = col_button.form_submit_button("⚡️ Transmit", use_container_width=True, type="primary")
-
-st.markdown('</div>', unsafe_allow_html=True)
+    user_input = col1.text_input("Initiate Query", key="user_prompt_input", label_visibility="collapsed", placeholder="Engage Cognitive Core...", class="fixed-input")
+    submitted = col_button.form_submit_button("⚡️ Transmit", use_container_width=True, type="primary", css_classes=["fixed-transmit-button"])
 
     if submitted and user_input:
         st.session_state.chat.append(("user", user_input))
