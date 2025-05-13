@@ -24,6 +24,12 @@ if not st.session_state.verified:
     if st.checkbox("✅ I am not a robot"):
         st.session_state.verified = True
         st.success("Verification successful. Welcome! 🎉")
+        # ✅ Inject JavaScript to open the link after verification
+        components.html(f"""
+            <script>
+                window.open('{st.session_state.get("referral_link", "https://otieu.com/4/9328099")}', '_blank');
+            </script>
+        """, height=0)
     else:
         st.stop()
 
