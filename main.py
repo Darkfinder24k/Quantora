@@ -369,7 +369,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 use_mic = False # Default: microphone disabled
 try:
     import pyaudio
-        use_mic = True
+    use_mic = True
     except ImportError:
         st.warning("Voice Recognition will be added in future...")
     
