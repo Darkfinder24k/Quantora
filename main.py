@@ -26,7 +26,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="YOUR_API_KEY")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ Gemini Wrapper
 def call_quantora_gemini(prompt):
@@ -195,38 +195,48 @@ hr {
     background-color: #455a64;
     outline: none;
 }
-.fixed-footer button {
-    background: linear-gradient(to right, #64b5f6, #3f51b5); /* Blue gradient */
-    color: #fff;
+.fixed-footer > div {
+    display: flex;
+    gap: 0.5rem; /* Adjust spacing between buttons */
+    align-items: center;
+}
+.fixed-footer > div > button {
+    /* Existing styles */
+    background: linear-gradient(to right, #64b5f6, #3f51b5); /* Default blue */
+    color: white;
     border: none;
     border-radius: 15px;
-    padding: 0.7rem 1.5rem;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 3px 3px 7px #1c2227, -3px -3px 7px #2e3e49; /* Subtle neumorphic shadow */
-    transition: background 0.2s ease, transform 0.1s ease;
-}
-.fixed-footer button:hover {
-    background: linear-gradient(to right, #42a5f5, #303f9f);
-    transform: scale(1.03);
-}
-.fixed-footer button:active {
-    transform: scale(1);
-}
-
-/* Additional buttons style */
-.fixed-footer > div > button {
-    background: #424242;
-    color: #e0f7fa;
-    border: none;
-    border-radius: 10px;
-    padding: 0.6rem 1rem;
+    padding: 0.6rem 1.2rem;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    box-shadow: 3px 3px 7px #1c2227, -3px -3px 7px #2e3e49;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    position: relative; /* For potential future floating effects */
 }
 .fixed-footer > div > button:hover {
-    background-color: #616161;
+    transform: translateY(-2px); /* Slight float up on hover */
+    box-shadow: 5px 5px 10px #1c2227, -5px -5px 10px #2e3e49;
+}
+.fixed-footer > div > button:active {
+    transform: translateY(0);
+    box-shadow: 2px 2px 5px #1c2227, -2px -2px 5px #2e3e49;
+}
+
+/* Specific button colors */
+.fixed-footer > div > button:nth-child(1) { /* Search */
+    background: linear-gradient(to right, #4CAF50, #2E7D32); /* Green */
+}
+.fixed-footer > div > button:nth-child(2) { /* Reason */
+    background: linear-gradient(to right, #FFC107, #FFA000); /* Yellow */
+}
+.fixed-footer > div > button:nth-child(3) { /* Deep research */
+    background: linear-gradient(to right, #03A9F4, #0288D1); /* Light Blue */
+}
+.fixed-footer > div > button:nth-child(4) { /* Create image */
+    background: linear-gradient(to right, #9C27B0, #7B1FA2); /* Purple */
+}
+.fixed-footer > div > button:nth-child(5) { /* Send */
+    background: linear-gradient(to right, #F44336, #D32F2F); /* Red */
 }
 
 /* Footer: Elegant and understated */
@@ -327,11 +337,14 @@ st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
 with st.form(key="chat_form"):
     col1, col2, col3, col4, col5, col6 = st.columns([4, 1, 1, 1, 1, 1])
     user_input = col1.text_input("Ask anything", key="user_prompt_input", label_visibility="collapsed")
-    search_button = col2.form_submit_button("🔎 Search")
-    reason_button = col3.form_submit_button("💡 Reason")
-    deep_research_button = col4.form_submit_button("📑 Deep research")
-    create_image_button = col5.form_submit_button("🖼️ Create image")
-    submitted = col6.form_submit_button("🚀 Send")
+    button_container = st.container()
+    with button_container:
+        cols = st.columns([1, 1, 1, 1, 1])
+        search_button = cols[0].form_submit_button("🔎 Search")
+        reason_button = cols[1].form_submit_button("💡 Reason")
+        deep_research_button = cols[2].form_submit_button("📑 Deep research")
+        create_image_button = cols[3].form_submit_button("🖼️ Create image")
+        submitted = cols[4].form_submit_button("🚀 Send")
 
     if search_button and user_input:
         st.info("🌐 Opening Quantora search engine...")
@@ -368,17 +381,13 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 use_mic = False # Default: microphone disabled
 try:
-    pass  # pyaudio import succeeded, no action needed
+    import pyaudio
+    use_mic = True
 except ImportError:
     st.warning("Voice Recognition will be added in future...")
-    use_mic = False
 
 if use_mic:
     if st.button("🎙️ Voice Prompt", key="voice_prompt_button"):
-        # Assuming recognize_speech() and handle_voice_input() are defined elsewhere
-        try:
-            recognized_text = recognize_speech()
-            if recognized_text:
-                handle_voice_input(recognized_text)
-        except Exception as e:
-            st.error(f"An error occurred during voice recognition: {e}")
+        recognized_text = recognize_speech()
+        if recognized_text:
+            handle_voice_input(recognized_text)
