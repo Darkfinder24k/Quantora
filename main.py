@@ -429,7 +429,7 @@ with st.form(key="chat_form", clear_on_submit=True):
                 st.error(f"An error occurred while processing your request: {e}")
         # Clear the input field after successful submission (now within the form's submit block)
         if 'user_prompt_input' not in st.session_state:
-        st.session_state.user_prompt_input = ""
+            st.session_state.user_prompt_input = ""
 
 
 st.markdown('</div>', unsafe_allow_html=True)
