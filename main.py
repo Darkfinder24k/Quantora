@@ -447,7 +447,7 @@ if use_mic:
     if st.button("🎙️ Voice Prompt"):
         recognized_text = recognize_speech()
         if recognized_text:
-            st.session_state.chat.append({"role": "user", "text": recognized_text})
+            st.session_state.chat.append({"role": "user", "text": recognized_text}) # <--- Corrected line
             with st.spinner("🤖 Quantora is processing your voice input..."):
                 try:
                     response = call_quantora_gemini(recognized_text)
@@ -455,12 +455,12 @@ if use_mic:
                     for char in response:
                         animated_response += char
                         time.sleep(0.002)
-                    st.session_state.chat.append({"role": "bot", "text": animated_response})
+                    st.session_state.chat.append({"role": "bot", "text": animated_response}) # <--- Corrected line
                 except Exception as e:
                     st.error(f"An error occurred while processing your request: {e}")
 
 elif submitted and user_input and not any([news_button, social_media_button, search_button]):
-    st.session_state.chat.append({"role": "user", "text": user_input})
+    st.session_state.chat.append({"role": "user", "text": user_input}) # <--- Corrected line
     with st.spinner("🤖 Quantora is processing..."):
         try:
             response = call_quantora_gemini(user_input)
@@ -468,7 +468,7 @@ elif submitted and user_input and not any([news_button, social_media_button, sea
             for char in response:
                 animated_response += char
                 time.sleep(0.002)
-            st.session_state.chat.append({"role": "bot", "text": animated_response})
+            st.session_state.chat.append({"role": "bot", "text": animated_response}) # <--- Corrected line
         except Exception as e:
             st.error(f"An error occurred while processing your request: {e}")
     # Clear the input field after successful submission
