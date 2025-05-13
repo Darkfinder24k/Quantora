@@ -368,7 +368,7 @@ if use_mic:
         recognized_text = recognize_speech()
         if recognized_text:
             st.session_state.chat.append(("user", recognized_text))
-                with st.spinner("🤖 Quantora is processing your voice input..."):
+            with st.spinner("🤖 Quantora is processing your voice input..."):
                 try:
                     response = call_quantora_gemini(recognized_text)
                     animated_response = ""
