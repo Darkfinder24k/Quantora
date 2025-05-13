@@ -42,7 +42,7 @@ Give the best suggestions.
 
 ALWAYS give 100% correct answers, NO errors.
 
-if you have doubt that if your answer is incorrect, give the answer which is 100% correct then ask them the question in which you have doubt, and get the most trained by the user answers.
+if you have doubt that if your answer is incorrect, give the answer which is 100% correct answers.
 
 ALWAYS give better answer than the before answer.
 
@@ -294,6 +294,34 @@ def recognize_speech():
         st.error(f"Speech recognition failed: {e}")
         return None
 
+def handle_text_input(user_input):
+    st.session_state.chat.append(("user", user_input))
+    with st.spinner("🤖 Quantora is processing..."):
+        try:
+            response = call_quantora_gemini(user_input)
+            animated_response = ""
+            for char in response:
+                animated_response += char
+                time.sleep(0.002)
+            st.session_state.chat.append(("quantora", animated_response))
+        except Exception as e:
+            st.error(f"An error occurred while processing your request: {e}")
+    st.session_state.user_prompt_input = ""
+
+def handle_voice_input(recognized_text):
+    st.session_state.chat.append(("user", recognized_text))
+    with st.spinner("🤖 Quantora is processing your voice input..."):
+        try:
+            response = call_quantora_gemini(recognized_text)
+            animated_response = ""
+            for char in response:
+                animated_response += char
+                time.sleep(0.002)
+            st.session_state.chat.append(("quantora", animated_response))
+        except Exception as e:
+            st.error(f"An error occurred while processing your request: {e}")
+    st.session_state.user_prompt_input = ""
+
 # ✅ Fixed Input Box with Buttons
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
 with st.form(key="chat_form", clear_on_submit=True):
@@ -340,18 +368,7 @@ with st.form(key="chat_form", clear_on_submit=True):
         st.warning("Image creation functionality is not yet implemented.")
 
     if submitted and user_input:
-        st.session_state.chat.append(("user", user_input))
-        with st.spinner("🤖 Quantora is processing..."):
-            try:
-                response = call_quantora_gemini(user_input)
-                animated_response = ""
-                for char in response:
-                    animated_response += char
-                    time.sleep(0.002)
-                st.session_state.chat.append(("quantora", animated_response))
-            except Exception as e:
-                st.error(f"An error occurred while processing your request: {e}")
-        st.session_state.user_prompt_input = "" # Corrected placement
+        handle_text_input(user_input)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -366,15 +383,4 @@ if use_mic:
     if st.button("🎙️ Voice Prompt", key="voice_prompt_button"):
         recognized_text = recognize_speech()
         if recognized_text:
-            st.session_state.chat.append(("user", recognized_text))
-            with st.spinner("🤖 Quantora is processing your voice input..."):
-                try:
-                    response = call_quantora_gemini(recognized_text)
-                    animated_response = ""
-                    for char in response:
-                        animated_response += char
-                        time.sleep(0.002)
-                    st.session_state.chat.append(("quantora", animated_response))
-                except Exception as e:
-                    st.error(f"An error occurred while processing your request: {e}")
-                st.session_state.user_prompt_input = ""  # Clear input after voice processing
+            handle_voice_input(recognized_text)
