@@ -28,7 +28,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration - Secure Channel Activated
-genai.configure(api_key="YOUR_API_KEY")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ Quantum Core Processor
 def call_quantora_gemini(prompt):
@@ -91,7 +91,7 @@ def project_hologram(logo_url):
 elite_logo_url = "https://www.flaticon.com/free-icon/artificial-intelligence_953817"  # ⚠️ Replace with a high-end AI/robotic logo URL
 project_hologram(elite_logo_url)
 
-# ✅ Elite Cybernetic Interface Styling (with Fixed Search Bar CSS)
+# ✅ Elite Cybernetic Interface Styling (with Floating Elements)
 st.markdown(
     """
     <style>
@@ -124,10 +124,10 @@ st.markdown(
     }
 
     .chat-container {
-        max-height: 78vh;
+        max-height: 75vh; /* Adjust height to accommodate floating input */
         overflow-y: auto;
         padding: 1.2rem;
-        padding-bottom: 180px; /* Increased padding for fixed footer */
+        padding-bottom: 120px; /* Space for the floating input */
         scrollbar-width: thin;
         scrollbar-color: #37474f #000000;
     }
@@ -153,6 +153,9 @@ st.markdown(
         box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
         border: 1px solid #455a64;
         backdrop-filter: blur(10px); /* Subtle glass effect */
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fade-in-slide-up 0.4s cubic-bezier(0.215, 0.610, 0.355, 1.000) forwards;
     }
     .message:hover {
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
@@ -176,90 +179,64 @@ st.markdown(
         text-shadow: 0 0 5px #a7ffeb;
     }
 
-    .fixed-footer-elite {
-        position: fixed; /* Make it fixed */
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background-color: rgba(0, 0, 0, 0.95); /* Opaque, deep black */
-        padding: 0.8rem 1.8rem;
+    /* Floating Input Bar */
+    .floating-input-container {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.85);
+        padding: 1rem 1.5rem;
+        border-radius: 25px;
         display: flex;
-        gap: 0.8rem;
         align-items: center;
-        border-top: 1px solid #263238;
-        z-index: 9999; /* Ensure it stays on top */
-        box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.7);
+        gap: 0.8rem;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+        border: 1px solid #263238;
+        z-index: 1000; /* Ensure it's above chat */
+        backdrop-filter: blur(15px);
     }
-    .fixed-footer-elite input[type="text"] {
+
+    .floating-input {
         flex-grow: 1;
         padding: 0.9rem 1.5rem;
         border: 1px solid #455a64;
-        border-radius: 15px;
+        border-radius: 20px;
         background-color: #263238;
         color: #eceff1;
         font-size: 1.1rem;
         font-family: 'Exo 2', sans-serif;
         transition: background-color 0.2s ease, border-color 0.2s ease;
     }
-    .fixed-footer-elite input[type="text"]:focus {
+    .floating-input:focus {
         background-color: #37474f;
         border-color: #00ffff; /* Electric cyan focus */
         outline: none;
         box-shadow: 0 0 10px #00ffff;
     }
-    .fixed-footer-elite button {
+
+    /* Floating Transmit Button */
+    .floating-transmit-button {
         background: linear-gradient(to right, #ff4081, #c51162); /* Luxurious magenta gradient */
         color: #fff;
         border: none;
-        border-radius: 15px;
-        padding: 0.8rem 2rem;
+        border-radius: 20px;
+        padding: 0.8rem 1.8rem;
         font-weight: 600;
         cursor: pointer;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
         transition: background 0.2s ease, transform 0.1s ease;
     }
-    .fixed-footer-elite button:hover {
+    .floating-transmit-button:hover {
         background: linear-gradient(to right, #f50057, #ad1457); /* Darker hover gradient */
-        transform: scale(1.03);
-        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     }
-    .fixed-footer-elite button:active {
+    .floating-transmit-button:active {
         transform: scale(1);
     }
 
-    /* Advanced Action Glyphs */
-    .fixed-footer-elite > div > button {
-        background: #37474f;
-        color: #00ffff;
-        border: 1px solid #455a64;
-        border-radius: 10px;
-        padding: 0.6rem 1.2rem;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: background-color 0.2s ease, color 0.2s ease;
-    }
-    .fixed-footer-elite > div > button:hover {
-        background-color: #00ffff;
-        color: #263238;
-        text-shadow: none;
-    }
-
-    .footer {
-        text-align: center;
-        padding: 1.5rem 0;
-        color: #78909c;
-        font-size: 0.85rem;
-        border-top: 1px solid #263238;
-        margin-top: 2rem;
-    }
-
     /* Enhanced Animations */
-    .message {
-        opacity: 0;
-        transform: translateY(20px);
-        animation: fade-in-slide-up 0.4s cubic-bezier(0.215, 0.610, 0.355, 1.000) forwards;
-    }
-
     @keyframes fade-in-slide-up {
         to { opacity: 1; transform: translateY(0); }
     }
@@ -307,12 +284,12 @@ def initiate_audio_reception():
         st.error(f"❌ Audio Stream Interruption: {e}")
         return None
 
-# ✅ Integrated Elite Input Module
-st.markdown('<div class="fixed-footer-elite">', unsafe_allow_html=True)
+# ✅ Integrated Elite Input Module (Floating)
+st.markdown('<div class="floating-input-container">', unsafe_allow_html=True)
 with st.form(key="elite_chat_form", clear_on_submit=True):
-    col1, col2, col3, col4, col5, col6 = st.columns([4, 1, 1, 1, 1, 1])
-    user_input = col1.text_input("Initiate Query", key="user_prompt_input", label_visibility="collapsed", placeholder="Engage Cognitive Core...")
-    submitted = col6.form_submit_button("⚡️ Transmit")
+    col1, col_button = st.columns([5, 1])
+    user_input = col1.text_input("Initiate Query", key="user_prompt_input", label_visibility="collapsed", placeholder="Engage Cognitive Core...", class="floating-input")
+    submitted = col_button.form_submit_button("⚡️ Transmit", use_container_width=True, type="primary", css_classes=["floating-transmit-button"])
 
     if submitted and user_input:
         st.session_state.chat.append(("user", user_input))
