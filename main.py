@@ -370,7 +370,7 @@ use_mic = False # Default: microphone disabled
 try:
     import pyaudio
     use_mic = True
-    except ImportError:
+        except ImportError:
         st.warning("Voice Recognition will be added in future...")
     
     if use_mic:
