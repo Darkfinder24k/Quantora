@@ -26,7 +26,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key="YOUR_API_KEY")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ Gemini Wrapper
 def call_quantora_gemini(prompt):
@@ -168,20 +168,21 @@ hr {
     color: #b2ff59; /* Bright accent for speaker */
 }
 
-/* Send Box: Sleek and fixed at the bottom */
-.fixed-footer {
+/* Custom Search Bar */
+.search-container {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
-    background-color: rgba(38, 50, 56, 0.95); /* Semi-transparent dark background */
+    background-color: rgba(38, 50, 56, 0.95);
     padding: 0.8rem 1.5rem;
     display: flex;
-    gap: 0.8rem;
     align-items: center;
+    gap: 0.5rem;
     border-top: 1px solid #455a64;
 }
-.fixed-footer input[type="text"] {
+
+.search-input {
     flex-grow: 1;
     padding: 0.8rem 1.2rem;
     border: none;
@@ -191,52 +192,45 @@ hr {
     font-size: 1.1rem;
     transition: background-color 0.2s ease;
 }
-.fixed-footer input[type="text"]:focus {
+.search-input:focus {
     background-color: #455a64;
     outline: none;
 }
-.fixed-footer > div {
+
+.search-button, .voice-button {
+    background: #424242;
+    color: #e0f7fa;
+    border: none;
+    border-radius: 50%; /* Circular buttons */
+    width: 35px;
+    height: 35px;
     display: flex;
-    gap: 0.5rem; /* Adjust spacing between buttons */
+    justify-content: center;
     align-items: center;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
 }
-.fixed-footer > div > button {
-    /* Existing styles */
-    background: linear-gradient(to right, #64b5f6, #3f51b5); /* Default blue */
+
+.search-button:hover, .voice-button:hover {
+    background-color: #616161;
+    transform: scale(1.05);
+}
+
+.action-button {
+    background: linear-gradient(to right, #64b5f6, #3f51b5);
     color: white;
     border: none;
     border-radius: 15px;
-    padding: 0.6rem 1.2rem;
+    padding: 0.6rem 1rem;
     font-size: 0.9rem;
     cursor: pointer;
-    box-shadow: 3px 3px 7px #1c2227, -3px -3px 7px #2e3e49;
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
-    position: relative; /* For potential future floating effects */
-}
-.fixed-footer > div > button:hover {
-    transform: translateY(-2px); /* Slight float up on hover */
-    box-shadow: 5px 5px 10px #1c2227, -5px -5px 10px #2e3e49;
-}
-.fixed-footer > div > button:active {
-    transform: translateY(0);
-    box-shadow: 2px 2px 5px #1c2227, -2px -2px 5px #2e3e49;
+    transition: background 0.2s ease, transform 0.1s ease;
 }
 
-/* Specific button colors */
-.fixed-footer > div > button:nth-child(1) { /* Search */
-    background: linear-gradient(to right, #4CAF50, #2E7D32); /* Green */
-}
-.fixed-footer > div > button:nth-child(2) { /* Reason */
-    background: linear-gradient(to right, #FFC107, #FFA000); /* Yellow */
-}
-.fixed-footer > div > button:nth-child(3) { /* Deep research */
-    background: linear-gradient(to right, #03A9F4, #0288D1); /* Light Blue */
-}
-.fixed-footer > div > button:nth-child(4) { /* Create image */
-    background: linear-gradient(to right, #9C27B0, #7B1FA2); /* Purple */
-}
-.fixed-footer > div > button:nth-child(5) { /* Send */
-    background: linear-gradient(to right, #F44336, #D32F2F); /* Red */
+.action-button:hover {
+    background: linear-gradient(to right, #42a5f5, #303f9f);
+    transform: translateY(-2px);
 }
 
 /* Footer: Elegant and understated */
@@ -332,19 +326,17 @@ def handle_voice_input(recognized_text):
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
 
-# ✅ Fixed Input Box with Buttons
-st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
-with st.form(key="chat_form"):
-    col1, col2, col3, col4, col5, col6 = st.columns([4, 1, 1, 1, 1, 1])
-    user_input = col1.text_input("Ask anything", key="user_prompt_input", label_visibility="collapsed")
-    button_container = st.container()
-    with button_container:
-        cols = st.columns([1, 1, 1, 1, 1])
-        search_button = cols[0].form_submit_button("🔎 Search")
-        reason_button = cols[1].form_submit_button("💡 Reason")
-        deep_research_button = cols[2].form_submit_button("📑 Deep research")
-        create_image_button = cols[3].form_submit_button("🖼️ Create image")
-        submitted = cols[4].form_submit_button("🚀 Send")
+# ✅ Custom Search Bar
+st.markdown('<div class="search-container">', unsafe_allow_html=True)
+with st.form(key="search_form"):
+    cols = st.columns([0.1, 0.15, 0.15, 0.2, 0.2, 0.1, 0.09]) # Adjust column widths as needed
+    plus_button = cols[0].button("➕")
+    search_button = cols[1].form_submit_button("🌐 Search")
+    reason_button = cols[2].form_submit_button("💡 Reason")
+    deep_research_button = cols[3].form_submit_button("📑 Deep research")
+    create_image_button = cols[4].form_submit_button("🖼️ Create image")
+    more_button = cols[5].button("•••")
+    user_input = cols[6].text_input("Ask anything", key="user_prompt_input", label_visibility="collapsed", placeholder="Ask anything", style="border-radius: 15px; padding-left: 10px;")
 
     if search_button and user_input:
         st.info("🌐 Opening Quantora search engine...")
@@ -374,9 +366,6 @@ with st.form(key="chat_form"):
         st.info("🖼️ Requesting image creation...")
         st.warning("Image creation functionality is not yet implemented.")
 
-    elif submitted and user_input:
-        handle_text_input(user_input)
-
 st.markdown('</div>', unsafe_allow_html=True)
 
 use_mic = False # Default: microphone disabled
@@ -387,7 +376,34 @@ except ImportError:
     st.warning("Voice Recognition will be added in future...")
 
 if use_mic:
-    if st.button("🎙️ Voice Prompt", key="voice_prompt_button"):
-        recognized_text = recognize_speech()
-        if recognized_text:
-            handle_voice_input(recognized_text)
+    st.markdown('<div class="search-container">', unsafe_allow_html=True)
+    voice_cols = st.columns([0.9, 0.1])
+    voice_cols[0].empty() # Placeholder to align with text input
+    if voice_cols[1].button("🎙️", key="voice_prompt_button", help="Speak your prompt", on_click=recognize_speech):
+        pass # Speech recognition is triggered on click
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if "recognized_text" in st.session_state and st.session_state.recognized_text:
+        handle_voice_input(st.session_state.recognized_text)
+        del st.session_state["recognized_text"] # Clear after processing
+
+def recognize_speech():
+    st.session_state["recognized_text"] = None
+    try:
+        r = sr.Recognizer()
+        with sr.Microphone() as source:
+            st.info("Listening... Please speak.")
+            audio = r.listen(source)
+        text = r.recognize_google(audio)
+        st.session_state["recognized_text"] = text
+        st.info(f"You said: {text}")
+    except sr.WaitTimeoutError:
+        st.warning("No speech detected. Please try again.")
+    except sr.RequestError as e:
+        st.error(f"Could not request results from Google Speech Recognition service; {e}")
+    except sr.UnknownValueError:
+        st.warning("Could not understand audio.")
+    except AttributeError as e:
+        st.error("Microphone input is not supported in this environment.")
+    except Exception as e:
+        st.error(f"Speech recognition failed: {e}")
