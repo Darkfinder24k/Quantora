@@ -312,45 +312,7 @@ st.markdown('<div class="fixed-footer-elite">', unsafe_allow_html=True)
 with st.form(key="elite_chat_form", clear_on_submit=True):
     col1, col2, col3, col4, col5, col6 = st.columns([4, 1, 1, 1, 1, 1])
     user_input = col1.text_input("Initiate Query", key="user_prompt_input", label_visibility="collapsed", placeholder="Engage Cognitive Core...")
-    search_button = col2.form_submit_button("📡 Query")
-    reason_button = col3.form_submit_button("🧠 Analyze")
-    deep_research_button = col4.form_submit_button("🔬 Deep Scan")
-    create_image_button = col5.form_submit_button("✨ Synthesize")
     submitted = col6.form_submit_button("⚡️ Transmit")
-
-    if search_button:
-        st.info("📡 Initiating External Data Acquisition...")
-        st.markdown("[Accessing Global Information Network 🌐](https://quantora-search-engine.streamlit.app/)", unsafe_allow_html=True)
-
-    if reason_button:
-        st.info("🧠 Commencing Advanced Logical Sequencing...")
-        if user_input:
-            with st.spinner("🧠 Executing Cognitive Algorithms..."):
-                reasoning_prompt = f"Elaborate on the logical framework of: {user_input}"
-                try:
-                    response = call_quantora_gemini(reasoning_prompt)
-                    st.session_state.chat.append(("quantora", f"<strong>Analysis Protocol:</strong><br>{response}"))
-                except Exception as e:
-                    st.error(f"❌ Logical Sequencing Error: {e}")
-        else:
-            st.warning("⚠️ Input Required for Cognitive Analysis.")
-
-    if deep_research_button:
-        st.info("🔬 Deploying Comprehensive Data Assimilation...")
-        if user_input:
-            with st.spinner("🔬 Engaging Multi-Dimensional Data Mining..."):
-                research_prompt = f"Conduct a thorough investigation into: {user_input}. Provide granular findings and source verification where applicable."
-                try:
-                    response = call_quantora_gemini(research_prompt)
-                    st.session_state.chat.append(("quantora", f"<strong>Deep Scan Report:</strong><br>{response}"))
-                except Exception as e:
-                    st.error(f"❌ Data Assimilation Failure: {e}")
-        else:
-            st.warning("⚠️ Input Required for Deep Data Scan.")
-
-    if create_image_button:
-        st.info("✨ Commencing Advanced Visual Synthesis...")
-        st.warning("⚠️ Visual Synthesis Module Undergoing Recalibration.")
 
     if submitted and user_input:
         st.session_state.chat.append(("user", user_input))
