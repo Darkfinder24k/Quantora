@@ -91,7 +91,7 @@ def project_hologram(logo_url):
 elite_logo_url = "https://www.flaticon.com/free-icon/artificial-intelligence_953817"  # ⚠️ Replace with a high-end AI/robotic logo URL
 project_hologram(elite_logo_url)
 
-# ✅ Elite Cybernetic Interface Styling
+# ✅ Elite Cybernetic Interface Styling (with Fixed Search Bar CSS)
 st.markdown(
     """
     <style>
@@ -127,7 +127,7 @@ st.markdown(
         max-height: 78vh;
         overflow-y: auto;
         padding: 1.2rem;
-        padding-bottom: 160px; /* Account for the advanced input module */
+        padding-bottom: 180px; /* Increased padding for fixed footer */
         scrollbar-width: thin;
         scrollbar-color: #37474f #000000;
     }
@@ -177,7 +177,7 @@ st.markdown(
     }
 
     .fixed-footer-elite {
-        position: fixed;
+        position: fixed; /* Make it fixed */
         bottom: 0;
         left: 0;
         width: 100%;
@@ -187,7 +187,7 @@ st.markdown(
         gap: 0.8rem;
         align-items: center;
         border-top: 1px solid #263238;
-        z-index: 1000;
+        z-index: 9999; /* Ensure it stays on top */
         box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.7);
     }
     .fixed-footer-elite input[type="text"] {
