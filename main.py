@@ -15,7 +15,7 @@ if "verified" not in st.session_state:
 if "chat" not in st.session_state:
     st.session_state.chat = []
 if "user_prompt_input" not in st.session_state:
-    st.session_state["user_prompt_input"] = ""
+    st.session_state.user_prompt_input = ""
 
 # ✅ Human Verification Gate
 if not st.session_state.verified:
