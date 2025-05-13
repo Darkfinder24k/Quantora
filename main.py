@@ -28,7 +28,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="YOUR_API_KEY")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ Gemini Wrapper
 def call_quantora_gemini(prompt):
