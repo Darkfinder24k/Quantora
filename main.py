@@ -9,17 +9,6 @@ import base64  # For background image
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
-# Inject the meta tags and Hilltop Ads banner into a hidden HTML iframe
-components.html("""
-<head>
-<meta name="a5cb894fd2a071f6476eb24d459c155aab6162a0" content="a5cb894fd2a071f6476eb24d459c155aab6162a0" />
-<meta name="referrer" content="no-referrer-when-downgrade" />
-</head>
-<body>
-<a href="https://hilltopads.com/?ref=318150"><img src="//static.hilltopads.com/other/banners/pub/get_high_ecpm/728x90.gif?v=1747133850"></a>
-</body>
-""", height=0)
-
 # Initialize session state variables if they don't exist
 if "verified" not in st.session_state:
     st.session_state.verified = False
@@ -370,7 +359,7 @@ st.markdown("<hr>", unsafe_allow_html=True) # Subtle divider
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 for speaker, msg in st.session_state.chat:
     style_class = "user" if speaker == "user" else "bot"
-st.markdown(f'<div class="message {style_class}"><strong>{speaker.title()}:</strong><br>{msg}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="message {style_class}"><strong>{speaker.title()}:</strong><br>{msg}</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 def recognize_speech():
@@ -390,7 +379,7 @@ def recognize_speech():
     except sr.UnknownValueError:
         st.warning("Could not understand audio.")
         return None
-    except AttributeError as e:
+except AttributeError as e:
         st.error("Microphone input is not supported in this environment.")
         return None
     except Exception as e:
