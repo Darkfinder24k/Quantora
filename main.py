@@ -352,7 +352,7 @@ with st.form(key="chat_form", clear_on_submit=True):
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
         # Move this line inside the 'submitted' block after processing the response
-        st.session_state.user_prompt_input = ""
+        st.session_state.user_prompt_input = "" # Corrected placement
 
 st.markdown('</div>', unsafe_allow_html=True)
 
