@@ -28,7 +28,10 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # ⚠️ Use Streamlit secrets for API key
+
+# ✅ AdSense (Optional)
+components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxxxxx" crossorigin="anonymous"></script>""", height=100) # Replace with your AdSense client ID
 
 # ✅ Mode Selection
 mode = "Normal"
@@ -344,27 +347,6 @@ else:
     st.markdown("<hr style='border-top: 1px dashed #616161;'>", unsafe_allow_html=True)
     st.markdown("<p class='footer'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
 
-# ✅ Chat UI (at the bottom)
-st.subheader("💬 Chat with Quantora")
-
-prompt = st.text_input("You:", value=st.session_state["user_prompt_input"], key="user_prompt")
-
-if st.button("Send"):
-    if prompt:
-        st.session_state.chat.append({"role": "user", "text": prompt})
-        response = call_quantora_gemini(prompt)
-        st.session_state.chat.append({"role": "bot", "text": response})
-        st.session_state["user_prompt_input"] = ""  # Reset input
-
-# ✅ Display conversation
-for message in reversed(st.session_state.chat):
-    if isinstance(message, dict) and "role" in message and "content" in message:
-        role = message["role"]
-        content = message["content"]
-        st.chat_message(role).write(content)
-    else:
-        st.warning(f"Skipping invalid message: {message}")
-
 # ✅ Header
 st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
 if mode == "Premium":
@@ -417,7 +399,7 @@ with st.form(key="chat_form", clear_on_submit=True):
     if search_button:
         st.info("🌐 Opening Quantora search engine...")
         # Replace 'https://quantora-search-engine.streamlit.app/' with the actual URL of your search engine
-        st.markdown("[Click here to open your search engine 🌐](https://quantora-search-engine.streamlit.app/)", unsafe_allow_html=True)
+        st.markdown("[Click here to open your search engine 🌐](YOUR_SEARCH_ENGINE_URL)", unsafe_allow_html=True)
 
     if news_button:
         st.info("📰 Fetching the latest news...")
@@ -449,7 +431,7 @@ if use_mic:
     if st.button("🎙️ Voice Prompt"):
         recognized_text = recognize_speech()
         if recognized_text:
-            st.session_state.chat.append({"role": "user", "text": recognized_text}) # <--- Corrected line
+            st.session_state.chat.append(("user", recognized_text))
             with st.spinner("🤖 Quantora is processing your voice input..."):
                 try:
                     response = call_quantora_gemini(recognized_text)
@@ -457,12 +439,12 @@ if use_mic:
                     for char in response:
                         animated_response += char
                         time.sleep(0.002)
-                    st.session_state.chat.append({"role": "bot", "text": animated_response}) # <--- Corrected line
+                    st.session_state.chat.append(("quantora", animated_response))
                 except Exception as e:
                     st.error(f"An error occurred while processing your request: {e}")
 
 elif submitted and user_input and not any([news_button, social_media_button, search_button]):
-    st.session_state.chat.append({"role": "user", "text": user_input}) # <--- Corrected line
+    st.session_state.chat.append(("user", user_input))
     with st.spinner("🤖 Quantora is processing..."):
         try:
             response = call_quantora_gemini(user_input)
@@ -470,11 +452,11 @@ elif submitted and user_input and not any([news_button, social_media_button, sea
             for char in response:
                 animated_response += char
                 time.sleep(0.002)
-            st.session_state.chat.append({"role": "bot", "text": animated_response}) # <--- Corrected line
+            st.session_state.chat.append(("quantora", animated_response))
         except Exception as e:
             st.error(f"An error occurred while processing your request: {e}")
     # Clear the input field after successful submission
-    st.session_state.user_prompt_input = ""
-    
+    st.session_state["user_prompt_input"] = ""
+
 else:
     st.warning("Quantora can make mistakes. Help it improve.")
