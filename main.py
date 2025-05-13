@@ -379,7 +379,7 @@ def recognize_speech():
     except sr.UnknownValueError:
         st.warning("Could not understand audio.")
         return None
-except AttributeError as e:
+    except AttributeError as e:
         st.error("Microphone input is not supported in this environment.")
         return None
     except Exception as e:
