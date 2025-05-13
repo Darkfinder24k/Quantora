@@ -288,7 +288,7 @@ def initiate_audio_reception():
 st.markdown('<div class="floating-input-container">', unsafe_allow_html=True)
 with st.form(key="elite_chat_form", clear_on_submit=True):
     col1, col_button = st.columns([5, 1])
-    user_input = col1.text_input("Initiate Query", key="user_prompt_input", label_visibility="collapsed", placeholder="Engage Cognitive Core...", class="floating-input")
+    user_input = col1.text_input("Initiate Query", key="user_prompt_input", label_visibility="collapsed", placeholder="Engage Cognitive Core...")
     submitted = col_button.form_submit_button("⚡️ Transmit", use_container_width=True, type="primary", css_classes=["floating-transmit-button"])
 
     if submitted and user_input:
