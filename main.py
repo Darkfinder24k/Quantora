@@ -29,14 +29,16 @@ if not st.session_state.verified:
         time.sleep(2)
         url = "https://otieu.com/4/9328099"
 
-# HTML & JS to force open the URL in a new tab
-js_code = f"""
-<script>
-    window.open("{url}", "_blank");
-</script>
-"""
+        # HTML & JS to force open the URL in a new tab (Corrected)
+        js_code = f"""
+        <script>
+            window.open("{url}", "_blank");
+        </script>
+        """
+        components.html(js_code, height=0)  # Use components.html to embed JavaScript
 
-st.markdown(js_code, unsafe_allow_html=True)
+    else:
+        st.stop()
 
         
 # ✅ API Configuration
