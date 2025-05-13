@@ -351,8 +351,8 @@ with st.form(key="chat_form", clear_on_submit=True):
                 st.session_state.chat.append(("quantora", animated_response))
             except Exception as e:
                 st.error(f"An error occurred while processing your request: {e}")
-        if 'user_prompt_input' in st.session_state:
-            st.session_state.user_prompt_input = ""
+        # Move this line inside the 'submitted' block after processing the response
+        st.session_state.user_prompt_input = ""
 
 st.markdown('</div>', unsafe_allow_html=True)
 
