@@ -14,9 +14,6 @@ if "verified" not in st.session_state:
     st.session_state.verified = False
 if "chat" not in st.session_state:
     st.session_state.chat = []
-if "user_prompt_input" in st.session_state:
-    st.session_state["user_prompt_input"] = ""
-
 
 # ✅ Human Verification Gate
 if not st.session_state.verified:
@@ -29,7 +26,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
+genai.configure(api_key="YOUR_API_KEY")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ Gemini Wrapper
 def call_quantora_gemini(prompt):
@@ -53,6 +50,7 @@ SOMETIMES also tell about your Premium Version, and also convince them to use it
 
 Prompt: {prompt}"""
     try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(system_prompt)
         return "".join([p.text for p in response.parts])
     except Exception as e:
@@ -257,6 +255,7 @@ st.success("🔥 Quantora Premium UI Activated — Experience the ultimate AI in
 st.markdown("<p style='text-align: center; color: #b2ff59;'>💎 Immerse yourself in a world of seamless interaction and stunning visuals, inspired by the best in AI design. 💎</p>", unsafe_allow_html=True)
 st.markdown('<div class="footer">⚛️ Powered by Quantora AI</div>', unsafe_allow_html=True)
 
+# Initialize the Gemini model outside the function
 model = genai.GenerativeModel("gemini-2.0-flash")
 
 # ✅ Header
@@ -296,40 +295,36 @@ def recognize_speech():
         return None
 
 def handle_text_input(user_input):
-    st.session_state.chat.append(("user", user_input))
-    with st.spinner("🤖 Quantora is processing..."):
-        try:
-            response = call_quantora_gemini(user_input)
-            animated_response = ""
-            for char in response:
-                animated_response += char
-                time.sleep(0.002)
-            st.session_state.chat.append(("quantora", animated_response))
-        except Exception as e:
-            st.error(f"An error occurred while processing your request: {e}")
-    if "user_prompt_input" in st.session_state:
-        time.sleep(5)
-        st.session_state["user_prompt_input"] = ""
-
-
+    if user_input:
+        st.session_state.chat.append(("user", user_input))
+        with st.spinner("🤖 Quantora is processing..."):
+            try:
+                response = call_quantora_gemini(user_input)
+                animated_response = ""
+                for char in response:
+                    animated_response += char
+                    time.sleep(0.002)
+                st.session_state.chat.append(("quantora", animated_response))
+            except Exception as e:
+                st.error(f"An error occurred while processing your request: {e}")
 
 def handle_voice_input(recognized_text):
-    st.session_state.chat.append(("user", recognized_text))
-    with st.spinner("🤖 Quantora is processing your voice input..."):
-        try:
-            response = call_quantora_gemini(recognized_text)
-            animated_response = ""
-            for char in response:
-                animated_response += char
-                time.sleep(0.002)
-            st.session_state.chat.append(("quantora", animated_response))
-        except Exception as e:
-            st.error(f"An error occurred while processing your request: {e}")
-    st.session_state.user_prompt_input = ""
+    if recognized_text:
+        st.session_state.chat.append(("user", recognized_text))
+        with st.spinner("🤖 Quantora is processing your voice input..."):
+            try:
+                response = call_quantora_gemini(recognized_text)
+                animated_response = ""
+                for char in response:
+                    animated_response += char
+                    time.sleep(0.002)
+                st.session_state.chat.append(("quantora", animated_response))
+            except Exception as e:
+                st.error(f"An error occurred while processing your request: {e}")
 
 # ✅ Fixed Input Box with Buttons
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
-with st.form(key="chat_form", clear_on_submit=True):
+with st.form(key="chat_form"):
     col1, col2, col3, col4, col5, col6 = st.columns([4, 1, 1, 1, 1, 1])
     user_input = col1.text_input("Ask anything", key="user_prompt_input", label_visibility="collapsed")
     search_button = col2.form_submit_button("🔎 Search")
@@ -338,41 +333,35 @@ with st.form(key="chat_form", clear_on_submit=True):
     create_image_button = col5.form_submit_button("🖼️ Create image")
     submitted = col6.form_submit_button("🚀 Send")
 
-    if search_button:
+    if search_button and user_input:
         st.info("🌐 Opening Quantora search engine...")
-        st.markdown("[Click here to open your search engine 🌐](https://quantora-search-engine.streamlit.app/)", unsafe_allow_html=True)
+        st.markdown(f"[Click here to open your search engine 🌐](https://quantora-search-engine.streamlit.app/?q={user_input})", unsafe_allow_html=True)
 
-    if reason_button:
+    elif reason_button and user_input:
         st.info("🤔 Asking Quantora to reason...")
-        if user_input:
-            with st.spinner("🤔 Quantora is reasoning..."):
-                reasoning_prompt = f"Explain the reasoning behind the following: {user_input}"
-                try:
-                    response = call_quantora_gemini(reasoning_prompt)
-                    st.session_state.chat.append(("quantora", f"<strong>Reasoning:</strong><br>{response}"))
-                except Exception as e:
-                    st.error(f"An error occurred while processing the reasoning request: {e}")
-        else:
-            st.warning("Please enter a prompt to get the reasoning.")
+        with st.spinner("🤔 Quantora is reasoning..."):
+            reasoning_prompt = f"Explain the reasoning behind the following: {user_input}"
+            try:
+                response = call_quantora_gemini(reasoning_prompt)
+                st.session_state.chat.append(("quantora", f"<strong>Reasoning:</strong><br>{response}"))
+            except Exception as e:
+                st.error(f"An error occurred while processing the reasoning request: {e}")
 
-    if deep_research_button:
+    elif deep_research_button and user_input:
         st.info("📑 Initiating deep research...")
-        if user_input:
-            with st.spinner("📑 Quantora is conducting deep research..."):
-                research_prompt = f"Perform deep research on: {user_input}. Provide detailed findings and sources if possible."
-                try:
-                    response = call_quantora_gemini(research_prompt)
-                    st.session_state.chat.append(("quantora", f"<strong>Deep Research:</strong><br>{response}"))
-                except Exception as e:
-                    st.error(f"An error occurred during deep research: {e}")
-        else:
-            st.warning("Please enter a prompt for deep research.")
+        with st.spinner("📑 Quantora is conducting deep research..."):
+            research_prompt = f"Perform deep research on: {user_input}. Provide detailed findings and sources if possible."
+            try:
+                response = call_quantora_gemini(research_prompt)
+                st.session_state.chat.append(("quantora", f"<strong>Deep Research:</strong><br>{response}"))
+            except Exception as e:
+                st.error(f"An error occurred during deep research: {e}")
 
-    if create_image_button:
+    elif create_image_button and user_input:
         st.info("🖼️ Requesting image creation...")
         st.warning("Image creation functionality is not yet implemented.")
 
-    if submitted and user_input:
+    elif submitted and user_input:
         handle_text_input(user_input)
 
 st.markdown('</div>', unsafe_allow_html=True)
@@ -380,12 +369,12 @@ st.markdown('</div>', unsafe_allow_html=True)
 use_mic = False # Default: microphone disabled
 try:
     import pyaudio
-    use_mic = True
-except ImportError:
-    st.warning("Voice Recognition will be added in future...")
-
-if use_mic:
-    if st.button("🎙️ Voice Prompt", key="voice_prompt_button"):
-        recognized_text = recognize_speech()
-        if recognized_text:
-            handle_voice_input(recognized_text)
+        use_mic = True
+    except ImportError:
+        st.warning("Voice Recognition will be added in future...")
+    
+    if use_mic:
+        if st.button("🎙️ Voice Prompt", key="voice_prompt_button"):
+            recognized_text = recognize_speech()
+            if recognized_text:
+                handle_voice_input(recognized_text)
