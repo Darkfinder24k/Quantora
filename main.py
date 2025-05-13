@@ -357,7 +357,7 @@ if st.button("Send"):
         st.session_state["user_prompt_input"] = ""  # Reset input
 
 # ✅ Display conversation
-for message in messages:
+for message in reversed:
     if isinstance(message, dict) and "role" in message and "content" in message:
         role = message["role"]
         content = message["content"]
