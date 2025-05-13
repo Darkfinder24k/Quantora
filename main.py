@@ -357,11 +357,13 @@ if st.button("Send"):
         st.session_state["user_prompt_input"] = ""  # Reset input
 
 # ✅ Display conversation
-for message in reversed(st.session_state.chat):
-    role = message["role"]
-    bubble_class = "user" if role == "user" else "bot"
-    st.markdown(f"<div class='message {bubble_class}'><strong>{role.title()}:</strong> {message['text']}</div>", unsafe_allow_html=True)
-
+for message in messages:
+    if isinstance(message, dict) and "role" in message and "content" in message:
+        role = message["role"]
+        content = message["content"]
+        st.chat_message(role).write(content)
+    else:
+        st.warning(f"Skipping invalid message: {message}")
 
 # ✅ Header
 st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
