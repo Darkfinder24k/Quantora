@@ -1,7 +1,4 @@
 import streamlit as st
-
-st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
-
 import streamlit.components.v1 as components
 import google.generativeai as genai
 from datetime import datetime
@@ -10,6 +7,7 @@ import speech_recognition as sr
 import base64  # For background image
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
+st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # Initialize session state variables if they don't exist
 if "verified" not in st.session_state:
@@ -30,10 +28,7 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])  # ⚠️ Use Streamlit secrets for API key
-
-# ✅ AdSense (Optional)
-components.html("""<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxxxxx" crossorigin="anonymous"></script>""", height=100) # Replace with your AdSense client ID
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ Mode Selection
 mode = "Normal"
@@ -348,6 +343,25 @@ else:
     st.warning("🔓 You're using the Normal version. Upgrade to Premium for an enhanced experience! ✨")
     st.markdown("<hr style='border-top: 1px dashed #616161;'>", unsafe_allow_html=True)
     st.markdown("<p class='footer'>⚛️ Powered by Quantora AI</p>", unsafe_allow_html=True)
+
+# ✅ Chat UI (at the bottom)
+st.subheader("💬 Chat with Quantora")
+
+prompt = st.text_input("You:", value=st.session_state["user_prompt_input"], key="user_prompt")
+
+if st.button("Send"):
+    if prompt:
+        st.session_state.chat.append({"role": "user", "text": prompt})
+        response = call_quantora_gemini(prompt)
+        st.session_state.chat.append({"role": "bot", "text": response})
+        st.session_state["user_prompt_input"] = ""  # Reset input
+
+# ✅ Display conversation
+for message in reversed(st.session_state.chat):
+    role = message["role"]
+    bubble_class = "user" if role == "user" else "bot"
+    st.markdown(f"<div class='message {bubble_class}'><strong>{role.title()}:</strong> {message['text']}</div>", unsafe_allow_html=True)
+
 
 # ✅ Header
 st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
