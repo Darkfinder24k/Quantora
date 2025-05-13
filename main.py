@@ -1,4 +1,7 @@
 import streamlit as st
+
+st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
+
 import streamlit.components.v1 as components
 import google.generativeai as genai
 from datetime import datetime
@@ -7,7 +10,6 @@ import speech_recognition as sr
 import base64  # For background image
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
-st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
 
 # Initialize session state variables if they don't exist
 if "verified" not in st.session_state:
