@@ -456,7 +456,7 @@ elif submitted and user_input and not any([news_button, social_media_button, sea
         except Exception as e:
             st.error(f"An error occurred while processing your request: {e}")
     # Clear the input field after successful submission
-    st.session_state["user_prompt_input"] = ""
+    st.session_state.user_prompt_input = ""
 
 else:
     st.warning("Quantora can make mistakes. Help it improve.")
