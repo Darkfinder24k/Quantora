@@ -306,7 +306,9 @@ def handle_text_input(user_input):
             st.session_state.chat.append(("quantora", animated_response))
         except Exception as e:
             st.error(f"An error occurred while processing your request: {e}")
-    st.session_state.user_prompt_input = ""
+    if "user_prompt_input" in st.session_state:
+    st.session_state["user_prompt_input"] = ""
+
 
 def handle_voice_input(recognized_text):
     st.session_state.chat.append(("user", recognized_text))
