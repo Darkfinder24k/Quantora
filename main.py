@@ -368,13 +368,17 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 use_mic = False # Default: microphone disabled
 try:
-    import pyaudio
-    use_mic = True
-        except ImportError:
-        st.warning("Voice Recognition will be added in future...")
-    
-    if use_mic:
-        if st.button("🎙️ Voice Prompt", key="voice_prompt_button"):
+    pass  # pyaudio import succeeded, no action needed
+except ImportError:
+    st.warning("Voice Recognition will be added in future...")
+    use_mic = False
+
+if use_mic:
+    if st.button("🎙️ Voice Prompt", key="voice_prompt_button"):
+        # Assuming recognize_speech() and handle_voice_input() are defined elsewhere
+        try:
             recognized_text = recognize_speech()
             if recognized_text:
                 handle_voice_input(recognized_text)
+        except Exception as e:
+            st.error(f"An error occurred during voice recognition: {e}")
