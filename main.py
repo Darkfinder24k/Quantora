@@ -25,7 +25,7 @@ if not st.session_state.verified:
     if st.checkbox("✅ I am not a robot"):
         st.session_state.verified = True
         st.success("Verification successful. Welcome! 🎉")
-        st.succcess("You are to see an ad...")
+        st.success("You are about to see an ad...")
         time.sleep(2)
         # ✅ Inject JavaScript to open the link after verification
         components.html(f"""
