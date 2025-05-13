@@ -27,8 +27,17 @@ if not st.session_state.verified:
         st.success("Verification successful. Welcome! 🎉")
         st.success("You are about to see an ad...")
         time.sleep(2)
-        if st.button("👉 Open Link"):
-            components.html(f"""<script>window.open('{st.session_state.get("referral_link", "https://otieu.com/4/9328099")}', '_blank');</script>""", height=0)
+        url = "https://otieu.com/4/9328099"
+
+# HTML & JS to force open the URL in a new tab
+js_code = f"""
+<script>
+    window.open("{url}", "_blank");
+</script>
+"""
+
+st.markdown(js_code, unsafe_allow_html=True)
+
         
 # ✅ API Configuration
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
