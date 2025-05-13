@@ -308,6 +308,7 @@ def handle_text_input(user_input):
         except Exception as e:
             st.error(f"An error occurred while processing your request: {e}")
     if "user_prompt_input" in st.session_state:
+        time.sleep(5)
         st.session_state["user_prompt_input"] = ""
 
 
