@@ -394,12 +394,12 @@ with st.form(key="chat_form", clear_on_submit=True):
     search_button = col2.form_submit_button("🔎 Search Engine")
     news_button = col3.form_submit_button("📰 News")
     social_media_button = col4.form_submit_button("📱 Social")
-    submitted = False # Initialize submitted to False
+    submitted = st.form_submit_button("🚀 Send") # Moved the send button here
 
     if search_button:
         st.info("🌐 Opening Quantora search engine...")
         # Replace 'https://quantora-search-engine.streamlit.app/' with the actual URL of your search engine
-        st.markdown("[Click here to open your search engine 🌐](YOUR_SEARCH_ENGINE_URL)", unsafe_allow_html=True)
+        st.markdown("[Click here to open your search engine 🌐](https://quantora-search-engine.streamlit.app/)", unsafe_allow_html=True)
 
     if news_button:
         st.info("📰 Fetching the latest news...")
@@ -415,8 +415,20 @@ with st.form(key="chat_form", clear_on_submit=True):
         time.sleep(1)
         st.markdown("[Click here to open Quatora Social Media 📱](https://firebox-social.streamlit.app)", unsafe_allow_html=True)
 
-    if col1.form_submit_button("🚀 Send"): # Separate submit button for regular chat
-        submitted = True
+    if submitted and user_input:
+        st.session_state.chat.append(("user", user_input))
+        with st.spinner("🤖 Quantora is processing..."):
+            try:
+                response = call_quantora_gemini(user_input)
+                animated_response = ""
+                for char in response:
+                    animated_response += char
+                    time.sleep(0.002)
+                st.session_state.chat.append(("quantora", animated_response))
+            except Exception as e:
+                st.error(f"An error occurred while processing your request: {e}")
+        # Clear the input field after successful submission (now within the form's submit block)
+        st.session_state["user_prompt_input"] = ""
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -443,20 +455,5 @@ if use_mic:
                 except Exception as e:
                     st.error(f"An error occurred while processing your request: {e}")
 
-elif submitted and user_input and not any([news_button, social_media_button, search_button]):
-    st.session_state.chat.append(("user", user_input))
-    with st.spinner("🤖 Quantora is processing..."):
-        try:
-            response = call_quantora_gemini(user_input)
-            animated_response = ""
-            for char in response:
-                animated_response += char
-                time.sleep(0.002)
-            st.session_state.chat.append(("quantora", animated_response))
-        except Exception as e:
-            st.error(f"An error occurred while processing your request: {e}")
-    # Clear the input field after successful submission
-    st.session_state["user_prompt_input"] = ""
-
-else:
+elif not submitted and not any([news_button, social_media_button, search_button]) and st.session_state["user_prompt_input"]:
     st.warning("Quantora can make mistakes. Help it improve.")
