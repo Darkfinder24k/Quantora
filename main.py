@@ -28,7 +28,8 @@ if not st.session_state.verified:
         st.stop()
 
 # ✅ API Configuration - Secure Channel Activated
-genai.configure(api_key=st."AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
+
+genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
 
 # ✅ Quantum Core Processor
 def call_quantora_gemini(prompt):
