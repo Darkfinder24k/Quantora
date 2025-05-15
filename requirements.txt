@@ -1,7 +1,5 @@
-streamlit==1.14.0
+streamlit>=1.27.0
 google-generativeai
-datetime
 speechrecognition
-Pillow
-captcha
-altair>=4.0.0,<5.0.0
+pyaudio
+python-dotenv
