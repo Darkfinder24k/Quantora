@@ -1,9 +1,30 @@
 import streamlit as st
+
+# ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
+st.set_page_config(
+    page_title="💎 Quantora AI Elite", 
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Remove "Made with Streamlit" footer - must come AFTER set_page_config
+hide_streamlit_style = """
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# Rest of your imports should come after the initial Streamlit commands
 import google.generativeai as genai
 from datetime import datetime
 import time
 import speech_recognition as sr
 import os
+
+# Rest of your code...
 
 # Remove "Made with Streamlit" footer
 hide_streamlit_style = """
@@ -16,11 +37,6 @@ hide_streamlit_style = """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
-st.set_page_config(
-    page_title="💎 Quantora AI Elite", 
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
 
 # Initialize session state variables
 if "verified" not in st.session_state:
