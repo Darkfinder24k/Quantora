@@ -47,42 +47,7 @@ if "user_prompt_input" not in st.session_state:
     st.session_state["user_prompt_input"] = ""
 
 # ✅ Advanced Authentication Protocol
-if not st.session_state.verified:
-    st.markdown("""
-    <div style="
-        background: linear-gradient(135deg, #6e48aa 0%, #9d50bb 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        text-align: center;
-        margin: 2rem auto;
-        max-width: 600px;
-    ">
-        <h1 style="color: white; font-size: 2.5rem;">⚜️ Elite Access Protocol</h1>
-        <p style="color: rgba(255,255,255,0.8); font-size: 1.2rem;">
-            Initiating biometric and cognitive scan. Please confirm your identity.
-        </p>
-        <div style="margin-top: 2rem;">
-            <div style="
-                background: rgba(255,255,255,0.1);
-                padding: 1rem;
-                border-radius: 10px;
-                display: inline-block;
-            ">
-                <label style="color: white; font-size: 1.1rem;">
-                    <input type="checkbox" style="transform: scale(1.5); margin-right: 10px;">
-                    ✅ Identity Verified
-                </label>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("🔓 Authenticate", key="auth_button", type="primary"):
-        st.session_state.verified = True
-        st.rerun()
-    else:
-        st.stop()
+
 
 # ✅ API Configuration - Secure Channel Activated
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your API key
