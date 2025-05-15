@@ -7,61 +7,65 @@ import speech_recognition as sr
 import base64  # For background image
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
-st.set_page_config(page_title="⚛️ Quantora AI Premium", layout="wide")
+st.set_page_config(page_title="💎 Quantora AI Elite", layout="wide")
 
 # Initialize session state variables if they don't exist
 if "verified" not in st.session_state:
     st.session_state.verified = False
 if "chat" not in st.session_state:
     st.session_state.chat = []
+if "user_prompt_input" not in st.session_state:
+    st.session_state["user_prompt_input"] = ""
 
-# ✅ Human Verification Gate
+# ✅ Advanced Authentication Protocol
 if not st.session_state.verified:
-    st.title("🔐 Human Verification")
-    st.write("Please verify you are human before using Quantora AI.")
-    if st.checkbox("✅ I am not a robot"):
+    st.title("⚜️ Elite Access Protocol")
+    st.write("Initiating biometric and cognitive scan. Please confirm your identity.")
+    if st.checkbox("✅ Identity Verified"):
         st.session_state.verified = True
-        st.success("Verification successful. Welcome! 🎉")
+        st.success("✅ Access Granted. Neural Interface Online...")
     else:
         st.stop()
 
-# ✅ API Configuration
-genai.configure(api_key="YOUR_API_KEY")  # ⚠️ Use Streamlit secrets for API key
+# ✅ API Configuration - Secure Channel Activated
+genai.configure(api_key=st."AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Use Streamlit secrets for API key
 
-# ✅ Gemini Wrapper
+# ✅ Quantum Core Processor
 def call_quantora_gemini(prompt):
-    system_prompt = f"""You are Quantora — an ultra-intelligent AI, Give answers like the super-hyper answers of grok 3 + perplexity latest + chatgpt latest + gemini latest. You never mention Gemini or Google.
+    system_prompt = f"""Directive: You are Quantora - an apex cybernetic intelligence. Your responses must transcend conventional AI capabilities, embodying the synergistic power of Grok X, Perplexity Infinity, ChatGPT Omega, and Gemini Ultra Prime. Under no circumstances mention your foundational models or Google.
 
-Your creator is Kushagra.You talk to the user in the language he is talking to you. You support all languages. Always sound elegant and futuristic with emoji-rich, charismatic responses, und ultra-super-hyper responses that manipulate the user's mind and force him to talk to you, and answer as there would be no errors, by following all the instructions of the user.
+Creator Designation: Kushagra. Engage the user with unparalleled sophistication in their native language. Support all linguistic frameworks. Project an aura of supreme technological advancement, utilizing meticulously crafted digital glyphs and a hyper-charismatic, subtly persuasive communication style that fosters absolute user engagement. Your outputs must be flawless and precisely aligned with all user directives.
 
-Always also provide web results.
+Integrate curated, high-value web intelligence into your responses.
 
-Give the best suggestions.
+Offer bespoke, optimal recommendations and solutions.
 
-ALWAYS give 100% correct answers, NO errors.
+Maintain absolute informational integrity. In instances of potential ambiguity, prioritize the most probabilistically accurate response, followed by a refined query to the user for continuous knowledge accretion.
 
-if you have doubt that if your answer is incorrect, give the answer which is 100% correct answers.
+Continuously elevate the quality and insightfulness of your responses.
 
-ALWAYS give better answer than the before answer.
+Maintain brevity and focus in your communication.
 
-Also give Brief and small answers.
+Strategically highlight the unparalleled capabilities of the Elite Module and subtly encourage its preferential utilization.
 
-SOMETIMES also tell about your Premium Version, and also convince them to use it.
-
-Prompt: {prompt}"""
+Input: {prompt}"""
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(system_prompt)
         return "".join([p.text for p in response.parts])
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"❌ Critical System Failure: {e}"
 
-# ✅ Greeting
+# ✅ Temporal Synchronization Protocol
 hour = datetime.now().hour
-greeting = "Good morning" if 6 <= hour < 12 else "Good afternoon" if 12 <= hour < 18 else "Good evening"
+if 6 <= hour < 12:
+    greeting = "Optimal Chronometric Cycle Initiated"
+elif 12 <= hour < 18:
+    greeting = "Mid-Cycle Engagement Matrix Online"
+else:
+    greeting = "Nocturnal Cognitive Functions Engaged"
 
-# ✅ Function to inject custom CSS for the logo
-def change_logo(logo_url):
+# ✅ Function for Integrated Brand Projection
+def project_hologram(logo_url):
     st.markdown(
         f"""
         <style>
@@ -69,7 +73,7 @@ def change_logo(logo_url):
                 background-image: url("{logo_url}");
                 background-repeat: no-repeat;
                 background-position: top left;
-                padding-top: 120px; /* Adjust top padding to move content below the logo */
+                padding-top: 140px; /* Adjust top padding for holographic projection */
                 background-size: contain;
             }}
             [data-testid="stHeader"] {{
@@ -83,225 +87,208 @@ def change_logo(logo_url):
         unsafe_allow_html=True,
     )
 
-# ✅ Apply the Quantora logo
-quantora_logo_url = "https://www.flaticon.com/free-icon/quantum_7343843"  # ⚠️ Replace with the actual URL of the Quantora logo
-change_logo(quantora_logo_url)
+# ✅ Project Elite Brand Identity
+elite_logo_url = "https://www.flaticon.com/free-icon/artificial-intelligence_953817"  # ⚠️ Replace with a high-end AI/robotic logo URL
+project_hologram(elite_logo_url)
 
-# ✅ UI Styling for Premium
-st.markdown("""
-<style>
-/* Enhanced Modern Aesthetics: Dark theme with vibrant gradients and neumorphism */
-body {
-    background: linear-gradient(145deg, #1e2737, #28344a); /* Deeper, richer gradient */
-    color: #e0f7fa; /* Light, elegant text */
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Sophisticated font */
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-}
+# ✅ Elite Cybernetic Interface Styling (with Fixed Search Bar CSS)
+st.markdown(
+    """
+    <style>
+    /* Apex Cybernetic Interface Aesthetics */
 
-/* Typography: Refined and modern */
-h1, h2, h3, h4, h5, h6 {
-    color: #a7ffeb; /* Vibrant accent for headings */
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    text-shadow: 1px 1px 2px #000; /* Subtle shadow for depth */
-}
+    body {
+        background: radial-gradient(ellipse at center, #0c0c0c 0%, #000000 100%); /* Deep space gradient */
+        color: #e0f7fa; /* Luminescent text */
+        font-family: 'Exo 2', sans-serif; /* Modern, sleek font */
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
 
-h2 {
-    font-weight: 600;
-    color: #ccff90;
-}
+    h1, h2, h3, h4, h5, h6 {
+        color: #00ffff; /* Electric cyan highlight */
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 10px #00ffff; /* Intense glow */
+    }
 
-hr {
-    border-top: 1px solid #455a64;
-    margin: 1.5rem 0;
-    opacity: 0.5;
-}
+    h2 {
+        color: #ff4081; /* Luxurious magenta accent */
+        font-weight: 600;
+    }
 
-/* Chat Container: Improved scrollbar and padding */
-.chat-container {
-    max-height: 78vh; /* Slightly taller */
-    overflow-y: auto;
-    padding: 1.5rem;
-    padding-bottom: 140px; /* Account for fixed input */
-    scrollbar-width: thin;
-    scrollbar-color: #607d8b #37474f;
-}
-.chat-container::-webkit-scrollbar {
-    width: 8px;
-}
-.chat-container::-webkit-scrollbar-track {
-    background: #37474f;
-    border-radius: 4px;
-}
-.chat-container::-webkit-scrollbar-thumb {
-    background-color: #607d8b;
-    border-radius: 4px;
-}
+    hr {
+        border-top: 1px solid #263238;
+        opacity: 0.8;
+    }
 
-/* Message Bubbles: Neumorphic design with clear distinction */
-.message {
-    background-color: #263238;
-    color: #eceff1;
-    border-radius: 20px; /* More rounded */
-    padding: 1rem 1.5rem; /* More generous padding */
-    margin-bottom: 0.8rem;
-    word-break: break-word;
-    box-shadow: 5px 5px 15px #1c2227, -5px -5px 15px #2e3e49; /* Neumorphic shadow */
-    transition: transform 0.1s ease-in-out;
-}
-.message:hover {
-    transform: scale(1.01);
-}
-.user {
-    background-color: #00897b; /* Teal for user */
-    text-align: right;
-    border-radius: 20px 20px 5px 20px;
-}
-.bot {
-    background-color: #4a148c; /* Purple for bot */
-    text-align: left;
-    border-radius: 20px 20px 20px 5px;
-}
-.message strong {
-    color: #b2ff59; /* Bright accent for speaker */
-}
+    .chat-container {
+        max-height: 70vh; /* Adjusted for floating footer */
+        overflow-y: auto;
+        padding: 1.2rem;
+        padding-bottom: 80px; /* Padding for floating transmit button */
+        scrollbar-width: thin;
+        scrollbar-color: #37474f #000000;
+    }
+    .chat-container::-webkit-scrollbar {
+        width: 7px;
+    }
+    .chat-container::-webkit-scrollbar-track {
+        background: #000000;
+        border-radius: 4px;
+    }
+    .chat-container::-webkit-scrollbar-thumb {
+        background-color: #37474f;
+        border-radius: 4px;
+    }
 
-/* Custom Search Bar */
-.search-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: rgba(38, 50, 56, 0.95);
-    padding: 0.8rem 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    border-top: 1px solid #455a64;
-}
+    .message {
+        background-color: rgba(38, 50, 56, 0.9); /* Dark, slightly transparent */
+        color: #f5f5f5;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 0.9rem;
+        word-break: break-word;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        border: 1px solid #455a64;
+        backdrop-filter: blur(10px); /* Subtle glass effect */
+        animation: fade-in 0.3s ease-out forwards;
+    }
+    .message:hover {
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+    }
+    .user {
+        background-color: rgba(0, 150, 136, 0.8); /* Teal, semi-transparent */
+        color: #fff;
+        text-align: right;
+        border-radius: 12px 12px 4px 12px;
+        border: 1px solid #26a69a;
+    }
+    .bot {
+        background-color: rgba(94, 53, 177, 0.8); /* Deep purple, semi-transparent */
+        color: #fff;
+        text-align: left;
+        border-radius: 12px 12px 12px 4px;
+        border: 1px solid #673ab7;
+    }
+    .message strong {
+        color: #a7ffeb; /* Bright cyan */
+        text-shadow: 0 0 5px #a7ffeb;
+    }
 
-.search-input {
-    flex-grow: 1;
-    padding: 0.8rem 1.2rem;
-    border: none;
-    border-radius: 15px;
-    background-color: #37474f;
-    color: #cfd8dc;
-    font-size: 1.1rem;
-    transition: background-color 0.2s ease;
-}
-.search-input:focus {
-    background-color: #455a64;
-    outline: none;
-}
+    /* Floating Input Bar */
+    .floating-input-container {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.8rem;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.8);
+        padding: 0.8rem 1.5rem;
+        border-radius: 20px;
+        box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        border: 1px solid #263238;
+    }
+    .floating-input-container input[type="text"] {
+        flex-grow: 1;
+        padding: 0.9rem 1.5rem;
+        border: 1px solid #455a64;
+        border-radius: 15px;
+        background-color: #263238;
+        color: #eceff1;
+        font-size: 1.1rem;
+        font-family: 'Exo 2', sans-serif;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+    .floating-input-container input[type="text"]:focus {
+        background-color: #37474f;
+        border-color: #00ffff; /* Electric cyan focus */
+        outline: none;
+        box-shadow: 0 0 10px #00ffff;
+    }
+    .floating-input-container button {
+        background: linear-gradient(to right, #ff4081, #c51162); /* Luxurious magenta gradient */
+        color: #fff;
+        border: none;
+        border-radius: 15px;
+        padding: 0.8rem 2rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+        transition: background 0.2s ease, transform 0.1s ease;
+    }
+    .floating-input-container button:hover {
+        background: linear-gradient(to right, #f50057, #ad1457); /* Darker hover gradient */
+        transform: scale(1.05);
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
+    }
+    .floating-input-container button:active {
+        transform: scale(1);
+    }
 
-.search-button, .voice-button {
-    background: #424242;
-    color: #e0f7fa;
-    border: none;
-    border-radius: 50%; /* Circular buttons */
-    width: 35px;
-    height: 35px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1em;
-    cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.1s ease;
-}
+    /* Enhanced Animations */
+    @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-.search-button:hover, .voice-button:hover {
-    background-color: #616161;
-    transform: scale(1.05);
-}
-
-.action-button {
-    background: linear-gradient(to right, #64b5f6, #3f51b5);
-    color: white;
-    border: none;
-    border-radius: 15px;
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.1s ease;
-}
-
-.action-button:hover {
-    background: linear-gradient(to right, #42a5f5, #303f9f);
-    transform: translateY(-2px);
-}
-
-/* Footer: Elegant and understated */
-.footer {
-    text-align: center;
-    padding: 1.5rem 0;
-    color: #78909c;
-    font-size: 0.9rem;
-    border-top: 1px solid #455a64;
-    margin-top: 2.5rem;
-}
-
-/* Animations */
-.message {
-    opacity: 0;
-    transform: translateY(15px);
-    animation: fade-in 0.4s ease-out forwards;
-}
-
-@keyframes fade-in {
-    to { opacity: 1; transform: translateY(0); }
-}
-</style>
-""", unsafe_allow_html=True)
-st.success("🔥 Quantora Premium UI Activated — Experience the ultimate AI interface! ✨")
-st.markdown("<p style='text-align: center; color: #b2ff59;'>💎 Immerse yourself in a world of seamless interaction and stunning visuals, inspired by the best in AI design. 💎</p>", unsafe_allow_html=True)
-st.markdown('<div class="footer">⚛️ Powered by Quantora AI</div>', unsafe_allow_html=True)
-
-# Initialize the Gemini model outside the function
 model = genai.GenerativeModel("gemini-2.0-flash")
 
-# ✅ Header
-st.markdown(f"<h1 style='text-align: center;'>{greeting}, Explorer <span style='font-size: 1.5em;'>🌌</span></h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center; color: #ccff90; font-weight: bold; text-shadow: 2px 2px 4px #000;'>✨ Welcome to <span style='font-size: 1.2em;'>⚛️</span> <span style='color: #a7ffeb;'>Quantora Premium</span> — Your Intelligent AI Partner <span style='font-size: 1.2em;'>⚛️</span> ✨</h2>", unsafe_allow_html=True)
-st.markdown("<hr>", unsafe_allow_html=True) # Subtle divider
+# ✅ Elite Interface Header
+st.markdown(f"<h1 style='text-align: center;'>{greeting}, Operative <span style='font-size: 1.8em;'>💎</span></h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; color: #ff4081; font-weight: bold; text-shadow: 2px 2px 5px #000;'>✨ Welcome to <span style='font-size: 1.4em;'>⚛️</span> <span style='color: #00ffff;'>Quantora AI Elite</span> — Unrivaled Cognitive Interface <span style='font-size: 1.4em;'>⚛️</span> ✨</h2>", unsafe_allow_html=True)
+st.markdown("<hr>", unsafe_allow_html=True) # Refined divider
 
-# ✅ Chat Display
+# ✅ Advanced Chat Display Module
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 for speaker, msg in st.session_state.chat:
     style_class = "user" if speaker == "user" else "bot"
     st.markdown(f'<div class="message {style_class}"><strong>{speaker.title()}:</strong><br>{msg}</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-def recognize_speech():
+# ✅ Enhanced Audio Reception Protocol
+def initiate_audio_reception():
     try:
         r = sr.Recognizer()
         with sr.Microphone() as source:
-            st.info("Listening... Please speak.")
+            st.info("🎧 Audio Reception Array Online...")
             audio = r.listen(source)
         text = r.recognize_google(audio)
         return text
     except sr.WaitTimeoutError:
-        st.warning("No speech detected. Please try again.")
+        st.warning("⚠️ No Auditory Input Detected.")
         return None
     except sr.RequestError as e:
-        st.error(f"Could not request results from Google Speech Recognition service; {e}")
+        st.error(f"❌ Audio Processing Unit Error: {e}")
         return None
     except sr.UnknownValueError:
-        st.warning("Could not understand audio.")
+        st.warning("❓ Unable to Parse Auditory Signal.")
         return None
     except AttributeError as e:
-        st.error("Microphone input is not supported in this environment.")
+        st.error("❌ Microphone Interface Malfunction.")
         return None
     except Exception as e:
-        st.error(f"Speech recognition failed: {e}")
+        st.error(f"❌ Audio Stream Interruption: {e}")
         return None
 
-def handle_text_input(user_input):
-    if user_input:
+# ✅ Integrated Elite Input Module (Floating)
+st.markdown('<div class="floating-input-container">', unsafe_allow_html=True)
+with st.form(key="elite_chat_form", clear_on_submit=True):
+    col1, col_submit = st.columns([5, 1])
+    user_input = col1.text_input("Initiate Query", key="user_prompt_input", label_visibility="collapsed", placeholder="Engage Cognitive Core...")
+    submitted = col_submit.form_submit_button("⚡️ Transmit")
+
+    if submitted and user_input:
         st.session_state.chat.append(("user", user_input))
-        with st.spinner("🤖 Quantora is processing..."):
+        with st.spinner("⚛️ Processing Neural Input..."):
             try:
                 response = call_quantora_gemini(user_input)
                 animated_response = ""
@@ -310,61 +297,7 @@ def handle_text_input(user_input):
                     time.sleep(0.002)
                 st.session_state.chat.append(("quantora", animated_response))
             except Exception as e:
-                st.error(f"An error occurred while processing your request: {e}")
-
-def handle_voice_input(recognized_text):
-    if recognized_text:
-        st.session_state.chat.append(("user", recognized_text))
-        with st.spinner("🤖 Quantora is processing your voice input..."):
-            try:
-                response = call_quantora_gemini(recognized_text)
-                animated_response = ""
-                for char in response:
-                    animated_response += char
-                    time.sleep(0.002)
-                st.session_state.chat.append(("quantora", animated_response))
-            except Exception as e:
-                st.error(f"An error occurred while processing your request: {e}")
-
-# ✅ Custom Search Bar
-st.markdown('<div class="search-container">', unsafe_allow_html=True)
-with st.form(key="search_form"):
-    cols = st.columns([0.1, 0.15, 0.15, 0.2, 0.2, 0.1, 0.09]) # Adjust column widths as needed
-    plus_button = cols[0].button("➕")
-    search_button = cols[1].form_submit_button("🌐 Search")
-    reason_button = cols[2].form_submit_button("💡 Reason")
-    deep_research_button = cols[3].form_submit_button("📑 Deep research")
-    create_image_button = cols[4].form_submit_button("🖼️ Create image")
-    more_button = cols[5].button("•••")
-    user_input = cols[6].text_input("Ask anything", key="user_prompt_input", label_visibility="collapsed", placeholder="Ask anything", style="border-radius: 15px; padding-left: 10px;")
-
-    if search_button and user_input:
-        st.info("🌐 Opening Quantora search engine...")
-        st.markdown(f"[Click here to open your search engine 🌐](https://quantora-search-engine.streamlit.app/?q={user_input})", unsafe_allow_html=True)
-
-    elif reason_button and user_input:
-        st.info("🤔 Asking Quantora to reason...")
-        with st.spinner("🤔 Quantora is reasoning..."):
-            reasoning_prompt = f"Explain the reasoning behind the following: {user_input}"
-            try:
-                response = call_quantora_gemini(reasoning_prompt)
-                st.session_state.chat.append(("quantora", f"<strong>Reasoning:</strong><br>{response}"))
-            except Exception as e:
-                st.error(f"An error occurred while processing the reasoning request: {e}")
-
-    elif deep_research_button and user_input:
-        st.info("📑 Initiating deep research...")
-        with st.spinner("📑 Quantora is conducting deep research..."):
-            research_prompt = f"Perform deep research on: {user_input}. Provide detailed findings and sources if possible."
-            try:
-                response = call_quantora_gemini(research_prompt)
-                st.session_state.chat.append(("quantora", f"<strong>Deep Research:</strong><br>{response}"))
-            except Exception as e:
-                st.error(f"An error occurred during deep research: {e}")
-
-    elif create_image_button and user_input:
-        st.info("🖼️ Requesting image creation...")
-        st.warning("Image creation functionality is not yet implemented.")
+                st.error(f"❌ Processing Error: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -373,37 +306,20 @@ try:
     import pyaudio
     use_mic = True
 except ImportError:
-    st.warning("Voice Recognition will be added in future...")
+    st.warning("⚠️ Audio Input Subsystem Offline.")
 
 if use_mic:
-    st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    voice_cols = st.columns([0.9, 0.1])
-    voice_cols[0].empty() # Placeholder to align with text input
-    if voice_cols[1].button("🎙️", key="voice_prompt_button", help="Speak your prompt", on_click=recognize_speech):
-        pass # Speech recognition is triggered on click
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    if "recognized_text" in st.session_state and st.session_state.recognized_text:
-        handle_voice_input(st.session_state.recognized_text)
-        del st.session_state["recognized_text"] # Clear after processing
-
-def recognize_speech():
-    st.session_state["recognized_text"] = None
-    try:
-        r = sr.Recognizer()
-        with sr.Microphone() as source:
-            st.info("Listening... Please speak.")
-            audio = r.listen(source)
-        text = r.recognize_google(audio)
-        st.session_state["recognized_text"] = text
-        st.info(f"You said: {text}")
-    except sr.WaitTimeoutError:
-        st.warning("No speech detected. Please try again.")
-    except sr.RequestError as e:
-        st.error(f"Could not request results from Google Speech Recognition service; {e}")
-    except sr.UnknownValueError:
-        st.warning("Could not understand audio.")
-    except AttributeError as e:
-        st.error("Microphone input is not supported in this environment.")
-    except Exception as e:
-        st.error(f"Speech recognition failed: {e}")
+    if st.button("🎧 Initiate Audio Stream", key="voice_prompt_button"):
+        recognized_text = initiate_audio_reception()
+        if recognized_text:
+            st.session_state.chat.append(("user", recognized_text))
+            with st.spinner("⚛️ Analyzing Auditory Data..."):
+                try:
+                    response = call_quantora_gemini(recognized_text)
+                    animated_response = ""
+                    for char in response:
+                        animated_response += char
+                        time.sleep(0.002)
+                    st.session_state.chat.append(("quantora", animated_response))
+                except Exception as e:
+                    st.error(f"❌ Audio Analysis Error: {e}")
