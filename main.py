@@ -427,7 +427,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-model = genai.GenerativeModel("gemini-2.5-pro-exp")
+model = genai.GenerativeModel("gemini-2.5-pro")
 
 # ✅ Elite Interface Header
 st.markdown("""
