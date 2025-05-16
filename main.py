@@ -94,90 +94,29 @@ else:
 # Custom CSS for the enhanced interface
 # Custom CSS for the enhanced interface
 # Custom CSS for the ultimate AI interface
+# Custom CSS for the enhanced interface
 st.markdown("""
 <style>
-/* === Quantum Design System === */
-:root {
-    --quantum-primary: #7b2ff7;
-    --quantum-secondary: #045de9;
-    --quantum-accent: #ff2d75;
-    --quantum-dark: #0a0a1a;
-    --quantum-darker: #050510;
-    --quantum-light: #f0f4ff;
-    --quantum-success: #00e676;
-    --quantum-warning: #ff9100;
-    --quantum-error: #ff1744;
-    --quantum-glass: rgba(20, 20, 40, 0.85);
-    --quantum-border: rgba(255, 255, 255, 0.12);
-}
-
-/* === Base Styles === */
+/* Main container styling */
 [data-testid="stAppViewContainer"] {
-    background: radial-gradient(ellipse at top, var(--quantum-darker), var(--quantum-dark)),
-                linear-gradient(135deg, #0f0524 0%, #1a0933 50%, #0f0524 100%);
-    color: var(--quantum-light);
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    color: white;
 }
 
-/* === Quantum Header === */
-.header-container {
-    text-align: center;
-    padding: 2.5rem 0;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
-    border-radius: 24px;
-    background: linear-gradient(145deg, rgba(123, 47, 247, 0.15) 0%, rgba(4, 93, 233, 0.1) 100%);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--quantum-border);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-}
-
-.header-container::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 20% 30%, rgba(123, 47, 247, 0.2) 0%, transparent 60%);
-}
-
-.header-title {
-    font-size: 3rem;
-    font-weight: 800;
-    background: linear-gradient(90deg, #7b2ff7 0%, #045de9 50%, #ff2d75 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
-    letter-spacing: -0.5px;
-    position: relative;
-    text-shadow: 0 4px 20px rgba(123, 47, 247, 0.3);
-    line-height: 1.2;
-}
-
-.header-subtitle {
-    font-size: 1.5rem;
-    color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 0;
-    font-weight: 400;
-    letter-spacing: 0.2px;
-    opacity: 0.9;
-}
-
-/* === Quantum Chat Container === */
+/* Chat container styling */
 .chat-container {
-    max-height: 72vh;
+    max-height: 70vh;
     overflow-y: auto;
-    padding: 2rem;
-    padding-bottom: 140px;
+    padding: 1.5rem;
+    padding-bottom: 120px;
     scrollbar-width: thin;
-    scrollbar-color: var(--quantum-primary) var(--quantum-dark);
-    background: var(--quantum-glass);
-    border-radius: 24px;
-    margin: 2rem 0;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--quantum-border);
+    scrollbar-color: #6a11cb #1e1e2e;
+    background: rgba(30, 30, 46, 0.85);
+    border-radius: 20px;
+    margin: 1.5rem 0;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .chat-container::-webkit-scrollbar {
@@ -186,195 +125,192 @@ st.markdown("""
 }
 
 .chat-container::-webkit-scrollbar-track {
-    background: var(--quantum-dark);
+    background: #1e1e2e;
     border-radius: 10px;
 }
 
 .chat-container::-webkit-scrollbar-thumb {
-    background: linear-gradient(var(--quantum-primary), var(--quantum-secondary));
+    background: linear-gradient(#6a11cb, #2575fc);
     border-radius: 10px;
-    border: 2px solid var(--quantum-dark);
 }
 
-/* === Quantum Message Bubbles === */
+/* Message bubbles */
 .message {
-    padding: 1.5rem 2rem;
-    margin-bottom: 1.8rem;
-    border-radius: 24px;
+    padding: 1.3rem 1.8rem;
+    margin-bottom: 1.5rem;
+    border-radius: 22px;
     word-break: break-word;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
-    animation: quantum-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    max-width: 88%;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    animation: fade-in 0.4s ease-out forwards;
+    max-width: 85%;
     position: relative;
-    line-height: 1.7;
-    font-size: 1.15rem;
-    transition: all 0.3s ease;
-    opacity: 0;
-    transform: translateY(20px);
+    line-height: 1.6;
+    font-size: 1.1rem;
+    transition: transform 0.3s ease;
 }
 
 .message:hover {
-    transform: translateY(-3px) !important;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px);
 }
 
 .user {
-    background: linear-gradient(135deg, var(--quantum-primary) 0%, var(--quantum-secondary) 100%);
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
     color: white;
     margin-left: auto;
-    border-radius: 24px 24px 8px 24px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 22px 22px 6px 22px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .bot {
-    background: var(--quantum-glass);
-    color: var(--quantum-light);
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
     margin-right: auto;
-    border-radius: 24px 24px 24px 8px;
-    border: 1px solid var(--quantum-border);
-    position: relative;
+    border-radius: 22px 22px 22px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-.bot::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(123, 47, 247, 0.1) 0%, rgba(4, 93, 233, 0.05) 100%);
-    border-radius: inherit;
-    z-index: -1;
-}
-
-/* === Quantum Input Area === */
+/* Floating input container */
 .floating-input-container {
     position: fixed;
-    bottom: 40px;
+    bottom: 30px;
     left: 50%;
     transform: translateX(-50%);
-    width: 84%;
-    max-width: 900px;
+    width: 82%;
+    max-width: 850px;
     display: flex;
-    gap: 1.2rem;
+    gap: 1rem;
     align-items: center;
-    background: var(--quantum-glass);
-    padding: 1.2rem 2.5rem;
-    border-radius: 28px;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+    background: rgba(30, 30, 46, 0.95);
+    padding: 1rem 2rem;
+    border-radius: 30px;
+    box-shadow: 0 -8px 35px rgba(0, 0, 0, 0.5);
     z-index: 1000;
-    border: 1px solid var(--quantum-border);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.floating-input-container:focus-within {
-    box-shadow: 0 -10px 50px rgba(123, 47, 247, 0.3);
-    border: 1px solid rgba(123, 47, 247, 0.3);
-    transform: translateX(-50%) translateY(-5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(15px);
 }
 
 .floating-input-container input {
     flex-grow: 1;
-    padding: 1.2rem 2rem;
+    padding: 1.1rem 1.8rem;
     border: none;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.1);
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.12);
     color: white;
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     transition: all 0.3s ease;
-    min-height: 70px;
-    line-height: 1.6;
+    min-height: 60px;
 }
 
 .floating-input-container input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-    font-weight: 300;
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .floating-input-container input:focus {
     outline: none;
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 0 0 3px rgba(123, 47, 247, 0.3);
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 0 0 3px rgba(106, 17, 203, 0.4);
 }
 
 .floating-input-container button {
-    background: linear-gradient(135deg, var(--quantum-primary) 0%, var(--quantum-secondary) 100%);
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
     color: white;
     border: none;
-    border-radius: 24px;
-    padding: 1.2rem 2.5rem;
+    border-radius: 25px;
+    padding: 1.1rem 2.2rem;
     font-weight: 600;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     cursor: pointer;
-    box-shadow: 0 8px 25px rgba(123, 47, 247, 0.4);
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    min-height: 70px;
+    box-shadow: 0 6px 20px rgba(106, 17, 203, 0.4);
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    min-height: 60px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    position: relative;
-    overflow: hidden;
-}
-
-.floating-input-container button::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(
-        to bottom right,
-        rgba(255, 255, 255, 0) 0%,
-        rgba(255, 255, 255, 0) 45%,
-        rgba(255, 255, 255, 0.15) 48%,
-        rgba(255, 255, 255, 0.15) 52%,
-        rgba(255, 255, 255, 0) 55%,
-        rgba(255, 255, 255, 0) 100%
-    );
-    transform: rotate(30deg);
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    gap: 8px;
 }
 
 .floating-input-container button:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 35px rgba(123, 47, 247, 0.6);
-}
-
-.floating-input-container button:hover::after {
-    left: 100%;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(106, 17, 203, 0.6);
 }
 
 .floating-input-container button:active {
     transform: translateY(0);
 }
 
-/* === Quantum Voice Interface === */
+/* Animations */
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Header styling */
+.header-container {
+    text-align: center;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, rgba(106, 17, 203, 0.25) 0%, rgba(37, 117, 252, 0.25) 100%);
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.header-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 20% 50%, rgba(106, 17, 203, 0.15) 0%, transparent 50%);
+}
+
+.header-title {
+    font-size: 2.8rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+    position: relative;
+    text-shadow: 0 2px 10px rgba(106, 17, 203, 0.3);
+}
+
+.header-subtitle {
+    font-size: 1.4rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 0;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+}
+
+/* Mic button styling */
 .mic-button {
-    background: linear-gradient(135deg, var(--quantum-accent) 0%, #ff6b9d 100%);
+    background: linear-gradient(135deg, #f857a6 0%, #ff5858 100%);
     color: white;
     border: none;
     border-radius: 50%;
-    width: 72px;
-    height: 72px;
-    font-size: 1.8rem;
+    width: 65px;
+    height: 65px;
+    font-size: 1.6rem;
     display: flex;
     align-items: center;
     justify-content: center;
     position: fixed;
-    right: 40px;
-    bottom: 140px;
-    box-shadow: 0 10px 30px rgba(255, 45, 117, 0.5);
+    right: 35px;
+    bottom: 120px;
+    box-shadow: 0 6px 25px rgba(248, 87, 166, 0.5);
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.3s ease;
     z-index: 1001;
 }
 
 .mic-button:hover {
-    transform: scale(1.1) rotate(8deg);
-    box-shadow: 0 15px 40px rgba(255, 45, 117, 0.7);
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 8px 30px rgba(248, 87, 166, 0.7);
 }
 
 .mic-button:active {
@@ -382,175 +318,109 @@ st.markdown("""
 }
 
 .mic-button.listening {
-    animation: quantum-pulse 2s infinite;
+    animation: pulse 1.5s infinite;
 }
 
-/* === Quantum Animations === */
-@keyframes quantum-fade {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(248, 87, 166, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(248, 87, 166, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(248, 87, 166, 0); }
 }
 
-@keyframes quantum-pulse {
-    0% { box-shadow: 0 0 0 0 rgba(255, 45, 117, 0.7); }
-    70% { box-shadow: 0 0 0 20px rgba(255, 45, 117, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(255, 45, 117, 0); }
+/* Spinner styling */
+.stSpinner > div {
+    border-top-color: #6a11cb !important;
+    border-width: 4px !important;
 }
 
-/* === Quantum Typing Indicator === */
+/* Typing indicator */
 .typing-indicator {
     display: flex;
-    padding: 1.2rem 1.8rem;
-    background: var(--quantum-glass);
-    border-radius: 24px;
-    margin-bottom: 1.8rem;
+    padding: 1rem 1.5rem;
+    background: rgba(30, 30, 46, 0.7);
+    border-radius: 22px;
+    margin-bottom: 1.5rem;
     width: fit-content;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--quantum-border);
-    align-items: center;
-    gap: 12px;
-}
-
-.typing-label {
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.7);
-    margin-right: 8px;
-}
-
-.typing-dots {
-    display: flex;
-    gap: 6px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .typing-dot {
-    width: 12px;
-    height: 12px;
-    background: var(--quantum-primary);
+    width: 10px;
+    height: 10px;
+    background: #6a11cb;
     border-radius: 50%;
-    animation: quantum-typing 1.8s infinite ease-in-out;
+    margin: 0 3px;
+    animation: typing-animation 1.4s infinite ease-in-out;
 }
 
 .typing-dot:nth-child(1) { animation-delay: 0s; }
-.typing-dot:nth-child(2) { animation-delay: 0.3s; }
-.typing-dot:nth-child(3) { animation-delay: 0.6s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
-@keyframes quantum-typing {
-    0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
-    30% { transform: translateY(-10px); opacity: 1; }
+@keyframes typing-animation {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-8px); }
 }
 
-/* === Quantum Spinner === */
-.stSpinner > div {
-    border-top-color: var(--quantum-primary) !important;
-    border-width: 4px !important;
-    width: 28px !important;
-    height: 28px !important;
-}
-
-/* === Quantum Message Metadata === */
-.message-meta {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 0.8rem;
-    font-size: 0.85rem;
+/* Timestamp styling */
+.message-timestamp {
+    font-size: 0.75rem;
     opacity: 0.7;
+    margin-top: 0.5rem;
+    display: block;
+    text-align: right;
 }
 
-.message-actions {
-    display: flex;
-    gap: 12px;
-}
-
-.message-action {
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.message-action:hover {
-    opacity: 1;
-    color: var(--quantum-accent);
-}
-
-/* === Quantum Responsive Design === */
-@media (max-width: 1024px) {
-    .chat-container {
-        padding: 1.5rem;
-        max-height: 68vh;
-    }
-    
-    .floating-input-container {
-        width: 90%;
-        padding: 1rem 2rem;
-    }
-}
-
+/* Responsive adjustments */
 @media (max-width: 768px) {
-    .header-title {
-        font-size: 2.5rem;
-    }
-    
-    .header-subtitle {
-        font-size: 1.3rem;
-    }
-    
     .floating-input-container {
         width: 92%;
-        padding: 1rem 1.5rem;
-        bottom: 30px;
-        flex-direction: column;
-    }
-    
-    .floating-input-container input,
-    .floating-input-container button {
-        width: 100%;
-        min-height: 60px;
-    }
-    
-    .mic-button {
-        right: 30px;
-        bottom: 120px;
-        width: 65px;
-        height: 65px;
-        font-size: 1.6rem;
-    }
-    
-    .message {
-        max-width: 92%;
-        padding: 1.3rem 1.8rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .header-title {
-        font-size: 2rem;
-    }
-    
-    .header-subtitle {
-        font-size: 1.1rem;
-    }
-    
-    .chat-container {
-        padding: 1.2rem;
-        max-height: 65vh;
-    }
-    
-    .floating-input-container {
-        width: 94%;
-        padding: 0.8rem 1.2rem;
+        padding: 0.9rem 1.2rem;
         bottom: 20px;
     }
     
+    .header-title {
+        font-size: 2.2rem;
+    }
+    
+    .header-subtitle {
+        font-size: 1.2rem;
+    }
+    
     .mic-button {
-        right: 20px;
+        right: 25px;
         bottom: 110px;
-        width: 60px;
-        height: 60px;
+        width: 55px;
+        height: 55px;
         font-size: 1.4rem;
     }
     
     .message {
-        font-size: 1.05rem;
+        max-width: 90%;
         padding: 1.1rem 1.5rem;
+    }
+    
+    .floating-input-container input,
+    .floating-input-container button {
+        min-height: 50px;
+    }
+}
+
+@media (max-width: 480px) {
+    .floating-input-container {
+        flex-direction: column;
+        gap: 0.8rem;
+        padding: 1rem;
+    }
+    
+    .floating-input-container button {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .mic-button {
+        right: 15px;
+        bottom: 100px;
     }
 }
 </style>
