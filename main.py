@@ -505,98 +505,47 @@ def initiate_audio_reception():
 
 # ✅ Integrated Elite Input Module (Floating)
 st.markdown('<div class="floating-input-container">', unsafe_allow_html=True)
-
 with st.form(key="elite_chat_form", clear_on_submit=True):
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        user_input = st.text_input(
-            "Initiate Query",
-            key="user_prompt_input",
-            label_visibility="collapsed",
-            placeholder="Engage Cognitive Core...",
-        )
-    with col2:
-        submitted = st.form_submit_button("⚡️ Transmit")
-
-    # Action buttons
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        research_clicked = st.form_submit_button("🔍 Research")
-    with col2:
-        reason_clicked = st.form_submit_button("🧠 Reason")
-    with col3:
-        file_upload = st.file_uploader("📁 Upload", type=["txt", "pdf", "csv"],
-                                        accept_multiple_files=True, label_visibility="collapsed")
-    with col4:
-        voice_clicked = st.form_submit_button("🎙️ Voice")
-
-# Handle form submissions
-if (submitted or research_clicked or reason_clicked) and user_input:
-    st.session_state.chat.append(("user", user_input))
-
-    with st.spinner("🌀 Processing..."):
-        try:
-            if research_clicked:
-                papers = search_arxiv(user_input)
-                if papers:
-                    response = "📚 Research Papers Found:\n\n"
-                    for i, paper in enumerate(papers, 1):
-                        response += f"""
-                        {i}. **{paper['title']}**
-                        - Authors: {', '.join(paper['authors'])}
-                        - Published: {paper['published']}
-                        - Summary: {paper['summary']}
-                        - [Download PDF]({paper['pdf_url']})
-                        """
-                    st.session_state.chat.append(("quantora", response))
-                else:
-                    st.session_state.chat.append(("quantora", "No research papers found. Try a different query."))
-
-            elif reason_clicked:
-                reasoning_prompt = f"""
-                    Analyze and explain the reasoning behind: "{user_input}"
-                    Provide:
-                    1. Key concepts involved
-                    2. Logical structure
-                    3. Supporting evidence
-                    4. Potential counterarguments
-                    5. Conclusion
-                    """
-                response = call_quantora_gemini(reasoning_prompt)
-                st.session_state.chat.append(("quantora", response))
-
-            else:
+    user_input = st.text_input(
+        "Initiate Query", 
+        key="user_prompt_input", 
+        label_visibility="collapsed", 
+        placeholder="Engage Cognitive Core...",
+    )
+    submitted = st.form_submit_button("⚡️ Transmit")
+    
+    if submitted and user_input:
+        st.session_state.chat.append(("user", user_input))
+        with st.spinner("🌀 Processing neural input..."):
+            try:
                 response = call_quantora_gemini(user_input)
+                animated_response = ""
+                placeholder = st.empty()
+                for char in response:
+                    animated_response += char
+                    placeholder.markdown(f'<div class="message bot"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
+                    time.sleep(0.01)
                 st.session_state.chat.append(("quantora", response))
-
-            st.rerun()
-        except Exception as e:
-            st.error(f"❌ Processing error: {e}")
-
-# Handle file uploads
-if file_upload and user_input:
-    st.session_state.chat.append(("user", f"[File upload] {user_input}"))
-    with st.spinner("🌀 Analyzing files..."):
-        try:
-            processed_files = process_uploaded_files(file_upload, user_input)
-            if processed_files:
-                response = call_quantora_gemini(processed_files)
-                st.session_state.chat.append(("quantora", f"📂 File Analysis Complete:\n\n{response}"))
                 st.rerun()
-        except Exception as e:
-            st.error(f"❌ File analysis error: {e}")
+            except Exception as e:
+                st.error(f"❌ Processing error: {e}")
+st.markdown('</div>', unsafe_allow_html=True)
 
-# Handle voice input
-if voice_clicked:
+# Floating mic button
+if st.button("🎙️", key="voice_prompt_button", help="Voice input"):
     recognized_text = initiate_audio_reception()
     if recognized_text:
         st.session_state.chat.append(("user", recognized_text))
-        with st.spinner("🌀 Analyzing..."):
+        with st.spinner("🌀 Analyzing auditory data..."):
             try:
                 response = call_quantora_gemini(recognized_text)
+                animated_response = ""
+                placeholder = st.empty()
+                for char in response:
+                    animated_response += char
+                    placeholder.markdown(f'<div class="message bot"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
+                    time.sleep(0.01)
                 st.session_state.chat.append(("quantora", response))
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Analysis error: {e}")
-
-st.markdown('</div>', unsafe_allow_html=True)
