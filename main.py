@@ -485,7 +485,7 @@ model = genai.GenerativeModel("gemini-2.0-flash")
 st.markdown("""
 <div class="header-container">
     <div class="header-title">💎 Quantora AI Elite</div>
-    <div class="header-subtitle">{greeting}, Operative</div>
+    <div class="header-subtitle">{greeting}</div>
 </div>
 """.format(greeting=greeting), unsafe_allow_html=True)
 
@@ -519,48 +519,278 @@ def initiate_audio_reception():
         return None
 
 # ✅ Integrated Elite Input Module (Floating)
-st.markdown('<div class="floating-input-container">', unsafe_allow_html=True)
-with st.form(key="elite_chat_form", clear_on_submit=True):
-    user_input = st.text_input(
-        "Initiate Query", 
-        key="user_prompt_input", 
-        label_visibility="collapsed", 
-        placeholder="Engage Cognitive Core...",
-    )
-    submitted = st.form_submit_button("⚡️ Transmit")
-    
-    if submitted and user_input:
-        st.session_state.chat.append(("user", user_input))
-        with st.spinner("🌀 Processing neural input..."):
-            try:
-                response = call_quantora_gemini(user_input)
-                animated_response = ""
-                placeholder = st.empty()
-                for char in response:
-                    animated_response += char
-                    placeholder.markdown(f'<div class="message bot"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
-                    time.sleep(0.01)
-                st.session_state.chat.append(("quantora", response))
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Processing error: {e}")
+import streamlit as st
+import time
+import speech_recognition as sr
+from PyPDF2 import PdfReader
+import requests
+from io import BytesIO
+import json
+
+# Initialize chat session
+if "chat" not in st.session_state:
+    st.session_state.chat = []
+
+# Custom CSS for styling
+st.markdown("""
+<style>
+.header-container {
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #6e48aa 0%, #9d50bb 100%);
+    color: white;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+}
+.header-title {
+    font-size: 2rem;
+    font-weight: 700;
+}
+.header-subtitle {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+.chat-container {
+    margin-bottom: 100px;
+}
+.message {
+    padding: 1rem;
+    border-radius: 15px;
+    margin-bottom: 1rem;
+    max-width: 80%;
+}
+.user {
+    background-color: #f0f2f6;
+    margin-left: auto;
+    border-bottom-right-radius: 5px;
+}
+.bot {
+    background-color: #6e48aa;
+    color: white;
+    border-bottom-left-radius: 5px;
+}
+.floating-input-container {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    right: 2rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 100;
+}
+.stButton>button {
+    width: 100%;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Header
+greeting = "Welcome to Quantora AI Research Suite"
+st.markdown(f"""
+<div class="header-container">
+    <div class="header-title">💎 Quantora AI Elite</div>
+    <div class="header-subtitle">{greeting}</div>
+</div>
+""", unsafe_allow_html=True)
+
+# Chat display
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+for speaker, msg in st.session_state.chat:
+    style_class = "user" if speaker == "user" else "bot"
+    st.markdown(f'<div class="message {style_class}"><strong>{speaker.title()}:</strong><br>{msg}</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Floating mic button
-if st.button("🎙️", key="voice_prompt_button", help="Voice input"):
+# Audio processing
+def initiate_audio_reception():
+    try:
+        r = sr.Recognizer()
+        with sr.Microphone() as source:
+            st.toast("🎤 Listening... Speak now", icon="🎙️")
+            audio = r.listen(source, timeout=5)
+            text = r.recognize_google(audio)
+            return text
+    except sr.WaitTimeoutError:
+        st.toast("⚠️ No speech detected", icon="⚠️")
+        return None
+    except sr.RequestError as e:
+        st.error(f"❌ Audio service error: {e}")
+        return None
+    except sr.UnknownValueError:
+        st.toast("❓ Could not understand audio", icon="❓")
+        return None
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
+        return None
+
+# File processing functions
+def extract_text_from_pdf(file):
+    pdf_reader = PdfReader(file)
+    text = ""
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+    return text
+
+def process_uploaded_files(files, prompt):
+    try:
+        file_contents = []
+        for file in files:
+            if file.type == "text/plain":
+                file_contents.append(file.read().decode("utf-8"))
+            elif file.type == "application/pdf":
+                file_contents.append(extract_text_from_pdf(file))
+            elif file.type == "text/csv":
+                file_contents.append(file.read().decode("utf-8"))
+            else:
+                st.warning(f"Unsupported file type: {file.type}")
+        
+        combined_content = "\n\n[FILE CONTENT SEPARATOR]\n\n".join(file_contents)
+        return f"User uploaded {len(files)} files with this prompt: {prompt}\n\nFile contents:\n{combined_content}"
+    except Exception as e:
+        st.error(f"❌ File processing error: {e}")
+        return None
+
+# Research paper functions
+def search_arxiv(query, max_results=3):
+    base_url = "http://export.arxiv.org/api/query?"
+    params = {
+        "search_query": f"all:{query}",
+        "start": 0,
+        "max_results": max_results,
+        "sortBy": "relevance",
+        "sortOrder": "descending"
+    }
+    
+    try:
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()
+        return parse_arxiv_response(response.text)
+    except Exception as e:
+        st.error(f"Error fetching research papers: {e}")
+        return None
+
+def parse_arxiv_response(xml_response):
+    papers = []
+    from xml.etree import ElementTree as ET
+    root = ET.fromstring(xml_response)
+    
+    for entry in root.findall('{http://www.w3.org/2005/Atom}entry'):
+        paper = {
+            'title': entry.find('{http://www.w3.org/2005/Atom}title').text,
+            'authors': [author.find('{http://www.w3.org/2005/Atom}name').text 
+                       for author in entry.findall('{http://www.w3.org/2005/Atom}author')],
+            'summary': entry.find('{http://www.w3.org/2005/Atom}summary').text.strip(),
+            'published': entry.find('{http://www.w3.org/2005/Atom}published').text,
+            'pdf_url': None
+        }
+        
+        for link in entry.findall('{http://www.w3.org/2005/Atom}link'):
+            if link.attrib.get('title') == 'pdf':
+                paper['pdf_url'] = link.attrib['href']
+        
+        papers.append(paper)
+    
+    return papers
+
+# Main input form
+st.markdown('<div class="floating-input-container">', unsafe_allow_html=True)
+
+with st.form(key="elite_chat_form", clear_on_submit=True):
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        user_input = st.text_input(
+            "Initiate Query",
+            key="user_prompt_input",
+            label_visibility="collapsed",
+            placeholder="Engage Cognitive Core...",
+        )
+    with col2:
+        submitted = st.form_submit_button("⚡️ Transmit")
+    
+    # Action buttons
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        research_clicked = st.form_submit_button("🔍 Research")
+    with col2:
+        reason_clicked = st.form_submit_button("🧠 Reason")
+    with col3:
+        file_upload = st.file_uploader("📁 Upload", type=["txt", "pdf", "docx", "csv"], 
+                                     accept_multiple_files=True, label_visibility="collapsed")
+    with col4:
+        voice_clicked = st.form_submit_button("🎙️ Voice")
+
+# Handle form submissions
+if (submitted or research_clicked or reason_clicked) and user_input:
+    st.session_state.chat.append(("user", user_input))
+    
+    with st.spinner("🌀 Processing..."):
+        try:
+            if research_clicked:
+                papers = search_arxiv(user_input)
+                if papers:
+                    response = "📚 Research Papers Found:\n\n"
+                    for i, paper in enumerate(papers, 1):
+                        response += f"""
+                        {i}. **{paper['title']}**
+                        - Authors: {', '.join(paper['authors'])}
+                        - Published: {paper['published']}
+                        - Summary: {paper['summary']}
+                        - [Download PDF]({paper['pdf_url']})
+                        """
+                    st.session_state.chat.append(("quantora", response))
+                else:
+                    st.session_state.chat.append(("quantora", "No research papers found. Try a different query."))
+            
+            elif reason_clicked:
+                reasoning_prompt = f"""
+                Analyze and explain the reasoning behind: "{user_input}"
+                Provide:
+                1. Key concepts involved
+                2. Logical structure
+                3. Supporting evidence
+                4. Potential counterarguments
+                5. Conclusion
+                """
+                response = reasoning_prompt  # Replace with actual AI call
+                st.session_state.chat.append(("quantora", response))
+            
+            else:
+                response = user_input  # Replace with actual AI call
+                st.session_state.chat.append(("quantora", response))
+            
+            st.rerun()
+        except Exception as e:
+            st.error(f"❌ Processing error: {e}")
+
+# Handle file uploads
+if file_upload and user_input:
+    st.session_state.chat.append(("user", f"[File upload] {user_input}"))
+    with st.spinner("🌀 Analyzing files..."):
+        try:
+            processed_files = process_uploaded_files(file_upload, user_input)
+            if processed_files:
+                response = f"""📂 File Analysis Complete:
+                
+                {processed_files}
+                
+                [This is where your AI would analyze the files and respond to your prompt]
+                """
+                st.session_state.chat.append(("quantora", response))
+                st.rerun()
+        except Exception as e:
+            st.error(f"❌ File analysis error: {e}")
+
+# Handle voice input
+if voice_clicked:
     recognized_text = initiate_audio_reception()
     if recognized_text:
         st.session_state.chat.append(("user", recognized_text))
-        with st.spinner("🌀 Analyzing auditory data..."):
+        with st.spinner("🌀 Analyzing..."):
             try:
-                response = call_quantora_gemini(recognized_text)
-                animated_response = ""
-                placeholder = st.empty()
-                for char in response:
-                    animated_response += char
-                    placeholder.markdown(f'<div class="message bot"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
-                    time.sleep(0.01)
+                response = recognized_text  # Replace with actual AI call
                 st.session_state.chat.append(("quantora", response))
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Analysis error: {e}")
+
+st.markdown('</div>', unsafe_allow_html=True)
