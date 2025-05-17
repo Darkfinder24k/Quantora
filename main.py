@@ -108,6 +108,17 @@ st.markdown("""
     --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
+/* Main container styling */
+[data-testid="stAppViewContainer"] {
+    background: var(--background-dark);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+.chat-container::-webkit-scrollbar-track {
+    background: var(--background-light);
+    border-radius: 12px;
+}
+
 .chat-container::-webkit-scrollbar-thumb {
     background: var(--primary-gradient);
     border-radius: 12px;
@@ -170,78 +181,6 @@ st.markdown("""
     color: #60a5fa;
 }
 
-/* Floating input container */
-.floating-input-container {
-    position: fixed;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 85%;
-    max-width: 900px;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    background: rgba(30, 30, 46, 0.95);
-    padding: 1.2rem 2rem;
-    border-radius: 32px;
-    box-shadow: var(--shadow-soft);
-    border: 1px solid var(--border-light);
-    backdrop-filter: blur(18px);
-    z-index: 1000;
-    transition: all 0.3s ease;
-}
-
-.floating-input-container:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-}
-
-.floating-input-container input {
-    flex-grow: 1;
-    padding: 1.2rem 2rem;
-    border: none;
-    border-radius: 28px;
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary);
-    font-size: 1.2rem;
-    transition: all 0.3s ease;
-    min-height: 56px;
-}
-
-.floating-input-container input::placeholder {
-    color: var(--text-secondary);
-}
-
-.floating-input-container input:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 0 0 3px rgba(94, 44, 237, 0.4);
-}
-
-.floating-input-container button {
-    background: var(--primary-gradient);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 28px;
-    padding: 1.2rem 2.5rem;
-    font-weight: 600;
-    font-size: 1.15rem;
-    cursor: pointer;
-    box-shadow: 0 6px 20px rgba(94, 44, 237, 0.4);
-    transition: all 0.3s ease;
-    min-height: 56px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.floating-input-container button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 8px 30px rgba(94, 44, 237, 0.6);
-}
-
-.floating-input-container button:active {
-    transform: scale(0.98);
-}
 
 /* Header styling */
 .header-container {
