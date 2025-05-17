@@ -87,8 +87,10 @@ if 6 <= hour < 12:
     greeting = "🌅 Good Morning User..."
 elif 12 <= hour < 18:
     greeting = "☀️ Good Afternoon User..."
-else:
+elif 18 <= hour < 24:
     greeting = "🌙 Good Evening User..."
+else:
+    greeting = "Good Night User"
 
 # Custom CSS for the enhanced interface
 st.markdown("""
@@ -111,27 +113,6 @@ st.markdown("""
     background: var(--background-dark);
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-/* Chat container */
-.chat-container {
-    max-height: 70vh;
-    overflow-y: auto;
-    padding: 2rem;
-    padding-bottom: 140px;
-    background: rgba(30, 30, 46, 0.9);
-    border-radius: 24px;
-    margin: 2rem 1rem;
-    box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--border-light);
-    scrollbar-width: thin;
-    scrollbar-color: #5e2ced var(--background-light);
-}
-
-.chat-container::-webkit-scrollbar {
-    width: 12px;
-}
 
 .chat-container::-webkit-scrollbar-track {
     background: var(--background-light);
