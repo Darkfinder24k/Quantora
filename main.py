@@ -119,6 +119,12 @@ st.markdown("""
     border-radius: 12px;
 }
 
+.chat-container::-webkit-scrollbar-thumb {
+    background: var(--primary-gradient);
+    border-radius: 12px;
+    border: 3px solid var(--background-light);
+}
+
 /* Message bubbles */
 .message {
     padding: 1.5rem 2rem;
