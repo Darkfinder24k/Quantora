@@ -84,8 +84,7 @@ Current Interaction: {prompt}"""
 
 # ✅ Temporal Synchronization Protocol
 
-now = datetime.datetime.now()
-hour = now.hour
+hour = datetime.now().hour
 
 if 6 <= hour < 12:
     greeting = "🌅 Good Morning User..."
