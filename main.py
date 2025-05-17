@@ -108,17 +108,6 @@ st.markdown("""
     --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-/* Main container styling */
-[data-testid="stAppViewContainer"] {
-    background: var(--background-dark);
-    color: var(--text-primary);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-
-.chat-container::-webkit-scrollbar-track {
-    background: var(--background-light);
-    border-radius: 12px;
-}
-
 .chat-container::-webkit-scrollbar-thumb {
     background: var(--primary-gradient);
     border-radius: 12px;
