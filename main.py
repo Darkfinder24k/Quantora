@@ -82,8 +82,9 @@ Current Interaction: {prompt}"""
         return f"❌ Critical System Failure: {e}"
 
 # ✅ Temporal Synchronization Protocol
-current_time = time.localtime()
-hour = current_time.tm_hour
+
+now = datetime.time.now()
+hour = now.hour
 
 if 6 <= hour < 12:
     greeting = "🌅 Good Morning User..."
@@ -93,7 +94,6 @@ elif 18 <= hour < 24:
     greeting = "🌙 Good Evening User..."
 else:
     greeting = "🌌 Good Night User"
-
 
 # Custom CSS for the enhanced interface
 st.markdown("""
