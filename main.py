@@ -116,6 +116,27 @@ st.markdown("""
     background: var(--background-dark);
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Chat container */
+.chat-container {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 2rem;
+    padding-bottom: 140px;
+    background: rgba(30, 30, 46, 0.9);
+    border-radius: 24px;
+    margin: 2rem 1rem;
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-light);
+    scrollbar-width: thin;
+    scrollbar-color: #5e2ced var(--background-light);
+}
+
+.chat-container::-webkit-scrollbar {
+    width: 12px;
+}
 
 .chat-container::-webkit-scrollbar-track {
     background: var(--background-light);
@@ -184,23 +205,16 @@ st.markdown("""
     color: #60a5fa;
 }
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Website Title</title>
-    <style>
-        /* Floating input container */
+/* Floating input container */
 .floating-input-container {
     position: fixed;
-    bottom: 60px;
+    bottom: 40px;
     left: 50%;
     transform: translateX(-50%);
     width: 85%;
     max-width: 900px;
     display: flex;
-    flex-direction: column; /* Changed to column layout */
+    align-items: center;
     gap: 1rem;
     background: rgba(30, 30, 46, 0.95);
     padding: 1.2rem 2rem;
@@ -214,14 +228,6 @@ st.markdown("""
 
 .floating-input-container:hover {
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-}
-
-.input-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    width: 100%;
-    position: relative; /* Make this the positioning context for the disclaimer */
 }
 
 .floating-input-container input {
@@ -271,32 +277,6 @@ st.markdown("""
 .floating-input-container button:active {
     transform: scale(0.98);
 }
-
-.disclaimer-on-input {
-    position: absolute;
-    top: 10px; /* Adjust as needed for vertical positioning */
-    left: 20px; /* Adjust as needed for horizontal positioning */
-    color: var(--text-secondary);
-    font-size: 0.75rem; /* Adjust the font size as needed */
-    opacity: 0.7;
-    pointer-events: none; /* Ensure the disclaimer doesn't interfere with input clicks */
-}
-    </style>
-</head>
-<body>
-
-    <div class="floating-input-container">
-        <div class="input-wrapper">
-            <input type="text" placeholder="Ask me anything...">
-            <p class="disclaimer-on-input">
-                Quantora might make mistakes. Help it improve!
-            </p>
-            <button>Go</button>
-        </div>
-    </div>
-
-    </body>
-</html>
 
 /* Header styling */
 .header-container {
