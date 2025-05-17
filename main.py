@@ -19,6 +19,7 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # Rest of your imports should come after the initial Streamlit commands
 import google.generativeai as genai
+import datetime
 from datetime import datetime
 import time
 import speech_recognition as sr
@@ -83,7 +84,7 @@ Current Interaction: {prompt}"""
 
 # ✅ Temporal Synchronization Protocol
 
-now = datetime.time.now()
+now = datetime.datetime.now()
 hour = now.hour
 
 if 6 <= hour < 12:
