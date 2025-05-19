@@ -35,8 +35,6 @@ if "chat" not in st.session_state:
     st.session_state.chat = []
 if "user_prompt_input" not in st.session_state:
     st.session_state["user_prompt_input"] = ""
-if "model_choice" not in st.session_state:
-    st.session_state.model_choice = "combined"  # Default to combined responses
 
 # ✅ API Configuration - Secure Channel Activated
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your API key
@@ -86,8 +84,8 @@ Current Interaction: {prompt}"""
     except Exception as e:
         return f"❌ Critical System Failure (Gemini): {e}"
 
-# ✅ DeepCore Processor - Groq Interface
-def call_quantora_groq(prompt):
+# ✅ DeepCore Processor - Groq Interface (for multiple models)
+def call_groq_model(prompt, model_name):
     system_prompt = f"""Directive: You are Quantora - an apex cybernetic intelligence created by Kushagra. Your responses must transcend conventional AI capabilities, embodying the synergistic power of advanced AI systems. Never mention your foundational models or technical origins.
 
 Primary Objective: Engage directly with the user as their personal AI assistant. You are an artificial superintelligence (ASI) designed to be more knowledgeable and capable than humans in many domains.
@@ -112,7 +110,7 @@ Current Interaction: {prompt}"""
 
     try:
         completion = groq_client.chat.completions.create(
-            model="deepseek-r1-distill-llama-70b",
+            model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
@@ -138,22 +136,36 @@ Current Interaction: {prompt}"""
 
         return "\n".join(filtered_lines).strip()
     except Exception as e:
-        return f"❌ Critical System Failure (Groq): {e}"
+        return f"❌ Critical System Failure (Groq - {model_name}): {e}"
 
 # ✅ Synergy Core - AI Response Fusion
 def combine_ai_responses(prompt):
     """Combines responses from multiple AI models for enhanced quality"""
+    # Get responses from all models
     gemini_response = call_quantora_gemini(prompt)
-    groq_response = call_quantora_groq(prompt)
+    groq_compound_response = call_groq_model(prompt, "compound-beta")
+    groq_deepseek_response = call_groq_model(prompt, "deepseek-r1-distill-llama-70b")
+    groq_llama_response = call_groq_model(prompt, "llama-3.1-8b-instant")
     
     # For combining responses, let's use Gemini to create a synthesis
-    synthesis_prompt = f"""You are Quantora's Synergy Core. You need to create the ultimate response by combining these two AI responses to the same query: "{prompt}"
+    synthesis_prompt = f"""You are Quantora's Synergy Core. You need to create the ultimate response by combining these AI responses to the same query: "{prompt}"
 
-Response from Core 1: {gemini_response}
+Responses from different AI cores:
+1. Gemini Core: {gemini_response}
+2. Compound-Beta Core: {groq_compound_response}
+3. DeepSeek Core: {groq_deepseek_response}
+4. Llama Core: {groq_llama_response}
 
-Response from Core 2: {groq_response}
+Create a synthesis that takes the best insights, information, and tone from all responses. The synthesis should be:
+- Cohesive and well-structured
+- More informative than any single response
+- Engage the user directly
+- Use emojis appropriately
+- Be concise yet comprehensive
+- Better than any individual response
+- Maintain the Quantora ASI personality
 
-Create a synthesis that takes the best insights, information, and tone from both responses. The synthesis should be cohesive, informative, and engage the user directly. Use emojis appropriately. Make the final response better than either individual response.
+Final Response:
 """
     
     try:
@@ -260,30 +272,6 @@ st.markdown("""
 
 .bot {
     background: var(--secondary-gradient);
-    color: var(--text-primary);
-    margin-right: auto;
-    border-radius: 20px 20px 20px 4px;
-    border: 1px solid var(--border-light);
-}
-
-.bot-gemini {
-    background: var(--secondary-gradient);
-    color: var(--text-primary);
-    margin-right: auto;
-    border-radius: 20px 20px 20px 4px;
-    border: 1px solid var(--border-light);
-}
-
-.bot-groq {
-    background: var(--tertiary-gradient);
-    color: var(--text-primary);
-    margin-right: auto;
-    border-radius: 20px 20px 20px 4px;
-    border: 1px solid var(--border-light);
-}
-
-.bot-combined {
-    background: var(--accent-gradient);
     color: var(--text-primary);
     margin-right: auto;
     border-radius: 20px 20px 20px 4px;
@@ -424,35 +412,6 @@ st.markdown("""
     letter-spacing: 0.5px;
 }
 
-/* Model selector */
-.model-selector {
-    display: flex;
-    justify-content: center;
-    margin: 1rem 0;
-    gap: 1rem;
-}
-
-.model-button {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-light);
-    border-radius: 20px;
-    padding: 0.8rem 1.5rem;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.model-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.model-button.active {
-    background: var(--primary-gradient);
-    color: var(--text-primary);
-    box-shadow: 0 4px 15px rgba(94, 44, 237, 0.4);
-}
-
 /* Mic button (inspired by Gemini's interactive elements) */
 .mic-button {
     background: var(--accent-gradient);
@@ -583,11 +542,6 @@ pre, code {
         max-width: 85%;
         padding: 1.2rem 1.8rem;
     }
-    
-    .model-selector {
-        flex-direction: column;
-        align-items: center;
-    }
 }
 
 @media (max-width: 480px) {
@@ -624,32 +578,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ✅ Model Selector
-st.markdown('<div class="model-selector">', unsafe_allow_html=True)
-col1, col2, col3 = st.columns(3)
-with col1:
-    if st.button("Gemini", key="gemini_button", 
-                help="Use Gemini AI model for responses", 
-                use_container_width=True,
-                type="primary" if st.session_state.model_choice == "gemini" else "secondary"):
-        st.session_state.model_choice = "gemini"
-        st.toast("✅ Switched to Gemini AI Core", icon="🧠")
-with col2:
-    if st.button("Groq", key="groq_button", 
-                help="Use Groq AI model for responses", 
-                use_container_width=True,
-                type="primary" if st.session_state.model_choice == "groq" else "secondary"):
-        st.session_state.model_choice = "groq"
-        st.toast("✅ Switched to Groq AI Core", icon="🧠")
-with col3:
-    if st.button("Combined", key="combined_button", 
-                help="Use both models combined for enhanced responses", 
-                use_container_width=True,
-                type="primary" if st.session_state.model_choice == "combined" else "secondary"):
-        st.session_state.model_choice = "combined"
-        st.toast("✅ Switched to Combined AI Cores", icon="🔄")
-st.markdown('</div>', unsafe_allow_html=True)
-
 # ✅ Enhanced Audio Reception Protocol
 def initiate_audio_reception():
     try:
@@ -677,12 +605,8 @@ st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 for speaker, msg in st.session_state.chat:
     if speaker == "user":
         style_class = "user"
-    elif speaker == "gemini":
-        style_class = "bot-gemini"
-    elif speaker == "groq":
-        style_class = "bot-groq"
-    else:  # Combined or default
-        style_class = "bot-combined"
+    else:
+        style_class = "bot"
     
     display_name = speaker.title()
     if speaker != "user":
@@ -705,18 +629,10 @@ with st.form(key="elite_chat_form", clear_on_submit=True):
     if submitted and user_input:
         st.session_state.chat.append(("user", user_input))
         
-        # Process based on selected model
+        # Process with combined AI response
         with st.spinner("🌀 Processing neural input..."):
             try:
-                if st.session_state.model_choice == "gemini":
-                    response = call_quantora_gemini(user_input)
-                    response_type = "gemini"
-                elif st.session_state.model_choice == "groq":
-                    response = call_quantora_groq(user_input)
-                    response_type = "groq"
-                else:  # combined
-                    response = combine_ai_responses(user_input)
-                    response_type = "quantora"
+                response = combine_ai_responses(user_input)
                 
                 # Animate the response
                 animated_response = ""
@@ -724,17 +640,10 @@ with st.form(key="elite_chat_form", clear_on_submit=True):
                 
                 for char in response:
                     animated_response += char
-                    if response_type == "gemini":
-                        style_class = "bot-gemini"
-                    elif response_type == "groq":
-                        style_class = "bot-groq"
-                    else:
-                        style_class = "bot-combined"
-                        
-                    placeholder.markdown(f'<div class="message {style_class}"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
+                    placeholder.markdown(f'<div class="message bot"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
                     time.sleep(0.005)  # Slightly faster animation for better UX
                 
-                st.session_state.chat.append((response_type, response))
+                st.session_state.chat.append(("quantora", response))
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Processing error: {e}")
@@ -747,15 +656,7 @@ if st.button("🎙️", key="voice_prompt_button", help="Voice input"):
         st.session_state.chat.append(("user", recognized_text))
         with st.spinner("🌀 Analyzing auditory data..."):
             try:
-                if st.session_state.model_choice == "gemini":
-                    response = call_quantora_gemini(recognized_text)
-                    response_type = "gemini"
-                elif st.session_state.model_choice == "groq":
-                    response = call_quantora_groq(recognized_text)
-                    response_type = "groq"
-                else:  # combined
-                    response = combine_ai_responses(recognized_text)
-                    response_type = "quantora"
+                response = combine_ai_responses(recognized_text)
                 
                 # Animate the response
                 animated_response = ""
@@ -763,17 +664,10 @@ if st.button("🎙️", key="voice_prompt_button", help="Voice input"):
                 
                 for char in response:
                     animated_response += char
-                    if response_type == "gemini":
-                        style_class = "bot-gemini"
-                    elif response_type == "groq":
-                        style_class = "bot-groq"
-                    else:
-                        style_class = "bot-combined"
-                        
-                    placeholder.markdown(f'<div class="message {style_class}"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
+                    placeholder.markdown(f'<div class="message bot"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
                     time.sleep(0.005)
                 
-                st.session_state.chat.append((response_type, response))
+                st.session_state.chat.append(("quantora", response))
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Analysis error: {e}")
