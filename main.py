@@ -172,6 +172,7 @@ Create a synthesis that takes the best insights, information, and tone from all 
 - Better than any individual response
 - Maintain the Quantora ASI personality
 - Tell your name in only in the first answer, and if the user asks even in the middle of the tell them.
+- Dont tell that you are the most powerful ai, or an ASI ai.
 
 Final Response:
 """
