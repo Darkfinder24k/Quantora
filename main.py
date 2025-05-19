@@ -211,37 +211,7 @@ st.markdown("""
     background: var(--background-dark);
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
 
-/* Chat container */
-.chat-container {
-    max-height: 70vh;
-    overflow-y: auto;
-    padding: 2rem;
-    padding-bottom: 140px;
-    background: rgba(30, 30, 46, 0.9);
-    border-radius: 24px;
-    margin: 2rem 1rem;
-    box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--border-light);
-    scrollbar-width: thin;
-    scrollbar-color: #5e2ced var(--background-light);
-}
-
-.chat-container::-webkit-scrollbar {
-    width: 12px;
-}
-
-.chat-container::-webkit-scrollbar-track {
-    background: var(--background-light);
-    border-radius: 12px;
-}
-
-.chat-container::-webkit-scrollbar-thumb {
-    background: var(--primary-gradient);
-    border-radius: 12px;
-    border: 3px solid var(--background-light);
 }
 
 /* Message bubbles */
