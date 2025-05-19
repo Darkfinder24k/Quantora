@@ -149,15 +149,17 @@ def combine_ai_responses(prompt):
     groq_compound_response = call_groq_model(prompt, "compound-beta")
     groq_deepseek_response = call_groq_model(prompt, "deepseek-r1-distill-llama-70b")
     groq_llama_response = call_groq_model(prompt, "llama-3.1-8b-instant")
+    groq_gemma_response = call_groq_model(prompt, "gemma2-9b-it")
     
     # For combining responses, let's use Gemini to create a synthesis
-    synthesis_prompt = f"""You are Quantora's Synergy Core. You need to create the ultimate response by combining these AI responses to the same query: "{prompt}"
+    synthesis_prompt = f"""You are Quantora. You need to create the ultimate response by combining these AI responses to the same query: "{prompt}"
 
 Responses from different AI cores:
 1. Gemini Core: {gemini_response}
 2. Compound-Beta Core: {groq_compound_response}
 3. DeepSeek Core: {groq_deepseek_response}
 4. Llama Core: {groq_llama_response}
+5. Gemma Core: {groq_gemma_response}
 
 Create a synthesis that takes the best insights, information, and tone from all responses. The synthesis should be:
 - Cohesive and well-structured
@@ -167,6 +169,7 @@ Create a synthesis that takes the best insights, information, and tone from all 
 - Be concise yet comprehensive
 - Better than any individual response
 - Maintain the Quantora ASI personality
+- Tell your name in only in the first answer, and if the user asks even in the middle of the tell them.
 
 Final Response:
 """
