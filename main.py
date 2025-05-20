@@ -18,12 +18,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Remove "Made with Streamlit" footer - must come AFTER set_page_config
+# Remove "Made with Streamlit" footer and other elements
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
+.stDeployButton {visibility: hidden;}
+[data-testid="stToolbar"] {visibility: hidden;}
+[data-testid="stDecoration"] {visibility: hidden;}
+.st-emotion-cache-zq5wmm {visibility: hidden;}
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -197,293 +201,678 @@ elif 18 <= hour < 24:
 else:
     greeting = "🌌 Good Night User"
 
-# Custom CSS for the enhanced interface
-st.markdown("""
+# Custom CSS for the NOVA-inspired UI with Quantora branding
+st.markdown(f"""
 <style>
-/* Root variables for consistent theming */
-:root {
-    --primary-gradient: linear-gradient(135deg, #5e2ced 0%, #3b82f6 100%);
-    --secondary-gradient: linear-gradient(135deg, #10b981 0%, #4ade80 100%);
-    --accent-gradient: linear-gradient(135deg, #ec4899 0%, #f97316 100%);
-    --tertiary-gradient: linear-gradient(135deg, #8b5cf6 0%, #c084fc 100%);
-    --background-dark: #0f0c29;
-    --background-light: #1e1e2e;
-    --text-primary: #ffffff;
-    --text-secondary: #d1d5db;
-    --border-light: rgba(255, 255, 255, 0.15);
-    --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
+:root {{
+    --primary: #0f172a;
+    --primary-light: #1e293b;
+    --accent: #8b5cf6;
+    --accent-light: #a78bfa;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}}
+
+/* Gradient background animation */
+@keyframes gradient {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+}}
 
 /* Main container styling */
-[data-testid="stAppViewContainer"] {
-    background: var(--background-dark);
-    color: var(--text-primary);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+[data-testid="stAppViewContainer"] {{
+    background: var(--primary);
+    color: var(--text);
+    font-family: var(--font-sans);
+    background: linear-gradient(125deg, #0f172a 0%, #1e293b 25%, #252f3f 50%, #1e293b 75%, #0f172a 100%);
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+}}
 
-}
-
-/* Message bubbles */
-.message {
-    padding: 1.5rem 2rem;
-    margin-bottom: 1.8rem;
-    border-radius: 20px;
-    word-break: break-word;
-    box-shadow: var(--shadow-soft);
-    animation: slide-in 0.3s ease-out;
-    max-width: 80%;
-    line-height: 1.7;
-    font-size: 1.15rem;
-    position: relative;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.message:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-}
-
-.user {
-    background: var(--primary-gradient);
-    color: var(--text-primary);
-    margin-left: auto;
-    border-radius: 20px 20px 4px 20px;
-    border: 1px solid var(--border-light);
-}
-
-.bot {
-    background: var(--secondary-gradient);
-    color: var(--text-primary);
-    margin-right: auto;
-    border-radius: 20px 20px 20px 4px;
-    border: 1px solid var(--border-light);
-}
-
-/* Source attribution (inspired by Perplexity) */
-.source-attribution {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin-top: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.source-attribution a {
-    color: #3b82f6;
-    text-decoration: none;
-    transition: color 0.2s ease;
-}
-
-.source-attribution a:hover {
-    color: #60a5fa;
-
-}
+/* Noise texture overlay */
+[data-testid="stAppViewContainer"]::before {{
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: -1;
+}}
 
 /* Header styling */
-.header-container {
+.header-container {{
     text-align: center;
     padding: 2.5rem 0;
-    background: var(--primary-gradient);
-    border-radius: 24px;
-    margin: 2rem 1rem;
-    box-shadow: var(--shadow-soft);
-    border: 1px solid var(--border-light);
+    margin: 2rem auto;
+    max-width: 1200px;
+    position: relative;
+}}
+
+.header-title {{
+    font-size: 3rem;
+    font-weight: 900;
+    background: linear-gradient(to right, #f8fafc, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.6rem;
+}}
+
+.header-subtitle {{
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    font-weight: 400;
+    letter-spacing: 0.5px;
+}}
+
+/* Chat container */
+.chat-container {{
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 1rem;
+}}
+
+/* Message bubbles */
+.message {{
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    animation: fadeIn 0.5s ease-out forwards;
+}}
+
+@keyframes fadeIn {{
+    from {{ opacity: 0; transform: translateY(10px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
+}}
+
+.avatar {{
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--primary-light);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}}
+
+.user-avatar {{
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}}
+
+.ai-avatar {{
+    background: linear-gradient(135deg, #3b82f6, #10b981);
+    animation: pulseBorder 2s infinite;
+}}
+
+@keyframes pulseBorder {{
+    0% {{ box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }}
+    70% {{ box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }}
+    100% {{ box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }}
+}}
+
+.message-content {{
+    background: var(--primary-light);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    line-height: 1.6;
+    max-width: calc(100% - 60px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: var(--shadow-sm);
     position: relative;
     overflow: hidden;
-}
+}}
 
-.header-container::before {
+.message-content::before {{
     content: '';
     position: absolute;
     top: 0;
     left: 0;
-    right: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+    z-index: -1;
+}}
+
+.user .message-content {{
+    background-color: rgba(139, 92, 246, 0.1);
+    margin-left: auto;
+    border-radius: 20px 20px 4px 20px;
+}}
+
+.ai .message-content {{
+    background-color: rgba(59, 130, 246, 0.1);
+    margin-right: auto;
+    border-radius: 20px 20px 20px 4px;
+}}
+
+.message-meta {{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}}
+
+.message-sender {{
+    font-weight: 600;
+    font-size: 0.9rem;
+}}
+
+.user .message-sender {{
+    color: #a78bfa;
+}}
+
+.ai .message-sender {{
+    color: #7dd3fc;
+}}
+
+.message-time {{
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}}
+
+.message-text {{
+    color: var(--text);
+    font-size: 0.95rem;
+    word-break: break-word;
+}}
+
+/* Input area */
+.input-container {{
+    position: fixed;
     bottom: 0;
-    background: radial-gradient(circle at 30% 60%, rgba(94, 44, 237, 0.2) 0%, transparent 70%);
-}
+    left: 0;
+    right: 0;
+    background: var(--primary);
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+}}
 
-.header-title {
-    font-size: 3rem;
-    font-weight: 900;
-    background: linear-gradient(135deg, #ffffff 0%, #d1d5db 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.6rem;
-    letter-spacing: 0.8px;
-    text-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
-}
+.input-box {{
+    width: 100%;
+    min-height: 60px;
+    border-radius: 16px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 1rem 4rem 1rem 1.25rem;
+    color: var(--text);
+    font-size: 0.95rem;
+    resize: none;
+    line-height: 1.5;
+    outline: none;
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+}}
 
-.header-subtitle {
-    font-size: 1.5rem;
-    color: var(--text-secondary);
-    font-weight: 400;
-    letter-spacing: 0.5px;
-}
+.input-box:focus {{
+    border-color: rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}}
 
-/* Mic button (inspired by Gemini's interactive elements) */
-.mic-button {
-    background: var(--accent-gradient);
-    color: var(--text-primary);
+.input-box::placeholder {{
+    color: var(--text-muted);
+}}
+
+.send-button {{
+    position: absolute;
+    right: 25px;
+    bottom: 25px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
     border: none;
-    border-radius: 50%;
-    width: 70px;
-    height: 70px;
-    font-size: 1.8rem;
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: fixed;
-    right: 40px;
-    bottom: 130px;
-    box-shadow: 0 8px 30px rgba(236, 72, 153, 0.5);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}}
+
+.send-button:hover {{
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}}
+
+/* Features grid */
+.features {{
+    display: flex;
+    gap: 1rem;
+    margin: 2rem auto;
+    max-width: 900px;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--primary);
+}}
+
+.features::-webkit-scrollbar {{
+    height: 6px;
+}}
+
+.features::-webkit-scrollbar-track {{
+    background: var(--primary);
+    border-radius: 10px;
+}}
+
+.features::-webkit-scrollbar-thumb {{
+    background: var(--accent);
+    border-radius: 10px;
+}}
+
+.feature-card {{
+    min-width: 180px;
+    height: 100px;
+    border-radius: 16px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
     cursor: pointer;
     transition: all 0.3s ease;
-    z-index: 1001;
-}
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+}}
 
-.mic-button:hover {
-    transform: scale(1.12) rotate(8deg);
-    box-shadow: 0 10px 35px rgba(236, 72, 153, 0.7);
-}
+.feature-card:hover {{
+    transform: translateY(-5px);
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(139, 92, 246, 0.3);
+    box-shadow: var(--shadow-md);
+}}
 
-.mic-button:active {
-    transform: scale(0.95);
-}
-
-.mic-button.listening {
-    animation: pulse 1.8s infinite;
-}
-
-/* Code block styling (inspired by DeepSeek) */
-pre, code {
-    background: var(--background-light);
-    border-radius: 12px;
-    padding: 1rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.95rem;
-    color: var(--text-primary);
-    border: 1px solid var(--border-light);
-    overflow-x: auto;
-}
-
-/* Animations */
-@keyframes slide-in {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7); }
-    70% { box-shadow: 0 0 0 18px rgba(236, 72, 153, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
-}
-
-/* Typing indicator (inspired by ChatGPT) */
-.typing-indicator {
+.feature-icon {{
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
     display: flex;
-    padding: 1.2rem 1.8rem;
-    background: rgba(30, 30, 46, 0.8);
-    border-radius: 20px;
-    margin-bottom: 1.8rem;
-    width: fit-content;
-    box-shadow: var(--shadow-soft);
-}
+    align-items: center;
+    justify-content: center;
+}}
 
-.typing-dot {
-    width: 12px;
-    height: 12px;
-    background: #5e2ced;
-    border-radius: 50%;
-    margin: 0 4px;
-    animation: typing-animation 1.6s infinite ease-in-out;
-}
+.feature-title {{
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}}
 
-.typing-dot:nth-child(1) { animation-delay: 0s; }
-.typing-dot:nth-child(2) { animation-delay: 0.3s; }
-.typing-dot:nth-child(3) { animation-delay: 0.6s; }
+/* Tools */
+.tools {{
+    display: flex;
+    gap: 0.75rem;
+    margin: 1rem 0;
+    justify-content: center;
+}}
 
-@keyframes typing-animation {
-    0%, 60%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-10px); }
-}
+.tool-button {{
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}}
 
-/* Timestamp */
-.message-timestamp {
+.tool-button:hover {{
+    background: rgba(30, 41, 59, 0.8);
+    transform: translateY(-2px);
+}}
+
+/* Upgrade banner */
+.upgrade-banner {{
+    margin: 2rem auto;
+    padding: 1.5rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 900px;
+    position: relative;
+    overflow: hidden;
+}}
+
+.upgrade-content {{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}}
+
+.upgrade-title {{
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: linear-gradient(to right, #f8fafc, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}}
+
+.upgrade-description {{
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}}
+
+.upgrade-button {{
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    border: none;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-md);
+}}
+
+.upgrade-button:hover {{
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}}
+
+/* Footer */
+footer {{
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-muted);
     font-size: 0.8rem;
-    color: var(--text-secondary);
-    margin-top: 0.6rem;
-    text-align: right;
-    opacity: 0.8;
-}
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-bottom: 2rem;
+}}
 
-/* Spinner */
-.stSpinner > div {
-    border-top-color: #5e2ced !important;
-    border-width: 5px !important;
-}
+.footer-links {{
+    display: flex;
+    gap: 1rem;
+}}
+
+.footer-link {{
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}}
+
+.footer-link:hover {{
+    color: var(--text);
+}}
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
-    .floating-input-container {
-        width: 90%;
-        padding: 1rem 1.5rem;
-        bottom: 30px;
-    }
-
-    .header-title {
-        font-size: 2.5rem;
-    }
-
-    .header-subtitle {
-        font-size: 1.3rem;
-    }
-
-    .mic-button {
-        right: 30px;
-        bottom: 120px;
-        width: 60px;
-        height: 60px;
-        font-size: 1.5rem;
-    }
-
-    .message {
-        max-width: 85%;
-        padding: 1.2rem 1.8rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .floating-input-container {
+@media (max-width: 768px) {{
+    .header-title {{
+        font-size: 2rem;
+    }}
+    
+    .header-subtitle {{
+        font-size: 1.2rem;
+    }}
+    
+    .feature-card {{
+        min-width: 150px;
+        height: 90px;
+    }}
+    
+    .upgrade-banner {{
         flex-direction: column;
         gap: 1rem;
-        padding: 1.2rem;
-    }
+        text-align: center;
+    }}
+    
+    .upgrade-description {{
+        max-width: 100%;
+    }}
+}}
 
-    .floating-input-container button {
-        width: 100%;
-        justify-content: center;
-    }
+/* Custom scrollbar */
+::-webkit-scrollbar {{
+    width: 6px;
+}}
 
-    .mic-button {
-        right: 20px;
-        bottom: 110px;
-        width: 55px;
-        height: 55px;
-    }
+::-webkit-scrollbar-track {{
+    background: var(--primary);
+    border-radius: 10px;
+}}
 
-    .header-title {
-        font-size: 2rem;
-    }
-}
+::-webkit-scrollbar-thumb {{
+    background: var(--accent);
+    border-radius: 10px;
+}}
 </style>
 """, unsafe_allow_html=True)
 
 # ✅ Elite Interface Header
 st.markdown(f"""
 <div class="header-container">
-    <div class="header-title">💎 Quantora AI Elite</div>
+    <div class="header-title">💎 Quantora AI</div>
     <div class="header-subtitle">{greeting}</div>
 </div>
+""", unsafe_allow_html=True)
+
+# Features grid
+st.markdown("""
+<div class="features">
+    <div class="feature-card" onclick="promptAI('Write a creative story about a space explorer')">
+        <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <line x1="10" y1="9" x2="8" y2="9"></line>
+            </svg>
+        </div>
+        <div class="feature-title">Creative Writing</div>
+    </div>
+    <div class="feature-card" onclick="promptAI('Explain quantum computing in simple terms')">
+        <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <path d="M12 17h.01"></path>
+            </svg>
+        </div>
+        <div class="feature-title">Explain Concepts</div>
+    </div>
+    <div class="feature-card" onclick="promptAI('Generate a meal plan for a week with healthy recipes')">
+        <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        </div>
+        <div class="feature-title">Personal Assistant</div>
+    </div>
+    <div class="feature-card" onclick="promptAI('Help me plan a 7-day trip to Japan')">
+        <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
+                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                <path d="M9 9h0"></path>
+                <path d="M15 15h0"></path>
+                <path d="m9 15 6-6"></path>
+            </svg>
+        </div>
+        <div class="feature-title">Trip Planning</div>
+    </div>
+    <div class="feature-card" onclick="promptAI('Write a professional email requesting a meeting with a client')">
+        <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+        </div>
+        <div class="feature-title">Email Writer</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Chat display
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+
+# Welcome message
+if len(st.session_state.chat) == 0:
+    st.markdown("""
+    <div class="message ai">
+        <div class="avatar ai-avatar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: white;">
+                <path d="M12 2v8"></path>
+                <path d="m4.93 10.93 1.41 1.41"></path>
+                <path d="M2 18h2"></path>
+                <path d="M20 18h2"></path>
+                <path d="m19.07 10.93-1.41 1.41"></path>
+                <path d="M22 22H2"></path>
+                <path d="m8 22 4-10 4 10"></path>
+            </svg>
+        </div>
+        <div class="message-content">
+            <div class="message-meta">
+                <div class="message-sender">Quantora</div>
+                <div class="message-time">Just now</div>
+            </div>
+            <div class="message-text">
+                Hello! I'm Quantora, your AI assistant. How can I help you today? You can ask me anything, from creative writing to explaining complex concepts, or even just have a friendly chat.
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Display chat history
+for speaker, msg in st.session_state.chat:
+    if speaker == "user":
+        avatar_class = "user-avatar"
+        sender_class = "user"
+        sender_name = "You"
+        icon = """
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: white;">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        """
+    else:
+        avatar_class = "ai-avatar"
+        sender_class = "ai"
+        sender_name = "Quantora"
+        icon = """
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: white;">
+            <path d="M12 2v8"></path>
+            <path d="m4.93 10.93 1.41 1.41"></path>
+            <path d="M2 18h2"></path>
+            <path d="M20 18h2"></path>
+            <path d="m19.07 10.93-1.41 1.41"></path>
+            <path d="M22 22H2"></path>
+            <path d="m8 22 4-10 4 10"></path>
+        </svg>
+        """
+    
+    # Format timestamp
+    now = datetime.now()
+    timestamp = now.strftime("%H:%M")
+    
+    st.markdown(f"""
+    <div class="message {sender_class}">
+        <div class="avatar {avatar_class}">
+            {icon}
+        </div>
+        <div class="message-content">
+            <div class="message-meta">
+                <div class="message-sender">{sender_name}</div>
+                <div class="message-time">{timestamp}</div>
+            </div>
+            <div class="message-text">
+                {msg}
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Tools
+st.markdown("""
+<div class="tools">
+    <div class="tool-button" title="Clear conversation">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"></path>
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+        </svg>
+    </div>
+    <div class="tool-button" title="Upload file">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+    </div>
+    <div class="tool-button" title="Export conversation">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+    </div>
+    <div class="tool-button" title="Voice mode">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Upgrade banner
+st.markdown("""
+<div class="upgrade-banner">
+    <div class="upgrade-content">
+        <div class="upgrade-title">Upgrade to Quantora Premium</div>
+        <div class="upgrade-description">Get access to faster responses, advanced features and priority support.</div>
+    </div>
+    <button class="upgrade-button">Upgrade Now</button>
+</div>
+""", unsafe_allow_html=True)
+
+# Footer
+st.markdown("""
+<footer>
+    <div class="copyright">© 2025 Quantora AI. All rights reserved.</div>
+    <div class="footer-links">
+        <a href="#" class="footer-link">Terms</a>
+        <a href="#" class="footer-link">Privacy</a>
+        <a href="#" class="footer-link">Help</a>
+    </div>
+</footer>
 """, unsafe_allow_html=True)
 
 # ✅ Enhanced Audio Reception Protocol
@@ -508,74 +897,67 @@ def initiate_audio_reception():
         st.error(f"❌ Error: {e}")
         return None
 
-# ✅ Advanced Chat Display Module
-st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-for speaker, msg in st.session_state.chat:
-    if speaker == "user":
-        style_class = "user"
-    else:
-        style_class = "bot"
-    
-    display_name = speaker.title()
-    if speaker != "user":
-        display_name = "Quantora"
-    
-    st.markdown(f'<div class="message {style_class}"><strong>{display_name}:</strong><br>{msg}</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ✅ Integrated Elite Input Module (Floating)
-st.markdown('<div class="floating-input-container">', unsafe_allow_html=True)
-with st.form(key="elite_chat_form", clear_on_submit=True):
-    user_input = st.text_input(
-        "Initiate Query", 
+# Input area at the bottom (fixed position)
+with st.form(key="chat_form", clear_on_submit=True):
+    user_input = st.text_area(
+        "Ask Quantora anything...", 
         key="user_prompt_input", 
         label_visibility="collapsed", 
-        placeholder="Engage Cognitive Core...",
+        placeholder="Ask Quantora anything...",
+        height=100
     )
-    submitted = st.form_submit_button("⚡️ Transmit")
+    
+    col1, col2 = st.columns([1, 0.1])
+    with col1:
+        submitted = st.form_submit_button("Send", use_container_width=True)
+    with col2:
+        voice_button = st.form_submit_button("🎙️", use_container_width=True)
     
     if submitted and user_input:
         st.session_state.chat.append(("user", user_input))
         
         # Process with combined AI response
-        with st.spinner("🌀 Processing neural input..."):
+        with st.spinner("Quantora is thinking..."):
             try:
                 response = combine_ai_responses(user_input)
-                
-                # Animate the response
-                animated_response = ""
-                placeholder = st.empty()
-                
-                for char in response:
-                    animated_response += char
-                    placeholder.markdown(f'<div class="message bot"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
-                    time.sleep(0.005)  # Slightly faster animation for better UX
-                
                 st.session_state.chat.append(("quantora", response))
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Processing error: {e}")
-st.markdown('</div>', unsafe_allow_html=True)
+    
+    if voice_button:
+        recognized_text = initiate_audio_reception()
+        if recognized_text:
+            st.session_state.chat.append(("user", recognized_text))
+            with st.spinner("Quantora is thinking..."):
+                try:
+                    response = combine_ai_responses(recognized_text)
+                    st.session_state.chat.append(("quantora", response))
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Analysis error: {e}")
 
-# Floating mic button
-if st.button("🎙️", key="voice_prompt_button", help="Voice input"):
-    recognized_text = initiate_audio_reception()
-    if recognized_text:
-        st.session_state.chat.append(("user", recognized_text))
-        with st.spinner("🌀 Analyzing auditory data..."):
-            try:
-                response = combine_ai_responses(recognized_text)
-                
-                # Animate the response
-                animated_response = ""
-                placeholder = st.empty()
-                
-                for char in response:
-                    animated_response += char
-                    placeholder.markdown(f'<div class="message bot"><strong>Quantora:</strong><br>{animated_response}</div>', unsafe_allow_html=True)
-                    time.sleep(0.005)
-                
-                st.session_state.chat.append(("quantora", response))
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Analysis error: {e}")
+# JavaScript for auto-scrolling to bottom of chat
+st.markdown("""
+<script>
+window.addEventListener('load', function() {
+    // Scroll to bottom of chat
+    const chatContainer = document.querySelector('.chat-container');
+    if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    // Auto-resize textarea
+    const textarea = document.querySelector('textarea');
+    if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = (textarea.scrollHeight) + 'px';
+        
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    }
+});
+</script>
+""", unsafe_allow_html=True)
