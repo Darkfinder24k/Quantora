@@ -680,45 +680,47 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # Input area at the top
-with st.form(key="chat_form", clear_on_submit=True):
-    col1, col2 = st.columns([0.9, 0.1])
-    with col1:
-        user_input = st.text_area(
-            "Ask Quantora anything...", 
-            key="user_prompt_input", 
-            label_visibility="collapsed", 
-            placeholder="Ask Quantora anything...",
-            height=60
-        )
-    with col2:
-        voice_button = st.form_submit_button("🎙️", use_container_width=True)
-    
-    submitted = st.form_submit_button("Send", use_container_width=True)
-    
-    if submitted and user_input:
-        st.session_state.chat.append(("user", user_input))
+input_container = st.container()
+with input_container:
+    with st.form(key="chat_form", clear_on_submit=True):
+        col1, col2 = st.columns([0.9, 0.1])
+        with col1:
+            user_input = st.text_area(
+                "Ask Quantora anything...", 
+                key="user_prompt_input", 
+                label_visibility="collapsed", 
+                placeholder="Ask Quantora anything...",
+                height=60
+            )
+        with col2:
+            voice_button = st.form_submit_button("🎙️", use_container_width=True)
         
-        # Process with combined AI response
-        with st.spinner("Quantora is thinking..."):
-            try:
-                response = combine_ai_responses(user_input)
-                st.session_state.chat.append(("quantora", response))
-                st.session_state["user_prompt_input"] = ""  # Clear the input
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Processing error: {e}")
-    
-    if voice_button:
-        recognized_text = initiate_audio_reception()
-        if recognized_text:
-            st.session_state.chat.append(("user", recognized_text))
+        submit_button = st.form_submit_button("Send", use_container_width=True)
+        
+        if submit_button and user_input:
+            st.session_state.chat.append(("user", user_input))
+            
+            # Process with combined AI response
             with st.spinner("Quantora is thinking..."):
                 try:
-                    response = combine_ai_responses(recognized_text)
+                    response = combine_ai_responses(user_input)
                     st.session_state.chat.append(("quantora", response))
+                    st.session_state["user_prompt_input"] = ""  # Clear the input
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Analysis error: {e}")
+                    st.error(f"❌ Processing error: {e}")
+        
+        if voice_button:
+            recognized_text = initiate_audio_reception()
+            if recognized_text:
+                st.session_state.chat.append(("user", recognized_text))
+                with st.spinner("Quantora is thinking..."):
+                    try:
+                        response = combine_ai_responses(recognized_text)
+                        st.session_state.chat.append(("quantora", response))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Analysis error: {e}")
 
 # Features grid
 st.markdown("""
