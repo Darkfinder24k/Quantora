@@ -251,14 +251,14 @@ st.markdown(f"""
 /* Header styling */
 .header-container {{
     text-align: center;
-    padding: 2.5rem 0;
-    margin: 2rem auto;
+    padding: 1rem 0;
+    margin: 0 auto;
     max-width: 1200px;
     position: relative;
 }}
 
 .header-title {{
-    font-size: 3rem;
+    font-size: 2.5rem;
     font-weight: 900;
     background: linear-gradient(to right, #f8fafc, #a78bfa);
     -webkit-background-clip: text;
@@ -268,7 +268,7 @@ st.markdown(f"""
 }}
 
 .header-subtitle {{
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     color: var(--text-muted);
     font-weight: 400;
     letter-spacing: 0.5px;
@@ -277,9 +277,11 @@ st.markdown(f"""
 /* Chat container */
 .chat-container {{
     max-width: 900px;
-    margin: 0 auto;
+    margin: 1rem auto;
     width: 100%;
     padding: 1rem;
+    height: calc(100vh - 300px);
+    overflow-y: auto;
 }}
 
 /* Message bubbles */
@@ -391,14 +393,13 @@ st.markdown(f"""
 
 /* Input area */
 .input-container {{
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--primary);
+    max-width: 900px;
+    margin: 1rem auto;
+    width: 100%;
     padding: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
+    background: var(--primary);
+    position: sticky;
+    top: 0;
     z-index: 100;
 }}
 
@@ -454,7 +455,7 @@ st.markdown(f"""
 .features {{
     display: flex;
     gap: 1rem;
-    margin: 2rem auto;
+    margin: 1rem auto;
     max-width: 900px;
     overflow-x: auto;
     padding-bottom: 0.5rem;
@@ -522,7 +523,8 @@ st.markdown(f"""
 .tools {{
     display: flex;
     gap: 0.75rem;
-    margin: 1rem 0;
+    margin: 1rem auto;
+    max-width: 900px;
     justify-content: center;
 }}
 
@@ -545,7 +547,7 @@ st.markdown(f"""
 
 /* Upgrade banner */
 .upgrade-banner {{
-    margin: 2rem auto;
+    margin: 1rem auto;
     padding: 1.5rem;
     border-radius: 16px;
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
@@ -597,7 +599,7 @@ st.markdown(f"""
 
 /* Footer */
 footer {{
-    margin-top: 3rem;
+    margin-top: 1rem;
     padding-top: 1.5rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
@@ -677,6 +679,47 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# Input area at the top
+with st.form(key="chat_form", clear_on_submit=True):
+    col1, col2 = st.columns([0.9, 0.1])
+    with col1:
+        user_input = st.text_area(
+            "Ask Quantora anything...", 
+            key="user_prompt_input", 
+            label_visibility="collapsed", 
+            placeholder="Ask Quantora anything...",
+            height=60
+        )
+    with col2:
+        voice_button = st.form_submit_button("🎙️", use_container_width=True)
+    
+    submitted = st.form_submit_button("Send", use_container_width=True)
+    
+    if submitted and user_input:
+        st.session_state.chat.append(("user", user_input))
+        
+        # Process with combined AI response
+        with st.spinner("Quantora is thinking..."):
+            try:
+                response = combine_ai_responses(user_input)
+                st.session_state.chat.append(("quantora", response))
+                st.session_state["user_prompt_input"] = ""  # Clear the input
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Processing error: {e}")
+    
+    if voice_button:
+        recognized_text = initiate_audio_reception()
+        if recognized_text:
+            st.session_state.chat.append(("user", recognized_text))
+            with st.spinner("Quantora is thinking..."):
+                try:
+                    response = combine_ai_responses(recognized_text)
+                    st.session_state.chat.append(("quantora", response))
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Analysis error: {e}")
+
 # Features grid
 st.markdown("""
 <div class="features">
@@ -732,6 +775,41 @@ st.markdown("""
             </svg>
         </div>
         <div class="feature-title">Email Writer</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Tools
+st.markdown("""
+<div class="tools">
+    <div class="tool-button" id="clear-chat" title="Clear conversation">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"></path>
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+        </svg>
+    </div>
+    <div class="tool-button" id="upload-file" title="Upload file">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+    </div>
+    <div class="tool-button" id="export-chat" title="Export conversation">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+    </div>
+    <div class="tool-button" id="toggle-voice" title="Voice mode">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -817,41 +895,6 @@ for speaker, msg in st.session_state.chat:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Tools
-st.markdown("""
-<div class="tools">
-    <div class="tool-button" title="Clear conversation">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 6h18"></path>
-            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-        </svg>
-    </div>
-    <div class="tool-button" title="Upload file">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-        </svg>
-    </div>
-    <div class="tool-button" title="Export conversation">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-    </div>
-    <div class="tool-button" title="Voice mode">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-            <line x1="12" y1="19" x2="12" y2="23"></line>
-            <line x1="8" y1="23" x2="16" y2="23"></line>
-        </svg>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
 # Upgrade banner
 st.markdown("""
 <div class="upgrade-banner">
@@ -897,51 +940,49 @@ def initiate_audio_reception():
         st.error(f"❌ Error: {e}")
         return None
 
-# Input area at the bottom (fixed position)
-with st.form(key="chat_form", clear_on_submit=True):
-    user_input = st.text_area(
-        "Ask Quantora anything...", 
-        key="user_prompt_input", 
-        label_visibility="collapsed", 
-        placeholder="Ask Quantora anything...",
-        height=100
-    )
-    
-    col1, col2 = st.columns([1, 0.1])
-    with col1:
-        submitted = st.form_submit_button("Send", use_container_width=True)
-    with col2:
-        voice_button = st.form_submit_button("🎙️", use_container_width=True)
-    
-    if submitted and user_input:
-        st.session_state.chat.append(("user", user_input))
-        
-        # Process with combined AI response
-        with st.spinner("Quantora is thinking..."):
-            try:
-                response = combine_ai_responses(user_input)
-                st.session_state.chat.append(("quantora", response))
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Processing error: {e}")
-    
-    if voice_button:
-        recognized_text = initiate_audio_reception()
-        if recognized_text:
-            st.session_state.chat.append(("user", recognized_text))
-            with st.spinner("Quantora is thinking..."):
-                try:
-                    response = combine_ai_responses(recognized_text)
-                    st.session_state.chat.append(("quantora", response))
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Analysis error: {e}")
-
-# JavaScript for auto-scrolling to bottom of chat
+# JavaScript for auto-scrolling to bottom of chat and button functionality
 st.markdown("""
 <script>
+// Function to handle feature card clicks
+function promptAI(prompt) {
+    // This would need to be connected to your Streamlit backend
+    // For now, we'll just populate the input field
+    const textarea = document.querySelector('textarea');
+    if (textarea) {
+        textarea.value = prompt;
+        // Trigger input event to resize textarea
+        const event = new Event('input', { bubbles: true });
+        textarea.dispatchEvent(event);
+    }
+}
+
+// Function to clear chat
+document.getElementById('clear-chat')?.addEventListener('click', function() {
+    // This would need to be connected to your Streamlit backend
+    // For now, we'll just show an alert
+    alert('Clear chat functionality would be implemented here');
+});
+
+// Function to handle file upload
+document.getElementById('upload-file')?.addEventListener('click', function() {
+    // This would need to be connected to your Streamlit backend
+    alert('File upload functionality would be implemented here');
+});
+
+// Function to export chat
+document.getElementById('export-chat')?.addEventListener('click', function() {
+    // This would need to be connected to your Streamlit backend
+    alert('Export chat functionality would be implemented here');
+});
+
+// Function to toggle voice mode
+document.getElementById('toggle-voice')?.addEventListener('click', function() {
+    // This would need to be connected to your Streamlit backend
+    alert('Voice mode toggle would be implemented here');
+});
+
+// Auto-scroll to bottom of chat when page loads
 window.addEventListener('load', function() {
-    // Scroll to bottom of chat
     const chatContainer = document.querySelector('.chat-container');
     if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
