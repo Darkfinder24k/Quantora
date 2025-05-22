@@ -49,6 +49,28 @@ groq_client = Groq(api_key=groq_api_key)
 # Initialize Gemini model
 gemini_model = genai.GenerativeModel("gemini-2.0-flash")
 
+# ✅ Enhanced Audio Reception Protocol
+def initiate_audio_reception():
+    try:
+        r = sr.Recognizer()
+        with sr.Microphone() as source:
+            st.toast("🎤 Listening... Speak now", icon="🎙️")
+            audio = r.listen(source, timeout=5)
+        text = r.recognize_google(audio)
+        return text
+    except sr.WaitTimeoutError:
+        st.toast("⚠️ No speech detected", icon="⚠️")
+        return None
+    except sr.RequestError as e:
+        st.error(f"❌ Audio service error: {e}")
+        return None
+    except sr.UnknownValueError:
+        st.toast("❓ Could not understand audio", icon="❓")
+        return None
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
+        return None
+
 # ✅ Quantum Core Processor - Gemini Interface
 def call_quantora_gemini(prompt):
     system_prompt = f"""Directive: You are Quantora - an apex cybernetic intelligence created by Kushagra. Your responses must transcend conventional AI capabilities, embodying the synergistic power of advanced AI systems. Never mention your foundational models or technical origins.
@@ -679,23 +701,22 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Input area at the top
+# Input area at the top - FIXED FORM STRUCTURE
 input_container = st.container()
 with input_container:
     with st.form(key="chat_form", clear_on_submit=True):
-        col1, col2 = st.columns([0.9, 0.1])
-        with col1:
-            user_input = st.text_area(
-                "Ask Quantora anything...", 
-                key="user_prompt_input", 
-                label_visibility="collapsed", 
-                placeholder="Ask Quantora anything...",
-                height=60
-            )
-        with col2:
-            voice_button = st.form_submit_button("🎙️", use_container_width=True)
+        user_input = st.text_area(
+            "Message", 
+            placeholder="Ask Quantora anything...",
+            height=60,
+            label_visibility="collapsed"
+        )
         
-        submit_button = st.form_submit_button("Send", use_container_width=True)
+        col1, col2 = st.columns([0.85, 0.15])
+        with col1:
+            submit_button = st.form_submit_button("💬 Send", use_container_width=True)
+        with col2:
+            voice_button = st.form_submit_button("🎙️ Voice", use_container_width=True)
         
         if submit_button and user_input:
             st.session_state.chat.append(("user", user_input))
@@ -705,7 +726,6 @@ with input_container:
                 try:
                     response = combine_ai_responses(user_input)
                     st.session_state.chat.append(("quantora", response))
-                    st.session_state["user_prompt_input"] = ""  # Clear the input
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Processing error: {e}")
@@ -722,10 +742,15 @@ with input_container:
                     except Exception as e:
                         st.error(f"❌ Analysis error: {e}")
 
+# Clear chat button outside the form
+if st.button("🗑️ Clear Chat", key="clear_chat"):
+    st.session_state.chat = []
+    st.rerun()
+
 # Features grid
 st.markdown("""
 <div class="features">
-    <div class="feature-card" onclick="promptAI('Write a creative story about a space explorer')">
+    <div class="feature-card">
         <div class="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
                 <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
@@ -737,7 +762,7 @@ st.markdown("""
         </div>
         <div class="feature-title">Creative Writing</div>
     </div>
-    <div class="feature-card" onclick="promptAI('Explain quantum computing in simple terms')">
+    <div class="feature-card">
         <div class="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -747,7 +772,7 @@ st.markdown("""
         </div>
         <div class="feature-title">Explain Concepts</div>
     </div>
-    <div class="feature-card" onclick="promptAI('Generate a meal plan for a week with healthy recipes')">
+    <div class="feature-card">
         <div class="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -758,7 +783,7 @@ st.markdown("""
         </div>
         <div class="feature-title">Personal Assistant</div>
     </div>
-    <div class="feature-card" onclick="promptAI('Help me plan a 7-day trip to Japan')">
+    <div class="feature-card">
         <div class="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
                 <rect x="4" y="4" width="16" height="16" rx="2"></rect>
@@ -769,7 +794,7 @@ st.markdown("""
         </div>
         <div class="feature-title">Trip Planning</div>
     </div>
-    <div class="feature-card" onclick="promptAI('Write a professional email requesting a meeting with a client')">
+    <div class="feature-card">
         <div class="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
@@ -784,28 +809,21 @@ st.markdown("""
 # Tools
 st.markdown("""
 <div class="tools">
-    <div class="tool-button" id="clear-chat" title="Clear conversation">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 6h18"></path>
-            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-        </svg>
-    </div>
-    <div class="tool-button" id="upload-file" title="Upload file">
+    <div class="tool-button" title="Upload file">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="17 8 12 3 7 8"></polyline>
             <line x1="12" y1="3" x2="12" y2="15"></line>
         </svg>
     </div>
-    <div class="tool-button" id="export-chat" title="Export conversation">
+    <div class="tool-button" title="Export conversation">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
     </div>
-    <div class="tool-button" id="toggle-voice" title="Voice mode">
+    <div class="tool-button" title="Voice mode">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -920,69 +938,9 @@ st.markdown("""
 </footer>
 """, unsafe_allow_html=True)
 
-# ✅ Enhanced Audio Reception Protocol
-def initiate_audio_reception():
-    try:
-        r = sr.Recognizer()
-        with sr.Microphone() as source:
-            st.toast("🎤 Listening... Speak now", icon="🎙️")
-            audio = r.listen(source, timeout=5)
-        text = r.recognize_google(audio)
-        return text
-    except sr.WaitTimeoutError:
-        st.toast("⚠️ No speech detected", icon="⚠️")
-        return None
-    except sr.RequestError as e:
-        st.error(f"❌ Audio service error: {e}")
-        return None
-    except sr.UnknownValueError:
-        st.toast("❓ Could not understand audio", icon="❓")
-        return None
-    except Exception as e:
-        st.error(f"❌ Error: {e}")
-        return None
-
-# JavaScript for auto-scrolling to bottom of chat and button functionality
+# JavaScript for auto-scrolling to bottom of chat
 st.markdown("""
 <script>
-// Function to handle feature card clicks
-function promptAI(prompt) {
-    // This would need to be connected to your Streamlit backend
-    // For now, we'll just populate the input field
-    const textarea = document.querySelector('textarea');
-    if (textarea) {
-        textarea.value = prompt;
-        // Trigger input event to resize textarea
-        const event = new Event('input', { bubbles: true });
-        textarea.dispatchEvent(event);
-    }
-}
-
-// Function to clear chat
-document.getElementById('clear-chat')?.addEventListener('click', function() {
-    // This would need to be connected to your Streamlit backend
-    // For now, we'll just show an alert
-    alert('Clear chat functionality would be implemented here');
-});
-
-// Function to handle file upload
-document.getElementById('upload-file')?.addEventListener('click', function() {
-    // This would need to be connected to your Streamlit backend
-    alert('File upload functionality would be implemented here');
-});
-
-// Function to export chat
-document.getElementById('export-chat')?.addEventListener('click', function() {
-    // This would need to be connected to your Streamlit backend
-    alert('Export chat functionality would be implemented here');
-});
-
-// Function to toggle voice mode
-document.getElementById('toggle-voice')?.addEventListener('click', function() {
-    // This would need to be connected to your Streamlit backend
-    alert('Voice mode toggle would be implemented here');
-});
-
 // Auto-scroll to bottom of chat when page loads
 window.addEventListener('load', function() {
     const chatContainer = document.querySelector('.chat-container');
@@ -1002,5 +960,13 @@ window.addEventListener('load', function() {
         });
     }
 });
+
+// Scroll to bottom after new messages
+setTimeout(function() {
+    const chatContainer = document.querySelector('.chat-container');
+    if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+}, 100);
 </script>
 """, unsafe_allow_html=True)
