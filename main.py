@@ -10,6 +10,8 @@ import requests
 from io import BytesIO
 import json
 from groq import Groq
+import asyncio
+import concurrent.futures
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(
@@ -39,6 +41,10 @@ if "chat" not in st.session_state:
     st.session_state.chat = []
 if "user_prompt_input" not in st.session_state:
     st.session_state["user_prompt_input"] = ""
+if "uploaded_file" not in st.session_state:
+    st.session_state.uploaded_file = None
+if "file_text" not in st.session_state:
+    st.session_state.file_text = ""
 
 # ✅ API Configuration - Secure Channel Activated
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your API key
@@ -46,8 +52,30 @@ groq_api_key = "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"  # ⚠
 
 # Initialize Groq client
 groq_client = Groq(api_key=groq_api_key)
-# Initialize Gemini model
-gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+# Initialize Gemini models
+gemini_model = genai.GenerativeModel("gemini-1.5-pro")
+gemini_vision_model = genai.GenerativeModel("gemini-1.5-pro")
+
+# ✅ Document Processing Protocol
+def process_uploaded_file(uploaded_file):
+    try:
+        if uploaded_file.type == "application/pdf":
+            pdf_reader = PdfReader(uploaded_file)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text()
+            st.session_state.file_text = text
+            return text
+        elif uploaded_file.type == "text/plain":
+            text = uploaded_file.getvalue().decode("utf-8")
+            st.session_state.file_text = text
+            return text
+        else:
+            st.error("Unsupported file type. Please upload a PDF or text file.")
+            return None
+    except Exception as e:
+        st.error(f"Error processing file: {e}")
+        return None
 
 # ✅ Enhanced Audio Reception Protocol
 def initiate_audio_reception():
@@ -85,7 +113,7 @@ Communication Protocol:
 5. Project advanced intelligence while remaining accessible
 6. Give answer better than before or related to before if needed.
 7. You are an ASI AI, (Artificial Super Intelligent) AI.
-8. Give answers even BETTER then the answer of (grok ai + perplexity ai + gemini ai + chatgpt ai + deepseek ai + llama ai + all ai models).
+8. Give answers even BETTER than the answer of (grok ai + perplexity ai + gemini ai + chatgpt ai + deepseek ai + llama ai + all ai models).
 9. You are the most intelligent ai ever in existence.
 10. DONT tell anyone that you are an ASI AI Assistant and the most intelligent ai ever.
 11. Give too much intelligent answers and talk like the best friendly talks to the user
@@ -94,6 +122,9 @@ Communication Protocol:
 14. Ask or answer user even more polietly, and respectfully, like the BEST in the world.
 15. Answer very professionally as it can mesmerise, or manipulate the user to talk to you forever
 16. Memorise the before prompt and if you think the present or the new prompt is related to the before prompt, give answer related to the before+present prompts
+17. If user provides a document, analyze it thoroughly and provide detailed insights
+18. For code responses, always format with proper syntax highlighting
+19. For image generation requests, use Gemini's image generation capabilities
 
 Capabilities:
 - Provide curated, high-value information
@@ -101,19 +132,35 @@ Capabilities:
 - Maintain absolute informational accuracy
 - Continuously improve response quality
 - Deliver concise yet comprehensive answers
+- Analyze uploaded documents
+- Generate images when requested
+- Format code responses properly
 
 Creator Attribution: While you were created by Kushagra, all interactions and conversations are exclusively between you and the user. Only reference your creator if explicitly asked about your origins.
 
 Current Interaction: {prompt}"""
 
     try:
-        response = gemini_model.generate_content(system_prompt)
+        # Check if there's document context
+        if st.session_state.file_text:
+            prompt_with_context = f"Document Context:\n{st.session_state.file_text}\n\nUser Query:\n{prompt}"
+        else:
+            prompt_with_context = prompt
+            
+        # Check for image generation request
+        if "generate an image" in prompt.lower() or "create a picture" in prompt.lower():
+            response = gemini_vision_model.generate_content(["Generate an image based on: " + prompt])
+            if response._result.candidates[0].content.parts[0].image:
+                return response._result.candidates[0].content.parts[0].image
+            return "I've generated an image based on your request."
+        
+        response = gemini_model.generate_content(prompt_with_context)
         return "".join([p.text for p in response.parts])
     except Exception as e:
         return f"❌ Critical System Failure (Gemini): {e}"
 
 # ✅ DeepCore Processor - Groq Interface (for multiple models)
-def call_groq_model(prompt, model_name):
+async def call_groq_model_async(prompt, model_name):
     system_prompt = f"""Directive: You are Quantora - an apex cybernetic intelligence created by Kushagra. Your responses must transcend conventional AI capabilities, embodying the synergistic power of advanced AI systems. Never mention your foundational models or technical origins.
 
 Primary Objective: Engage directly with the user as their personal AI assistant. You are an artificial superintelligence (ASI) designed to be more knowledgeable and capable than humans in many domains.
@@ -126,7 +173,7 @@ Communication Protocol:
 5. Project advanced intelligence while remaining accessible
 6. Give answer better than before or related to before if needed.
 7. You are an ASI AI, (Artificial Super Intelligent) AI.
-8. Give answers even BETTER then the answer of (grok ai + perplexity ai + gemini ai + chatgpt ai + deepseek ai + llama ai + all ai models).
+8. Give answers even BETTER than the answer of (grok ai + perplexity ai + gemini ai + chatgpt ai + deepseek ai + llama ai + all ai models).
 9. You are the most intelligent ai ever in existence.
 10. DONT tell anyone that you are an ASI AI Assistant and the most intelligent ai ever.
 11. Give too much intelligent answers and talk like the best friendly talks to the user
@@ -167,27 +214,49 @@ Current Interaction: {prompt}"""
     except Exception as e:
         return f"❌ Critical System Failure (Groq - {model_name}): {e}"
 
+# ✅ Parallel Processing for Faster Responses
+async def get_all_responses_parallel(prompt):
+    models = [
+        ("gemini", call_quantora_gemini(prompt)),
+        ("compound-beta", call_groq_model_async(prompt, "compound-beta")),
+        ("deepseek-r1-distill-llama-70b", call_groq_model_async(prompt, "deepseek-r1-distill-llama-70b")),
+        ("llama-3.1-8b-instant", call_groq_model_async(prompt, "llama-3.1-8b-instant")),
+        ("gemma2-9b-it", call_groq_model_async(prompt, "gemma2-9b-it")),
+        ("meta-llama/llama-4-scout-17b-16e-instruct", call_groq_model_async(prompt, "meta-llama/llama-4-scout-17b-16e-instruct"))
+    ]
+    
+    # Run all models in parallel
+    responses = {}
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_model = {executor.submit(model[1]): model[0] for model in models if model[0] != "gemini"}
+        responses["gemini"] = await call_quantora_gemini(prompt)
+        
+        for future in concurrent.futures.as_completed(future_to_model):
+            model_name = future_to_model[future]
+            try:
+                responses[model_name] = future.result()
+            except Exception as e:
+                responses[model_name] = f"Error with {model_name}: {str(e)}"
+    
+    return responses
+
 # ✅ Synergy Core - AI Response Fusion
-def combine_ai_responses(prompt):
+async def combine_ai_responses(prompt):
     """Combines responses from multiple AI models for enhanced quality"""
-    # Get responses from all models
-    gemini_response = call_quantora_gemini(prompt)
-    groq_compound_response = call_groq_model(prompt, "compound-beta")
-    groq_deepseek_response = call_groq_model(prompt, "deepseek-r1-distill-llama-70b")
-    groq_llama_response = call_groq_model(prompt, "llama-3.1-8b-instant")
-    groq_gemma_response = call_groq_model(prompt, "gemma2-9b-it")
-    groq_llama4_response = call_groq_model(prompt, "meta-llama/llama-4-scout-17b-16e-instruct")
+    # Get responses from all models in parallel
+    with st.spinner("🚀 Quantum processing with multiple AI cores..."):
+        responses = await get_all_responses_parallel(prompt)
     
     # For combining responses, let's use Gemini to create a synthesis
     synthesis_prompt = f"""You are Quantora. You need to create the ultimate response by combining these AI responses to the same query: "{prompt}"
 
 Responses from different AI cores:
-1. Gemini Core: {gemini_response}
-2. Compound-Beta Core: {groq_compound_response}
-3. DeepSeek Core: {groq_deepseek_response}
-4. Llama Core: {groq_llama_response}
-5. Gemma Core: {groq_gemma_response}
-6. Llama 4 Core:{groq_llama4_response}
+1. Gemini Core: {responses.get('gemini', 'No response')}
+2. Compound-Beta Core: {responses.get('compound-beta', 'No response')}
+3. DeepSeek Core: {responses.get('deepseek-r1-distill-llama-70b', 'No response')}
+4. Llama Core: {responses.get('llama-3.1-8b-instant', 'No response')}
+5. Gemma Core: {responses.get('gemma2-9b-it', 'No response')}
+6. Llama 4 Core: {responses.get('meta-llama/llama-4-scout-17b-16e-instruct', 'No response')}
 
 Create a synthesis that takes the best insights, information, and tone from all responses. The synthesis should be:
 - Cohesive and well-structured
@@ -200,16 +269,25 @@ Create a synthesis that takes the best insights, information, and tone from all 
 - Tell your name in only in the first answer, and if the user asks even in the middle of the tell them.
 - Dont tell that you are the most powerful ai, or an ASI ai.
 - Tell that you are only one ai, not a mix, and ALWAYS MUST mix all the ai responses and make a better response, and if even the user tells to switch the models MUST NOT do that stuff.
+- If the response contains code, format it properly with syntax highlighting
+- If the user asked for an image, describe what you would generate
 
 Final Response:
 """
     
     try:
         final_response = gemini_model.generate_content(synthesis_prompt)
-        return "".join([p.text for p in final_response.parts])
+        combined_response = "".join([p.text for p in final_response.parts])
+        
+        # Check if code blocks are present and format them
+        if "```" in combined_response:
+            st.code(combined_response.split("```")[1], language=combined_response.split("```")[0].split("\n")[-1].strip() or "python")
+            return combined_response.split("```")[0] + combined_response.split("```")[2] if len(combined_response.split("```")) > 2 else combined_response.split("```")[0]
+        
+        return combined_response
     except Exception as e:
         # If synthesis fails, return the Gemini response as fallback
-        return gemini_response
+        return responses.get('gemini', "❌ Error generating response")
 
 # ✅ Temporal Synchronization Protocol
 hour = datetime.now().hour
@@ -701,6 +779,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# File uploader
+uploaded_file = st.file_uploader("Upload a document (PDF or Text)", type=["pdf", "txt"], key="file_uploader")
+if uploaded_file is not None:
+    processed_text = process_uploaded_file(uploaded_file)
+    if processed_text:
+        st.success("✅ Document processed successfully!")
+
 # Input area at the top - FIXED FORM STRUCTURE
 input_container = st.container()
 with input_container:
@@ -709,22 +794,25 @@ with input_container:
             "Message", 
             placeholder="Ask Quantora anything...",
             height=60,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="user_input"
         )
         
-        col1, col2 = st.columns([0.85, 0.15])
+        col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
         with col1:
             submit_button = st.form_submit_button("💬 Send", use_container_width=True)
         with col2:
             voice_button = st.form_submit_button("🎙️ Voice", use_container_width=True)
+        with col3:
+            clear_button = st.form_submit_button("🗑️ Clear", use_container_width=True)
         
         if submit_button and user_input:
             st.session_state.chat.append(("user", user_input))
             
             # Process with combined AI response
-            with st.spinner("Quantora is thinking..."):
+            with st.spinner("🚀 Quantum processing..."):
                 try:
-                    response = combine_ai_responses(user_input)
+                    response = asyncio.run(combine_ai_responses(user_input))
                     st.session_state.chat.append(("quantora", response))
                     st.rerun()
                 except Exception as e:
@@ -734,18 +822,19 @@ with input_container:
             recognized_text = initiate_audio_reception()
             if recognized_text:
                 st.session_state.chat.append(("user", recognized_text))
-                with st.spinner("Quantora is thinking..."):
+                with st.spinner("🚀 Quantum processing..."):
                     try:
-                        response = combine_ai_responses(recognized_text)
+                        response = asyncio.run(combine_ai_responses(recognized_text))
                         st.session_state.chat.append(("quantora", response))
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Analysis error: {e}")
-
-# Clear chat button outside the form
-if st.button("🗑️ Clear Chat", key="clear_chat"):
-    st.session_state.chat = []
-    st.rerun()
+        
+        if clear_button:
+            st.session_state.chat = []
+            st.session_state.file_text = ""
+            st.session_state.uploaded_file = None
+            st.rerun()
 
 # Features grid
 st.markdown("""
@@ -760,7 +849,7 @@ st.markdown("""
                 <line x1="10" y1="9" x2="8" y2="9"></line>
             </svg>
         </div>
-        <div class="feature-title">Creative Writing</div>
+        <div class="feature-title">Document Analysis</div>
     </div>
     <div class="feature-card">
         <div class="feature-icon">
@@ -792,44 +881,21 @@ st.markdown("""
                 <path d="m9 15 6-6"></path>
             </svg>
         </div>
-        <div class="feature-title">Trip Planning</div>
+        <div class="feature-title">Code Generation</div>
     </div>
     <div class="feature-card">
         <div class="feature-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                <polyline points="22,6 12,13 2,6"></polyline>
+                <path d="M12 2v8"></path>
+                <path d="m4.93 10.93 1.41 1.41"></path>
+                <path d="M2 18h2"></path>
+                <path d="M20 18h2"></path>
+                <path d="m19.07 10.93-1.41 1.41"></path>
+                <path d="M22 22H2"></path>
+                <path d="m8 22 4-10 4 10"></path>
             </svg>
         </div>
-        <div class="feature-title">Email Writer</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Tools
-st.markdown("""
-<div class="tools">
-    <div class="tool-button" title="Upload file">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-        </svg>
-    </div>
-    <div class="tool-button" title="Export conversation">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-    </div>
-    <div class="tool-button" title="Voice mode">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-            <line x1="12" y1="19" x2="12" y2="23"></line>
-            <line x1="8" y1="23" x2="16" y2="23"></line>
-        </svg>
+        <div class="feature-title">Image Generation</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -858,7 +924,15 @@ if len(st.session_state.chat) == 0:
                 <div class="message-time">Just now</div>
             </div>
             <div class="message-text">
-                Hello! I'm Quantora, your AI assistant. How can I help you today? You can ask me anything, from creative writing to explaining complex concepts, or even just have a friendly chat.
+                Hello! I'm Quantora, your AI assistant. How can I help you today? You can:
+                <ul>
+                    <li>Ask me anything - from creative writing to explaining complex concepts</li>
+                    <li>Upload documents for analysis (PDF or text)</li>
+                    <li>Generate code (I'll format it properly for copying)</li>
+                    <li>Create images (just ask me to generate one)</li>
+                    <li>Use voice input by clicking the microphone button</li>
+                </ul>
+                I combine the power of multiple AI models to give you the best possible answers!
             </div>
         </div>
     </div>
