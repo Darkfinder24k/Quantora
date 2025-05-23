@@ -309,7 +309,7 @@ st.markdown(f"""
     --primary-light: #1e293b;
     --accent: #8b5cf6;
     --accent-light: #a78bfa;
-    --text: #f8fafc;
+    --text-color: #f8fafc;  /* Changed from --text to --text-color */
     --text-muted: #94a3b8;
     --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -327,7 +327,7 @@ st.markdown(f"""
 /* Main container styling */
 [data-testid="stAppViewContainer"] {{
     background: var(--primary);
-    color: var(--text);
+    color: var(--text-color);  /* Updated to use --text-color */
     font-family: var(--font-sans);
     background: linear-gradient(125deg, #0f172a 0%, #1e293b 25%, #252f3f 50%, #1e293b 75%, #0f172a 100%);
     background-size: 400% 400%;
@@ -486,7 +486,7 @@ st.markdown(f"""
 }}
 
 .message-text {{
-    color: var(--text);
+    color: var(--text-color);  /* Updated to use --text-color */
     font-size: 0.95rem;
     word-break: break-word;
 }}
@@ -510,7 +510,7 @@ st.markdown(f"""
     background: rgba(30, 41, 59, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 1rem 4rem 1rem 1.25rem;
-    color: var(--text);
+    color: var(--text-color);  /* Updated to use --text-color */
     font-size: 0.95rem;
     resize: none;
     line-height: 1.5;
@@ -725,7 +725,7 @@ footer {{
 }}
 
 .footer-link:hover {{
-    color: var(--text);
+    color: var(--text-color);  /* Updated to use --text-color */
 }}
 
 /* Responsive adjustments */
