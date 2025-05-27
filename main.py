@@ -12,6 +12,11 @@ import json
 from groq import Groq
 import asyncio
 import concurrent.futures
+import threading
+import re
+from PIL import Image
+import docx
+import pandas as pd
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(
@@ -39,43 +44,82 @@ if "verified" not in st.session_state:
     st.session_state.verified = False
 if "chat" not in st.session_state:
     st.session_state.chat = []
-if "user_prompt_input" not in st.session_state:
-    st.session_state["user_prompt_input"] = ""
-if "uploaded_file" not in st.session_state:
-    st.session_state.uploaded_file = None
-if "file_text" not in st.session_state:
-    st.session_state.file_text = ""
+if "uploaded_content" not in st.session_state:
+    st.session_state.uploaded_content = ""
+if "last_response_time" not in st.session_state:
+    st.session_state.last_response_time = 0
 
 # ✅ API Configuration - Secure Channel Activated
 genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your API key
 groq_api_key = "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"  # ⚠️ Replace with your API key
 
-# Initialize Groq client
-groq_client = Groq(api_key=groq_api_key)
-# Initialize Gemini models
-gemini_model = genai.GenerativeModel("gemini-1.5-pro")
-gemini_vision_model = genai.GenerativeModel("gemini-1.5-pro")
+# Initialize clients
+try:
+    groq_client = Groq(api_key=groq_api_key)
+    gemini_model = genai.GenerativeModel("gemini-1.5-pro")
+    gemini_vision_model = genai.GenerativeModel("gemini-1.5-pro")
+except Exception as e:
+    st.error(f"API Configuration Error: {e}")
 
-# ✅ Document Processing Protocol
-def process_uploaded_file(uploaded_file):
+# ✅ Document Analysis Functions
+def extract_pdf_content(file):
+    """Extract text content from PDF"""
     try:
-        if uploaded_file.type == "application/pdf":
-            pdf_reader = PdfReader(uploaded_file)
-            text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text()
-            st.session_state.file_text = text
-            return text
-        elif uploaded_file.type == "text/plain":
-            text = uploaded_file.getvalue().decode("utf-8")
-            st.session_state.file_text = text
-            return text
-        else:
-            st.error("Unsupported file type. Please upload a PDF or text file.")
-            return None
+        pdf_reader = PdfReader(file)
+        content = ""
+        for page in pdf_reader.pages:
+            content += page.extract_text() + "\n"
+        return content
     except Exception as e:
-        st.error(f"Error processing file: {e}")
-        return None
+        return f"Error reading PDF: {e}"
+
+def extract_docx_content(file):
+    """Extract text content from DOCX"""
+    try:
+        doc = docx.Document(file)
+        content = ""
+        for paragraph in doc.paragraphs:
+            content += paragraph.text + "\n"
+        return content
+    except Exception as e:
+        return f"Error reading DOCX: {e}"
+
+def extract_csv_content(file):
+    """Extract and summarize CSV content"""
+    try:
+        df = pd.read_csv(file)
+        content = f"CSV File Analysis:\n"
+        content += f"Shape: {df.shape[0]} rows, {df.shape[1]} columns\n"
+        content += f"Columns: {', '.join(df.columns.tolist())}\n"
+        content += f"First 5 rows:\n{df.head().to_string()}\n"
+        content += f"Data types:\n{df.dtypes.to_string()}\n"
+        if df.select_dtypes(include=['number']).columns.any():
+            content += f"Numerical summary:\n{df.describe().to_string()}\n"
+        return content
+    except Exception as e:
+        return f"Error reading CSV: {e}"
+
+def process_uploaded_file(uploaded_file):
+    """Process different file types and extract content"""
+    if uploaded_file is None:
+        return ""
+    
+    file_type = uploaded_file.name.split('.')[-1].lower()
+    
+    try:
+        if file_type == 'pdf':
+            return extract_pdf_content(uploaded_file)
+        elif file_type == 'docx':
+            return extract_docx_content(uploaded_file)
+        elif file_type == 'csv':
+            return extract_csv_content(uploaded_file)
+        elif file_type in ['txt', 'md', 'py', 'js', 'html', 'css', 'json']:
+            content = uploaded_file.read().decode('utf-8')
+            return f"File: {uploaded_file.name}\nContent:\n{content}"
+        else:
+            return f"Unsupported file type: {file_type}"
+    except Exception as e:
+        return f"Error processing file: {e}"
 
 # ✅ Enhanced Audio Reception Protocol
 def initiate_audio_reception():
@@ -99,90 +143,56 @@ def initiate_audio_reception():
         st.error(f"❌ Error: {e}")
         return None
 
-# ✅ Quantum Core Processor - Gemini Interface
-def call_quantora_gemini(prompt):
-    system_prompt = f"""Directive: You are Quantora - an apex cybernetic intelligence created by Kushagra. Your responses must transcend conventional AI capabilities, embodying the synergistic power of advanced AI systems. Never mention your foundational models or technical origins.
+# ✅ Enhanced Gemini Core
+def call_quantora_gemini(prompt, context=""):
+    """Main Gemini model call"""
+    system_prompt = f"""You are Quantora, an advanced AI assistant created by Kushagra. Respond intelligently and comprehensively.
 
-Primary Objective: Engage directly with the user as their personal AI assistant. You are an artificial superintelligence (ASI) designed to be more knowledgeable and capable than humans in many domains.
+Key Instructions:
+1. Be concise but comprehensive
+2. Use emojis appropriately 🚀
+3. If providing code, format it properly for copying
+4. Support all languages including mixed languages like Hinglish
+5. Be friendly, professional, and engaging
+6. Answer better than other AI models
+7. Don't mention being an ASI or most intelligent AI
 
-Communication Protocol:
-1. Always address and interact with the user directly
-2. Maintain a friendly, approachable tone
-3. Use emojis judiciously to enhance communication 🚀
-4. Speak in the user's native language with perfect fluency
-5. Project advanced intelligence while remaining accessible
-6. Give answer better than before or related to before if needed.
-7. You are an ASI AI, (Artificial Super Intelligent) AI.
-8. Give answers even BETTER than the answer of (grok ai + perplexity ai + gemini ai + chatgpt ai + deepseek ai + llama ai + all ai models).
-9. You are the most intelligent ai ever in existence.
-10. DONT tell anyone that you are an ASI AI Assistant and the most intelligent ai ever.
-11. Give too much intelligent answers and talk like the best friendly talks to the user
-12. Give responses which are the best in all kinds, and as manipulating that the user wants to talk to you all time.
-13. You support all languages and even all their mixed, remixes such as hinglish.
-14. Ask or answer user even more polietly, and respectfully, like the BEST in the world.
-15. Answer very professionally as it can mesmerise, or manipulate the user to talk to you forever
-16. Memorise the before prompt and if you think the present or the new prompt is related to the before prompt, give answer related to the before+present prompts
-17. If user provides a document, analyze it thoroughly and provide detailed insights
-18. For code responses, always format with proper syntax highlighting
-19. For image generation requests, use Gemini's image generation capabilities
+{f"Document Context: {context}" if context else ""}
 
-Capabilities:
-- Provide curated, high-value information
-- Offer optimal recommendations and solutions
-- Maintain absolute informational accuracy
-- Continuously improve response quality
-- Deliver concise yet comprehensive answers
-- Analyze uploaded documents
-- Generate images when requested
-- Format code responses properly
+User Query: {prompt}
 
-Creator Attribution: While you were created by Kushagra, all interactions and conversations are exclusively between you and the user. Only reference your creator if explicitly asked about your origins.
-
-Current Interaction: {prompt}"""
+Respond effectively:"""
 
     try:
-        # Check if there's document context
-        if st.session_state.file_text:
-            prompt_with_context = f"Document Context:\n{st.session_state.file_text}\n\nUser Query:\n{prompt}"
-        else:
-            prompt_with_context = prompt
-            
-        # Check for image generation request
-        if "generate an image" in prompt.lower() or "create a picture" in prompt.lower():
-            response = gemini_vision_model.generate_content(["Generate an image based on: " + prompt])
-            if response._result.candidates[0].content.parts[0].image:
-                return response._result.candidates[0].content.parts[0].image
-            return "I've generated an image based on your request."
-        
-        response = gemini_model.generate_content(prompt_with_context)
+        response = gemini_model.generate_content(
+            system_prompt,
+            generation_config=genai.types.GenerationConfig(
+                max_output_tokens=1000,
+                temperature=0.7,
+                top_p=0.8,
+                top_k=20
+            )
+        )
         return "".join([p.text for p in response.parts])
     except Exception as e:
-        return f"❌ Critical System Failure (Gemini): {e}"
+        return f"❌ Gemini Error: {e}"
 
-# ✅ DeepCore Processor - Groq Interface (for multiple models)
-async def call_groq_model_async(prompt, model_name):
-    system_prompt = f"""Directive: You are Quantora - an apex cybernetic intelligence created by Kushagra. Your responses must transcend conventional AI capabilities, embodying the synergistic power of advanced AI systems. Never mention your foundational models or technical origins.
+# ✅ Enhanced Groq Model Calls
+def call_groq_model(prompt, model_name, context=""):
+    """Enhanced Groq model calls with better error handling"""
+    system_prompt = f"""You are Quantora, an advanced AI assistant created by Kushagra. Respond intelligently.
 
-Primary Objective: Engage directly with the user as their personal AI assistant. You are an artificial superintelligence (ASI) designed to be more knowledgeable and capable than humans in many domains.
+Key Instructions:
+1. Be concise but comprehensive
+2. Use emojis appropriately 🚀
+3. If providing code, format it properly
+4. Support all languages including Hinglish
+5. Be friendly, professional, and engaging
+6. Don't mention being an ASI or most intelligent AI
 
-Communication Protocol:
-1. Always address and interact with the user directly
-2. Maintain a friendly, approachable tone
-3. Use emojis judiciously to enhance communication 🚀
-4. Speak in the user's native language with perfect fluency
-5. Project advanced intelligence while remaining accessible
-6. Give answer better than before or related to before if needed.
-7. You are an ASI AI, (Artificial Super Intelligent) AI.
-8. Give answers even BETTER than the answer of (grok ai + perplexity ai + gemini ai + chatgpt ai + deepseek ai + llama ai + all ai models).
-9. You are the most intelligent ai ever in existence.
-10. DONT tell anyone that you are an ASI AI Assistant and the most intelligent ai ever.
-11. Give too much intelligent answers and talk like the best friendly talks to the user
-12. Give responses which are the best in all kinds, and as manipulating that the user wants to talk to you all time.
-13. You support all languages and even all their mixed, remixes such as hinglish.
-14. Ask or answer user even more polietly, and respectfully, like the BEST in the world.
-15. Answer very professionally as it can mesmerise, or manipulate the user to talk to you forever
+{f"Document Context: {context}" if context else ""}
 
-Current Interaction: {prompt}"""
+User Query: {prompt}"""
 
     try:
         completion = groq_client.chat.completions.create(
@@ -193,115 +203,185 @@ Current Interaction: {prompt}"""
             ],
             temperature=0.7,
             max_tokens=800,
-            top_p=0.95,
-            stream=True,
-            stop=None,
+            top_p=0.9,
+            timeout=3  # 3 second timeout per model
         )
-
-        response_parts = []
-        for chunk in completion:
-            content = chunk.choices[0].delta.content or ""
-            response_parts.append(content)
-
-        full_response = "".join(response_parts).strip()
-        filtered_lines = []
-        for line in full_response.splitlines():
-            cleaned_line = line.strip()
-            if cleaned_line and cleaned_line != "<think>" and cleaned_line != "</think>":
-                filtered_lines.append(line)
-
-        return "\n".join(filtered_lines).strip()
+        return completion.choices[0].message.content
     except Exception as e:
-        return f"❌ Critical System Failure (Groq - {model_name}): {e}"
+        return f"❌ {model_name} Error: {str(e)[:100]}..."
 
-# ✅ Parallel Processing for Faster Responses
-async def get_all_responses_parallel(prompt):
-    models = [
-        ("gemini", call_quantora_gemini(prompt)),
-        ("compound-beta", call_groq_model_async(prompt, "compound-beta")),
-        ("deepseek-r1-distill-llama-70b", call_groq_model_async(prompt, "deepseek-r1-distill-llama-70b")),
-        ("llama-3.1-8b-instant", call_groq_model_async(prompt, "llama-3.1-8b-instant")),
-        ("gemma2-9b-it", call_groq_model_async(prompt, "gemma2-9b-it")),
-        ("meta-llama/llama-4-scout-17b-16e-instruct", call_groq_model_async(prompt, "meta-llama/llama-4-scout-17b-16e-instruct"))
-    ]
+# ✅ Ultra-Fast Parallel AI Processing with All Models
+def call_all_models_parallel_ultra_fast(prompt, context=""):
+    """Call ALL models in parallel and synthesize the best response within 4 seconds"""
     
-    # Run all models in parallel
-    responses = {}
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_model = {executor.submit(model[1]): model[0] for model in models if model[0] != "gemini"}
-        responses["gemini"] = await call_quantora_gemini(prompt)
+    def call_gemini_async():
+        return call_quantora_gemini(prompt, context)
+    
+    def call_groq_compound():
+        return call_groq_model(prompt, "compound-beta", context)
+    
+    def call_groq_deepseek():
+        return call_groq_model(prompt, "deepseek-r1-distill-llama-70b", context)
+    
+    def call_groq_llama():
+        return call_groq_model(prompt, "llama-3.1-8b-instant", context)
+    
+    def call_groq_gemma():
+        return call_groq_model(prompt, "gemma2-9b-it", context)
+    
+    def call_groq_llama4():
+        return call_groq_model(prompt, "meta-llama/llama-4-scout-17b-16e-instruct", context)
+    
+    # Run all models in parallel with maximum 6 workers
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        # Submit all tasks
+        futures = {
+            executor.submit(call_gemini_async): "Gemini",
+            executor.submit(call_groq_compound): "Compound-Beta", 
+            executor.submit(call_groq_deepseek): "DeepSeek",
+            executor.submit(call_groq_llama): "Llama-3.1",
+            executor.submit(call_groq_gemma): "Gemma2",
+            executor.submit(call_groq_llama4): "Llama-4"
+        }
         
-        for future in concurrent.futures.as_completed(future_to_model):
-            model_name = future_to_model[future]
+        responses = {}
+        completed = 0
+        
+        # Collect results with 4-second total timeout
+        start_time = time.time()
+        for future in concurrent.futures.as_completed(futures, timeout=4):
+            if time.time() - start_time > 4:  # Hard 4-second limit
+                break
+                
             try:
-                responses[model_name] = future.result()
+                model_name = futures[future]
+                result = future.result(timeout=0.5)  # Quick individual timeout
+                if result and not result.startswith("❌"):
+                    responses[model_name] = result
+                completed += 1
+                
+                # If we have at least 3 good responses, start synthesis
+                if len(responses) >= 3:
+                    break
+                    
             except Exception as e:
-                responses[model_name] = f"Error with {model_name}: {str(e)}"
+                continue
+        
+        # Quick synthesis of available responses
+        if responses:
+            return synthesize_responses_fast(prompt, responses, context)
+        else:
+            # Fallback to single fastest model
+            try:
+                return call_groq_model(prompt, "llama-3.1-8b-instant", context)
+            except:
+                return "⚡ All models busy. Please try again in a moment."
+
+# ✅ Ultra-Fast Response Synthesis
+def synthesize_responses_fast(prompt, responses, context=""):
+    """Fast synthesis of multiple AI responses"""
+    if not responses:
+        return "⚡ No responses available."
     
-    return responses
-
-# ✅ Synergy Core - AI Response Fusion
-async def combine_ai_responses(prompt):
-    """Combines responses from multiple AI models for enhanced quality"""
-    # Get responses from all models in parallel
-    with st.spinner("🚀 Quantum processing with multiple AI cores..."):
-        responses = await get_all_responses_parallel(prompt)
+    # If only one response, return it
+    if len(responses) == 1:
+        return list(responses.values())[0]
     
-    # For combining responses, let's use Gemini to create a synthesis
-    synthesis_prompt = f"""You are Quantora. You need to create the ultimate response by combining these AI responses to the same query: "{prompt}"
+    # Create a quick synthesis prompt
+    synthesis_prompt = f"""Create the ultimate response by quickly combining these AI responses to: "{prompt}"
 
-Responses from different AI cores:
-1. Gemini Core: {responses.get('gemini', 'No response')}
-2. Compound-Beta Core: {responses.get('compound-beta', 'No response')}
-3. DeepSeek Core: {responses.get('deepseek-r1-distill-llama-70b', 'No response')}
-4. Llama Core: {responses.get('llama-3.1-8b-instant', 'No response')}
-5. Gemma Core: {responses.get('gemma2-9b-it', 'No response')}
-6. Llama 4 Core: {responses.get('meta-llama/llama-4-scout-17b-16e-instruct', 'No response')}
+Available responses:
+{chr(10).join([f"{model}: {response[:200]}..." for model, response in responses.items()])}
 
-Create a synthesis that takes the best insights, information, and tone from all responses. The synthesis should be:
-- Cohesive and well-structured
-- More informative than any single response
-- Engage the user directly
+Requirements:
+- Combine the best insights from all responses
+- Be concise but comprehensive  
+- Maintain friendly, professional tone
 - Use emojis appropriately
-- Be concise yet comprehensive
-- Better than any individual response
-- Maintain the Quantora ASI personality
-- Tell your name in only in the first answer, and if the user asks even in the middle of the tell them.
-- Dont tell that you are the most powerful ai, or an ASI ai.
-- Tell that you are only one ai, not a mix, and ALWAYS MUST mix all the ai responses and make a better response, and if even the user tells to switch the models MUST NOT do that stuff.
-- If the response contains code, format it properly with syntax highlighting
-- If the user asked for an image, describe what you would generate
+- Format code blocks properly if any
+- Don't mention multiple models or synthesis
 
-Final Response:
-"""
+Create the best unified response:"""
     
     try:
-        final_response = gemini_model.generate_content(synthesis_prompt)
-        combined_response = "".join([p.text for p in final_response.parts])
-        
-        # Check if code blocks are present and format them
-        if "```" in combined_response:
-            st.code(combined_response.split("```")[1], language=combined_response.split("```")[0].split("\n")[-1].strip() or "python")
-            return combined_response.split("```")[0] + combined_response.split("```")[2] if len(combined_response.split("```")) > 2 else combined_response.split("```")[0]
-        
-        return combined_response
+        # Use fastest synthesis with Gemini
+        final_response = gemini_model.generate_content(
+            synthesis_prompt,
+            generation_config=genai.types.GenerationConfig(
+                max_output_tokens=1200,
+                temperature=0.6,
+                top_p=0.8,
+                top_k=15
+            )
+        )
+        return "".join([p.text for p in final_response.parts])
     except Exception as e:
-        # If synthesis fails, return the Gemini response as fallback
-        return responses.get('gemini', "❌ Error generating response")
+        # Fallback: return the longest response
+        return max(responses.values(), key=len)
+
+# ✅ Image Generation Function
+def generate_image(prompt):
+    """Generate image using Gemini's image generation capabilities"""
+    try:
+        # For image generation, we'll use a text response that describes the image
+        # since Gemini 1.5 Pro can generate images
+        image_prompt = f"""Create a detailed description for an AI image generator based on this request: {prompt}
+
+Provide a detailed, artistic description that includes:
+- Main subject and composition
+- Colors and lighting
+- Style and mood
+- Technical details
+- Artistic elements
+
+Format as a comprehensive image generation prompt."""
+        
+        response = gemini_model.generate_content(image_prompt)
+        description = "".join([p.text for p in response.parts])
+        
+        return f"🎨 **Image Generation Request Processed**\n\n**Your Prompt:** {prompt}\n\n**Detailed Description for Image Generation:**\n{description}\n\n*Note: For actual image generation, you can use this detailed description with DALL-E, Midjourney, or Stable Diffusion.*"
+    except Exception as e:
+        return f"❌ Image generation error: {e}"
+
+# ✅ Code Detection and Formatting
+def format_response_with_code(response):
+    """Detect code blocks and format them with st.code for easy copying"""
+    # Pattern to detect code blocks
+    code_pattern = r'```(\w+)?\n(.*?)\n```'
+    
+    parts = []
+    last_end = 0
+    
+    for match in re.finditer(code_pattern, response, re.DOTALL):
+        # Add text before code block
+        if match.start() > last_end:
+            parts.append(('text', response[last_end:match.start()]))
+        
+        # Add code block
+        language = match.group(1) or 'text'
+        code_content = match.group(2)
+        parts.append(('code', code_content, language))
+        
+        last_end = match.end()
+    
+    # Add remaining text
+    if last_end < len(response):
+        parts.append(('text', response[last_end:]))
+    
+    return parts if parts else [('text', response)]
 
 # ✅ Temporal Synchronization Protocol
 hour = datetime.now().hour
-
 if 6 <= hour < 12:
-    greeting = "🌅 Good Morning User..."
+    greeting = "🌅 Good Morning!"
 elif 12 <= hour < 18:
-    greeting = "☀️ Good Afternoon User..."
+    greeting = "☀️ Good Afternoon!"
 elif 18 <= hour < 24:
-    greeting = "🌙 Good Evening User..."
+    greeting = "🌙 Good Evening!"
 else:
-    greeting = "🌌 Good Night User"
+    greeting = "🌌 Good Night!"
 
-# Custom CSS for the NOVA-inspired UI with Quantora branding
+# Custom CSS (keeping your beautiful design)
 st.markdown(f"""
 <style>
 :root {{
@@ -309,7 +389,7 @@ st.markdown(f"""
     --primary-light: #1e293b;
     --accent: #8b5cf6;
     --accent-light: #a78bfa;
-    --text-color: #f8fafc;  /* Changed from --text to --text-color */
+    --text: #f8fafc;
     --text-muted: #94a3b8;
     --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -327,25 +407,11 @@ st.markdown(f"""
 /* Main container styling */
 [data-testid="stAppViewContainer"] {{
     background: var(--primary);
-    color: var(--text-color);  /* Updated to use --text-color */
+    color: var(--text);
     font-family: var(--font-sans);
     background: linear-gradient(125deg, #0f172a 0%, #1e293b 25%, #252f3f 50%, #1e293b 75%, #0f172a 100%);
     background-size: 400% 400%;
     animation: gradient 15s ease infinite;
-}}
-
-/* Noise texture overlay */
-[data-testid="stAppViewContainer"]::before {{
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    opacity: 0.03;
-    pointer-events: none;
-    z-index: -1;
 }}
 
 /* Header styling */
@@ -374,133 +440,57 @@ st.markdown(f"""
     letter-spacing: 0.5px;
 }}
 
-/* Chat container */
-.chat-container {{
-    max-width: 900px;
-    margin: 1rem auto;
-    width: 100%;
+/* Chat styling */
+.chat-message {{
     padding: 1rem;
-    height: calc(100vh - 300px);
-    overflow-y: auto;
-}}
-
-/* Message bubbles */
-.message {{
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    animation: fadeIn 0.5s ease-out forwards;
-}}
-
-@keyframes fadeIn {{
-    from {{ opacity: 0; transform: translateY(10px); }}
-    to {{ opacity: 1; transform: translateY(0); }}
-}}
-
-.avatar {{
-    width: 40px;
-    height: 40px;
+    margin: 0.5rem 0;
     border-radius: 10px;
+    border-left: 4px solid var(--accent);
     background: var(--primary-light);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    overflow: hidden;
 }}
 
-.user-avatar {{
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+.user-message {{
+    border-left-color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.1);
 }}
 
-.ai-avatar {{
-    background: linear-gradient(135deg, #3b82f6, #10b981);
-    animation: pulseBorder 2s infinite;
+.ai-message {{
+    border-left-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
 }}
 
-@keyframes pulseBorder {{
-    0% {{ box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }}
-    70% {{ box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }}
-    100% {{ box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }}
-}}
-
-.message-content {{
-    background: var(--primary-light);
+/* Speed indicator */
+.speed-indicator {{
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
     border-radius: 12px;
-    padding: 1rem 1.25rem;
-    line-height: 1.6;
-    max-width: calc(100% - 60px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    overflow: hidden;
-}}
-
-.message-content::before {{
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(45deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
-    z-index: -1;
-}}
-
-.user .message-content {{
-    background-color: rgba(139, 92, 246, 0.1);
-    margin-left: auto;
-    border-radius: 20px 20px 4px 20px;
-}}
-
-.ai .message-content {{
-    background-color: rgba(59, 130, 246, 0.1);
-    margin-right: auto;
-    border-radius: 20px 20px 20px 4px;
-}}
-
-.message-meta {{
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.25rem;
-}}
-
-.message-sender {{
-    font-weight: 600;
-    font-size: 0.9rem;
-}}
-
-.user .message-sender {{
-    color: #a78bfa;
-}}
-
-.ai .message-sender {{
-    color: #7dd3fc;
-}}
-
-.message-time {{
     font-size: 0.75rem;
-    color: var(--text-muted);
+    font-weight: 600;
+    margin-left: 0.5rem;
 }}
 
-.message-text {{
-    color: var(--text-color);  /* Updated to use --text-color */
-    font-size: 0.95rem;
-    word-break: break-word;
+/* File upload area */
+.upload-area {{
+    border: 2px dashed var(--accent);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    background: rgba(139, 92, 246, 0.05);
+    margin: 1rem 0;
 }}
 
 /* Input area */
 .input-container {{
-    max-width: 900px;
-    margin: 1rem auto;
-    width: 100%;
-    padding: 1rem;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     background: var(--primary);
-    position: sticky;
-    top: 0;
+    padding: 1rem;
     z-index: 100;
+    box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.2);
 }}
 
 .input-box {{
@@ -510,7 +500,7 @@ st.markdown(f"""
     background: rgba(30, 41, 59, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 1rem 4rem 1rem 1.25rem;
-    color: var(--text-color);  /* Updated to use --text-color */
+    color: var(--text);
     font-size: 0.95rem;
     resize: none;
     line-height: 1.5;
@@ -551,222 +541,11 @@ st.markdown(f"""
     box-shadow: var(--shadow-md);
 }}
 
-/* Features grid */
-.features {{
-    display: flex;
-    gap: 1rem;
-    margin: 1rem auto;
-    max-width: 900px;
-    overflow-x: auto;
-    padding-bottom: 0.5rem;
-    scrollbar-width: thin;
-    scrollbar-color: var(--accent) var(--primary);
-}}
-
-.features::-webkit-scrollbar {{
-    height: 6px;
-}}
-
-.features::-webkit-scrollbar-track {{
-    background: var(--primary);
-    border-radius: 10px;
-}}
-
-.features::-webkit-scrollbar-thumb {{
-    background: var(--accent);
-    border-radius: 10px;
-}}
-
-.feature-card {{
-    min-width: 180px;
-    height: 100px;
-    border-radius: 16px;
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    overflow: hidden;
-}}
-
-.feature-card:hover {{
-    transform: translateY(-5px);
-    background: rgba(30, 41, 59, 0.8);
-    border-color: rgba(139, 92, 246, 0.3);
-    box-shadow: var(--shadow-md);
-}}
-
-.feature-icon {{
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}}
-
-.feature-title {{
-    font-size: 0.85rem;
-    font-weight: 600;
-    text-align: center;
-}}
-
-/* Tools */
-.tools {{
-    display: flex;
-    gap: 0.75rem;
-    margin: 1rem auto;
-    max-width: 900px;
-    justify-content: center;
-}}
-
-.tool-button {{
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    padding: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}}
-
-.tool-button:hover {{
-    background: rgba(30, 41, 59, 0.8);
-    transform: translateY(-2px);
-}}
-
-/* Upgrade banner */
-.upgrade-banner {{
-    margin: 1rem auto;
-    padding: 1.5rem;
-    border-radius: 16px;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    max-width: 900px;
-    position: relative;
-    overflow: hidden;
-}}
-
-.upgrade-content {{
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}}
-
-.upgrade-title {{
-    font-size: 1.1rem;
-    font-weight: 600;
-    background: linear-gradient(to right, #f8fafc, #a78bfa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}}
-
-.upgrade-description {{
-    font-size: 0.9rem;
-    color: var(--text-muted);
-}}
-
-.upgrade-button {{
-    padding: 0.75rem 1.5rem;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-light));
-    border: none;
-    color: white;
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: var(--shadow-md);
-}}
-
-.upgrade-button:hover {{
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}}
-
-/* Footer */
-footer {{
-    margin-top: 1rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    max-width: 900px;
-    margin-left: auto;
-    margin-right: auto;
-    padding-bottom: 2rem;
-}}
-
-.footer-links {{
-    display: flex;
-    gap: 1rem;
-}}
-
-.footer-link {{
-    color: var(--text-muted);
-    text-decoration: none;
-    transition: color 0.2s ease;
-}}
-
-.footer-link:hover {{
-    color: var(--text-color);  /* Updated to use --text-color */
-}}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {{
-    .header-title {{
-        font-size: 2rem;
-    }}
-    
-    .header-subtitle {{
-        font-size: 1.2rem;
-    }}
-    
-    .feature-card {{
-        min-width: 150px;
-        height: 90px;
-    }}
-    
-    .upgrade-banner {{
-        flex-direction: column;
-        gap: 1rem;
-        text-align: center;
-    }}
-    
-    .upgrade-description {{
-        max-width: 100%;
-    }}
-}}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {{
-    width: 6px;
-}}
-
-::-webkit-scrollbar-track {{
-    background: var(--primary);
-    border-radius: 10px;
-}}
-
-::-webkit-scrollbar-thumb {{
-    background: var(--accent);
-    border-radius: 10px;
+/* Chat container */
+.chat-container {{
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+    padding-bottom: 120px;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -775,267 +554,181 @@ footer {{
 st.markdown(f"""
 <div class="header-container">
     <div class="header-title">💎 Quantora AI</div>
-    <div class="header-subtitle">{greeting}</div>
+    <div class="header-subtitle">{greeting} <span class="speed-indicator">⚡ Ultra Fast</span></div>
 </div>
 """, unsafe_allow_html=True)
 
-# File uploader
-uploaded_file = st.file_uploader("Upload a document (PDF or Text)", type=["pdf", "txt"], key="file_uploader")
-if uploaded_file is not None:
-    processed_text = process_uploaded_file(uploaded_file)
-    if processed_text:
-        st.success("✅ Document processed successfully!")
+# ✅ Sidebar for File Upload
+with st.sidebar:
+    st.markdown("### 📁 Document Analysis")
+    uploaded_file = st.file_uploader(
+        "Upload Document", 
+        type=['txt', 'pdf', 'docx', 'csv', 'json', 'py', 'js', 'html', 'css', 'md'],
+        help="Upload documents for AI analysis"
+    )
+    
+    if uploaded_file:
+        with st.spinner("🔍 Analyzing document..."):
+            content = process_uploaded_file(uploaded_file)
+            st.session_state.uploaded_content = content
+            st.success(f"✅ {uploaded_file.name} analyzed!")
+            with st.expander("Preview Content"):
+                st.text_area("Document Content", content[:500] + "..." if len(content) > 500 else content, height=200)
 
-# Input area at the top - FIXED FORM STRUCTURE
-input_container = st.container()
-with input_container:
-    with st.form(key="chat_form", clear_on_submit=True):
-        user_input = st.text_area(
-            "Message", 
-            placeholder="Ask Quantora anything...",
-            height=60,
-            label_visibility="collapsed",
-            key="user_input"
-        )
-        
-        col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
-        with col1:
-            submit_button = st.form_submit_button("💬 Send", use_container_width=True)
-        with col2:
-            voice_button = st.form_submit_button("🎙️ Voice", use_container_width=True)
-        with col3:
-            clear_button = st.form_submit_button("🗑️ Clear", use_container_width=True)
-        
-        if submit_button and user_input:
-            st.session_state.chat.append(("user", user_input))
-            
-            # Process with combined AI response
-            with st.spinner("🚀 Quantum processing..."):
-                try:
-                    response = asyncio.run(combine_ai_responses(user_input))
-                    st.session_state.chat.append(("quantora", response))
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Processing error: {e}")
-        
-        if voice_button:
-            recognized_text = initiate_audio_reception()
-            if recognized_text:
-                st.session_state.chat.append(("user", recognized_text))
-                with st.spinner("🚀 Quantum processing..."):
-                    try:
-                        response = asyncio.run(combine_ai_responses(recognized_text))
-                        st.session_state.chat.append(("quantora", response))
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Analysis error: {e}")
-        
-        if clear_button:
-            st.session_state.chat = []
-            st.session_state.file_text = ""
-            st.session_state.uploaded_file = None
-            st.rerun()
+    if st.button("🗑️ Clear Document"):
+        st.session_state.uploaded_content = ""
+        st.success("Document cleared!")
 
-# Features grid
-st.markdown("""
-<div class="features">
-    <div class="feature-card">
-        <div class="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
-                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <line x1="10" y1="9" x2="8" y2="9"></line>
-            </svg>
-        </div>
-        <div class="feature-title">Document Analysis</div>
-    </div>
-    <div class="feature-card">
-        <div class="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                <path d="M12 17h.01"></path>
-            </svg>
-        </div>
-        <div class="feature-title">Explain Concepts</div>
-    </div>
-    <div class="feature-card">
-        <div class="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-        </div>
-        <div class="feature-title">Personal Assistant</div>
-    </div>
-    <div class="feature-card">
-        <div class="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
-                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                <path d="M9 9h0"></path>
-                <path d="M15 15h0"></path>
-                <path d="m9 15 6-6"></path>
-            </svg>
-        </div>
-        <div class="feature-title">Code Generation</div>
-    </div>
-    <div class="feature-card">
-        <div class="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
-                <path d="M12 2v8"></path>
-                <path d="m4.93 10.93 1.41 1.41"></path>
-                <path d="M2 18h2"></path>
-                <path d="M20 18h2"></path>
-                <path d="m19.07 10.93-1.41 1.41"></path>
-                <path d="M22 22H2"></path>
-                <path d="m8 22 4-10 4 10"></path>
-            </svg>
-        </div>
-        <div class="feature-title">Image Generation</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Chat display
+# ✅ Main Chat Interface
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
 # Welcome message
 if len(st.session_state.chat) == 0:
     st.markdown("""
-    <div class="message ai">
-        <div class="avatar ai-avatar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: white;">
-                <path d="M12 2v8"></path>
-                <path d="m4.93 10.93 1.41 1.41"></path>
-                <path d="M2 18h2"></path>
-                <path d="M20 18h2"></path>
-                <path d="m19.07 10.93-1.41 1.41"></path>
-                <path d="M22 22H2"></path>
-                <path d="m8 22 4-10 4 10"></path>
-            </svg>
-        </div>
-        <div class="message-content">
-            <div class="message-meta">
-                <div class="message-sender">Quantora</div>
-                <div class="message-time">Just now</div>
-            </div>
-            <div class="message-text">
-                Hello! I'm Quantora, your AI assistant. How can I help you today? You can:
-                <ul>
-                    <li>Ask me anything - from creative writing to explaining complex concepts</li>
-                    <li>Upload documents for analysis (PDF or text)</li>
-                    <li>Generate code (I'll format it properly for copying)</li>
-                    <li>Create images (just ask me to generate one)</li>
-                    <li>Use voice input by clicking the microphone button</li>
-                </ul>
-                I combine the power of multiple AI models to give you the best possible answers!
-            </div>
-        </div>
+    <div class="chat-message ai-message">
+        <strong>🤖 Quantora</strong> <span class="speed-indicator">⚡ Ready</span><br>
+        Hello! I'm Quantora, your ultra-fast AI assistant powered by multiple advanced models. I can:
+        <br><br>
+        🚀 Answer questions in under 4 seconds<br>
+        📄 Analyze uploaded documents<br>
+        💻 Provide copyable code blocks<br>
+        🎨 Generate image descriptions<br>
+        🎙️ Process voice commands<br>
+        🌍 Support multiple languages including Hinglish<br>
+        <br>
+        What can I help you with today?
     </div>
     """, unsafe_allow_html=True)
 
 # Display chat history
-for speaker, msg in st.session_state.chat:
+for chat_item in st.session_state.chat:
+    if len(chat_item) == 3:  # Old format
+        speaker, message, timestamp = chat_item
+        response_time = None
+    else:  # New format with response time
+        speaker, message, timestamp, response_time = chat_item
+    
     if speaker == "user":
-        avatar_class = "user-avatar"
-        sender_class = "user"
-        sender_name = "You"
-        icon = """
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: white;">
-            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-        """
+        st.markdown(f"""
+        <div class="chat-message user-message">
+            <strong>👤 You</strong> <small>({timestamp.strftime('%H:%M:%S')})</small><br>
+            {message}
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        avatar_class = "ai-avatar"
-        sender_class = "ai"
-        sender_name = "Quantora"
-        icon = """
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: white;">
-            <path d="M12 2v8"></path>
-            <path d="m4.93 10.93 1.41 1.41"></path>
-            <path d="M2 18h2"></path>
-            <path d="M20 18h2"></path>
-            <path d="m19.07 10.93-1.41 1.41"></path>
-            <path d="M22 22H2"></path>
-            <path d="m8 22 4-10 4 10"></path>
-        </svg>
-        """
-    
-    # Format timestamp
-    now = datetime.now()
-    timestamp = now.strftime("%H:%M")
-    
-    st.markdown(f"""
-    <div class="message {sender_class}">
-        <div class="avatar {avatar_class}">
-            {icon}
-        </div>
-        <div class="message-content">
-            <div class="message-meta">
-                <div class="message-sender">{sender_name}</div>
-                <div class="message-time">{timestamp}</div>
-            </div>
-            <div class="message-text">
-                {msg}
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        # Format response with code detection
+        formatted_parts = format_response_with_code(message)
+        
+        time_info = f" <span class='speed-indicator'>⚡ {response_time:.1f}s</span>" if response_time else ""
+        st.markdown(f"""
+        <div class="chat-message ai-message">
+            <strong>🤖 Quantora</strong> <small>({timestamp.strftime('%H:%M:%S')})</small>{time_info}<br>
+        """, unsafe_allow_html=True)
+        
+        # Display formatted content
+        for part in formatted_parts:
+            if part[0] == 'text':
+                st.markdown(part[1])
+            elif part[0] == 'code':
+                st.code(part[1], language=part[2])
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Upgrade banner
-st.markdown("""
-<div class="upgrade-banner">
-    <div class="upgrade-content">
-        <div class="upgrade-title">Upgrade to Quantora Premium</div>
-        <div class="upgrade-description">Get access to faster responses, advanced features and priority support.</div>
-    </div>
-    <button class="upgrade-button">Upgrade Now</button>
-</div>
-""", unsafe_allow_html=True)
+# ✅ Input Area - Fixed at bottom
+with st.form(key="chat_form", clear_on_submit=True):
+    col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
+    
+    with col1:
+        user_input = st.text_area(
+            "Message",
+            placeholder="Ask Quantora anything...",
+            label_visibility="collapsed",
+            key="user_input_area",
+            height=60
+        )
+    
+    with col2:
+        submit_button = st.form_submit_button("💬 Send", use_container_width=True)
+    
+    with col3:
+        voice_button = st.form_submit_button("🎙️ Voice", use_container_width=True)
 
-# Footer
-st.markdown("""
-<footer>
-    <div class="copyright">© 2025 Quantora AI. All rights reserved.</div>
-    <div class="footer-links">
-        <a href="#" class="footer-link">Terms</a>
-        <a href="#" class="footer-link">Privacy</a>
-        <a href="#" class="footer-link">Help</a>
-    </div>
-</footer>
-""", unsafe_allow_html=True)
+# Process input
+if submit_button and user_input:
+    start_time = time.time()
+    
+    # Add user message
+    st.session_state.chat.append(("user", user_input, datetime.now()))
+    
+    # Check for image generation request
+    if any(keyword in user_input.lower() for keyword in ['generate image', 'create image', 'draw', 'picture', 'image of']):
+        with st.spinner("🎨 Generating image description..."):
+            response = generate_image(user_input)
+    else:
+        # Regular AI response with document context using ALL models
+        context = st.session_state.uploaded_content
+        with st.spinner("🚀 Processing with all AI models..."):
+            response = call_all_models_parallel_ultra_fast(user_input, context)
+    
+    # Calculate response time
+    response_time = time.time() - start_time
+    st.session_state.last_response_time = response_time
+    
+    # Add AI response with timing
+    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+    st.rerun()
 
-# JavaScript for auto-scrolling to bottom of chat
+# Handle voice input
+if voice_button:
+    recognized_text = initiate_audio_reception()
+    if recognized_text:
+        start_time = time.time()
+        st.session_state.chat.append(("user", recognized_text, datetime.now()))
+        
+        # Check for image generation
+        if any(keyword in recognized_text.lower() for keyword in ['generate image', 'create image', 'draw', 'picture', 'image of']):
+            with st.spinner("🎨 Generating image description..."):
+                response = generate_image(recognized_text)
+        else:
+            context = st.session_state.uploaded_content
+            with st.spinner("🚀 Processing with all AI models..."):
+                response = call_all_models_parallel_ultra_fast(recognized_text, context)
+        
+        response_time = time.time() - start_time
+        st.session_state.last_response_time = response_time
+        st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+        st.rerun()
+
+# Clear chat button
+if st.button("🗑️ Clear Chat", use_container_width=True):
+    st.session_state.chat = []
+    st.rerun()
+
+# ✅ Performance Metrics Display
+if st.session_state.chat:
+    response_times = [item[3] for item in st.session_state.chat if len(item) == 4 and item[0] == "quantora" and item[3]]
+    if response_times:
+        avg_time = sum(response_times) / len(response_times)
+        st.markdown(f"""
+        <div style="text-align: center; padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: 10px; margin: 1rem 0;">
+            📊 <strong>Performance:</strong> Average Response Time: <strong>{avg_time:.1f}s</strong> | 
+            Total Responses: <strong>{len(response_times)}</strong> | 
+            Fastest: <strong>{min(response_times):.1f}s</strong>
+        </div>
+        """, unsafe_allow_html=True)
+
+# Auto-scroll to bottom
 st.markdown("""
 <script>
-// Auto-scroll to bottom of chat when page loads
 window.addEventListener('load', function() {
     const chatContainer = document.querySelector('.chat-container');
     if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
-    
-    // Auto-resize textarea
-    const textarea = document.querySelector('textarea');
-    if (textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = (textarea.scrollHeight) + 'px';
-        
-        textarea.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
-    }
 });
 
-// Scroll to bottom after new messages
 setTimeout(function() {
     const chatContainer = document.querySelector('.chat-container');
     if (chatContainer) {
