@@ -51,9 +51,6 @@ def initialize_clients():
         gemini_api_key = genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your API key
         groq_api_key = "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"  # ⚠️ Replace with your API key
         
-        if not gemini_api_key or not groq_api_key:
-            st.error("❌ API keys not found. Please set GEMINI_API_KEY and GROQ_API_KEY in secrets.toml or environment variables.")
-            return None, None
         
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
