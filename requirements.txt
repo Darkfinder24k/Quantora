@@ -3,3 +3,4 @@ google-generativeai
 SpeechRecognition
 PyPDF2
 groq
+docx
