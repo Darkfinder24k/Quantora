@@ -48,14 +48,17 @@ def initialize_clients():
     """Initialize API clients with proper error handling"""
     try:
         # Get API keys from environment variables or Streamlit secrets
-        gemini_api_key = genai.configure(api_key="AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")  # ⚠️ Replace with your API key
-        groq_api_key = "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"  # ⚠️ Replace with your API key
+        gemini_api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+        groq_api_key = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
         
+        if not gemini_api_key or not groq_api_key:
+            st.error("❌ API keys not found. Please set GEMINI_API_KEY and GROQ_API_KEY in secrets.toml or environment variables.")
+            return None, None
         
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-2.5-pro")
+        gemini_model = genai.GenerativeModel("gemini-1.5-pro")
         
         return gemini_model, groq_client
     except Exception as e:
@@ -127,11 +130,11 @@ def process_uploaded_file(uploaded_file):
 
 # ✅ Enhanced Gemini Core
 def call_quantora_gemini(prompt, context=""):
-    """Main Gemini model call"""
+    """Main Gemini model call with faster response"""
     if not gemini_model:
         return "❌ Gemini model not available. Please check API configuration."
     
-    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively.
+    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and concisely.
 
 Key Instructions:
 1. Be concise but comprehensive
@@ -151,7 +154,7 @@ Respond effectively:"""
         response = gemini_model.generate_content(
             system_prompt,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=1000,
+                max_output_tokens=600,  # Reduced for faster responses
                 temperature=0.7,
                 top_p=0.8,
                 top_k=20
@@ -159,15 +162,15 @@ Respond effectively:"""
         )
         return response.text if response.text else "❌ Empty response from Gemini"
     except Exception as e:
-        return f"❌ Gemini Error: {str(e)}"
+        return f"❌ Gemini Error: {str(e)[:50]}..."
 
 # ✅ Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
-    """Enhanced Groq model calls with better error handling"""
+    """Enhanced Groq model calls with better error handling and faster timeout"""
     if not groq_client:
         return f"❌ Groq client not available"
     
-    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently.
+    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and concisely.
 
 Key Instructions:
 1. Be concise but comprehensive
@@ -188,12 +191,13 @@ User Query: {prompt}"""
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
-            max_tokens=800,
+            max_tokens=500,  # Reduced for faster responses
             top_p=0.9,
+            timeout=3  # Reduced timeout for speed
         )
         return completion.choices[0].message.content
     except Exception as e:
-        return f"❌ {model_name} Error: {str(e)[:100]}..."
+        return f"❌ {model_name} Error: {str(e)[:50]}..."
 
 # ✅ Available Groq Models (verified working models)
 GROQ_MODELS = [
@@ -205,47 +209,83 @@ GROQ_MODELS = [
 
 # ✅ Parallel AI Processing
 def call_all_models_parallel(prompt, context=""):
-    """Call multiple models in parallel and return the best response"""
+    """Call multiple models in parallel and return the best response within 15 seconds"""
     
     def call_gemini_task():
-        return call_quantora_gemini(prompt, context)
+        try:
+            return call_quantora_gemini(prompt, context)
+        except Exception as e:
+            return f"❌ Gemini Error: {str(e)[:50]}..."
     
     def call_groq_task(model):
-        return call_groq_model(prompt, model, context)
+        try:
+            return call_groq_model(prompt, model, context)
+        except Exception as e:
+            return f"❌ {model} Error: {str(e)[:50]}..."
     
     responses = {}
+    start_time = time.time()
     
-    # Use ThreadPoolExecutor for parallel calls
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        # Submit Gemini task
-        futures = {"Gemini": executor.submit(call_gemini_task)}
+    # Use ThreadPoolExecutor for parallel calls with aggressive timeout
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        # Submit all tasks immediately
+        futures = {
+            "Gemini": executor.submit(call_gemini_task),
+            "llama-3.1-8b-instant": executor.submit(call_groq_task, "llama-3.1-8b-instant"),
+            "gemma2-9b-it": executor.submit(call_groq_task, "gemma2-9b-it")
+        }
         
-        # Submit Groq tasks for available models
-        for model in GROQ_MODELS[:3]:  # Limit to 3 Groq models for speed
-            futures[model] = executor.submit(call_groq_task, model)
-        
-        # Collect results with timeout
-        for model_name, future in futures.items():
-            try:
-                result = future.result(timeout=8)  # 8 second timeout per model
-                if result and not result.startswith("❌"):
-                    responses[model_name] = result
-            except concurrent.futures.TimeoutError:
-                responses[model_name] = "❌ Timeout"
-            except Exception as e:
-                responses[model_name] = f"❌ Error: {str(e)[:50]}..."
+        # Collect results as they complete with 12-second total timeout
+        try:
+            for future in concurrent.futures.as_completed(futures, timeout=12):
+                # Check if we've exceeded 15 seconds total
+                if time.time() - start_time > 15:
+                    break
+                
+                # Find which model this future belongs to
+                model_name = None
+                for name, fut in futures.items():
+                    if fut == future:
+                        model_name = name
+                        break
+                
+                if model_name:
+                    try:
+                        result = future.result(timeout=1)  # Quick individual timeout
+                        if result and not result.startswith("❌") and len(result.strip()) > 10:
+                            responses[model_name] = result
+                            
+                            # Return immediately if we get a good response from any model
+                            if len(responses) >= 1:
+                                return result
+                                
+                    except Exception as e:
+                        responses[model_name] = f"❌ Error: {str(e)[:30]}..."
+                        
+        except concurrent.futures.TimeoutError:
+            pass  # Continue with whatever responses we have
     
-    # Return the best available response
-    if responses:
-        # Prefer Gemini if available, otherwise take the longest response
-        if "Gemini" in responses and not responses["Gemini"].startswith("❌"):
-            return responses["Gemini"]
+    # Fallback logic - return any valid response we got
+    valid_responses = {k: v for k, v in responses.items() if v and not v.startswith("❌") and len(v.strip()) > 10}
+    
+    if valid_responses:
+        # Prefer Gemini, then longest response
+        if "Gemini" in valid_responses:
+            return valid_responses["Gemini"]
         else:
-            valid_responses = {k: v for k, v in responses.items() if not v.startswith("❌")}
-            if valid_responses:
-                return max(valid_responses.values(), key=len)
+            return max(valid_responses.values(), key=len)
     
-    return "⚡ All models are currently busy. Please try again in a moment."
+    # Emergency fallback - try one quick model synchronously
+    try:
+        if gemini_model:
+            quick_response = call_quantora_gemini(prompt, context)
+            if quick_response and not quick_response.startswith("❌"):
+                return quick_response
+    except:
+        pass
+    
+    # Last resort - simple response
+    return f"I understand you're asking about: {prompt[:100]}{'...' if len(prompt) > 100 else ''}\n\n⚡ I'm experiencing high load right now. Let me give you a brief response:\n\nI'd be happy to help with your question. Could you please try asking again? I'll be able to provide a more detailed response once the system load decreases."
 
 # ✅ Code Detection and Formatting
 def format_response_with_code(response):
@@ -578,17 +618,18 @@ with col3:
         - Advanced parallel processing
         
         Features:
-        ✅ AI responses
+        ✅ Multi-model AI responses
         ✅ Document analysis
         ✅ Code formatting
         ✅ Performance metrics
+        ✅ Secure API handling
         """)
 
 # ✅ Footer
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: #94a3b8; font-size: 0.9rem;'>"
-    "💎 Quantora AI - Advanced AI Assistant | "
+    "💎 Quantora AI - Advanced Multi-Model Assistant | "
     f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     "</div>", 
     unsafe_allow_html=True
