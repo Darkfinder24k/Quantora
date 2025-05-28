@@ -637,17 +637,13 @@ with col3:
         **Quantora AI Elite** v2.1
         
         Powered by:
-        - Google Gemini 1.5 Pro
-        - Groq (Multiple Models)
         - Advanced parallel processing
         - Intelligent response selection
         
         Features:
-        ✅ Multi-model AI responses
         ✅ Document analysis
         ✅ Code formatting
         ✅ Performance metrics
-        ✅ Secure API handling
         ✅ Enhanced response quality
         """)
 
