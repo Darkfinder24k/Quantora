@@ -54,7 +54,7 @@ def initialize_clients():
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-1.5-pro")
+        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
         
         return gemini_model, groq_client
     except Exception as e:
