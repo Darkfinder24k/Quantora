@@ -637,7 +637,7 @@ if send_button and user_input.strip():
     # Get AI response
     with st.spinner("🤖 Processing your request with multiple AI models..."):
         context = st.session_state.uploaded_content
-        response = call_all_models_parallel(user_input.strip(), context)
+        response = call_quantora_unified(user_input.strip(), context)
     
     # Calculate response time
     response_time = time.time() - start_time
