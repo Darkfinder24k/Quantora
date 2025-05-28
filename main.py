@@ -635,7 +635,7 @@ if send_button and user_input.strip():
     st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
     
     # Get AI response
-    with st.spinner("🤖 Processing your request with multiple AI models..."):
+    with st.spinner("🤖 Processing your request"):
         context = st.session_state.uploaded_content
         response = call_quantora_unified(user_input.strip(), context)
     
