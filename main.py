@@ -48,12 +48,8 @@ def initialize_clients():
     """Initialize API clients with proper error handling"""
     try:
         # Get API keys from environment variables or Streamlit secrets
-        gemini_api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
-        groq_api_key = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
-        
-        if not gemini_api_key or not groq_api_key:
-            st.error("❌ API keys not found. Please set GEMINI_API_KEY and GROQ_API_KEY in secrets.toml or environment variables.")
-            return None, None
+        gemini_api_key = "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg"
+        groq_api_key = "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE" 
         
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
