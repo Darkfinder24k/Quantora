@@ -130,54 +130,58 @@ def process_uploaded_file(uploaded_file):
 
 # ✅ Enhanced Gemini Core
 def call_quantora_gemini(prompt, context=""):
-    """Main Gemini model call with faster response"""
+    """Main Gemini model call with enhanced parameters for best results"""
     if not gemini_model:
         return "❌ Gemini model not available. Please check API configuration."
     
-    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and concisely.
+    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively.
 
 Key Instructions:
-1. Be concise but comprehensive
-2. Use emojis appropriately 🚀
+1. Provide detailed, thorough, and accurate responses
+2. Use emojis appropriately to enhance readability 🚀
 3. If providing code, format it properly with markdown code blocks
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
-6. Provide accurate and helpful responses
+6. Provide accurate and helpful responses with proper explanations
+7. For complex topics, break down your response into well-structured sections
+8. Include examples where relevant
 
 {f"Document Context: {context}" if context else ""}
 
 User Query: {prompt}
 
-Respond effectively:"""
+Provide a comprehensive and helpful response:"""
 
     try:
         response = gemini_model.generate_content(
             system_prompt,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=600,  # Reduced for faster responses
+                max_output_tokens=2048,  # Increased for better responses
                 temperature=0.7,
-                top_p=0.8,
-                top_k=20
+                top_p=0.9,
+                top_k=40
             )
         )
         return response.text if response.text else "❌ Empty response from Gemini"
     except Exception as e:
-        return f"❌ Gemini Error: {str(e)[:50]}..."
+        return f"❌ Gemini Error: {str(e)}"
 
 # ✅ Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
-    """Enhanced Groq model calls with better error handling and faster timeout"""
+    """Enhanced Groq model calls with better parameters for quality responses"""
     if not groq_client:
         return f"❌ Groq client not available"
     
-    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and concisely.
+    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively.
 
 Key Instructions:
-1. Be concise but comprehensive
-2. Use emojis appropriately 🚀
+1. Provide detailed, thorough, and accurate responses
+2. Use emojis appropriately to enhance readability 🚀
 3. If providing code, format it properly with markdown code blocks
 4. Support all languages including Hinglish
 5. Be friendly, professional, and engaging
+6. For complex topics, break down your response into well-structured sections
+7. Include examples where relevant
 
 {f"Document Context: {context}" if context else ""}
 
@@ -191,13 +195,12 @@ User Query: {prompt}"""
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
-            max_tokens=500,  # Reduced for faster responses
-            top_p=0.9,
-            timeout=3  # Reduced timeout for speed
+            max_tokens=1500,  # Increased for better responses
+            top_p=0.9
         )
         return completion.choices[0].message.content
     except Exception as e:
-        return f"❌ {model_name} Error: {str(e)[:50]}..."
+        return f"❌ {model_name} Error: {str(e)}"
 
 # ✅ Available Groq Models (verified working models)
 GROQ_MODELS = [
@@ -207,85 +210,104 @@ GROQ_MODELS = [
     "mixtral-8x7b-32768"
 ]
 
-# ✅ Parallel AI Processing
+# ✅ Improved Parallel AI Processing
 def call_all_models_parallel(prompt, context=""):
-    """Call multiple models in parallel and return the best response within 15 seconds"""
+    """Call multiple models in parallel and return the best response"""
     
-    def call_gemini_task():
+    def call_gemini_wrapper():
+        """Wrapper for Gemini API call"""
         try:
-            return call_quantora_gemini(prompt, context)
+            return ("Gemini", call_quantora_gemini(prompt, context))
         except Exception as e:
-            return f"❌ Gemini Error: {str(e)[:50]}..."
+            return ("Gemini", f"❌ Gemini Error: {str(e)}")
     
-    def call_groq_task(model):
+    def call_groq_wrapper(model_name):
+        """Wrapper for Groq API call"""
         try:
-            return call_groq_model(prompt, model, context)
+            return (model_name, call_groq_model(prompt, model_name, context))
         except Exception as e:
-            return f"❌ {model} Error: {str(e)[:50]}..."
+            return (model_name, f"❌ {model_name} Error: {str(e)}")
     
-    responses = {}
+    # Start timing
     start_time = time.time()
+    responses = {}
     
-    # Use ThreadPoolExecutor for parallel calls with aggressive timeout
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-        # Submit all tasks immediately
-        futures = {
-            "Gemini": executor.submit(call_gemini_task),
-            "llama-3.1-8b-instant": executor.submit(call_groq_task, "llama-3.1-8b-instant"),
-            "gemma2-9b-it": executor.submit(call_groq_task, "gemma2-9b-it")
-        }
+    # Create a list of tasks to execute
+    tasks = []
+    
+    # Use ThreadPoolExecutor for parallel execution
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        # Submit all tasks
+        future_to_model = {}
         
-        # Collect results as they complete with 12-second total timeout
-        try:
-            for future in concurrent.futures.as_completed(futures, timeout=12):
-                # Check if we've exceeded 15 seconds total
-                if time.time() - start_time > 15:
-                    break
+        # Submit Gemini task
+        future_gemini = executor.submit(call_gemini_wrapper)
+        future_to_model[future_gemini] = "Gemini"
+        
+        # Submit selected Groq tasks for best performance
+        selected_groq_models = ["llama-3.1-70b-versatile", "gemma2-9b-it"]
+        for model in selected_groq_models:
+            future_groq = executor.submit(call_groq_wrapper, model)
+            future_to_model[future_groq] = model
+        
+        # Wait for all futures to complete
+        completed_futures = concurrent.futures.as_completed(future_to_model.keys())
+        
+        best_response = None
+        best_model = None
+        first_good_response = None
+        
+        for future in completed_futures:
+            try:
+                model_name, response = future.result(timeout=60)  # 60 second timeout per model
                 
-                # Find which model this future belongs to
-                model_name = None
-                for name, fut in futures.items():
-                    if fut == future:
-                        model_name = name
-                        break
+                # Store all responses
+                responses[model_name] = response
                 
-                if model_name:
-                    try:
-                        result = future.result(timeout=1)  # Quick individual timeout
-                        if result and not result.startswith("❌") and len(result.strip()) > 10:
-                            responses[model_name] = result
-                            
-                            # Return immediately if we get a good response from any model
-                            if len(responses) >= 1:
-                                return result
-                                
-                    except Exception as e:
-                        responses[model_name] = f"❌ Error: {str(e)[:30]}..."
+                # Check if this is a good response (not an error)
+                if response and not response.startswith("❌") and len(response.strip()) > 20:
+                    # Store the first good response as fallback
+                    if first_good_response is None:
+                        first_good_response = response
+                        best_model = model_name
+                    
+                    # Prefer Gemini responses if available
+                    if model_name == "Gemini":
+                        best_response = response
+                        best_model = model_name
+                        break  # Gemini is preferred, so we can break early
+                    
+                    # Among Groq models, prefer longer, more detailed responses
+                    if best_response is None or len(response) > len(best_response):
+                        best_response = response
+                        best_model = model_name
                         
-        except concurrent.futures.TimeoutError:
-            pass  # Continue with whatever responses we have
+            except concurrent.futures.TimeoutError:
+                model_name = future_to_model[future]
+                responses[model_name] = f"❌ {model_name} timed out"
+            except Exception as e:
+                model_name = future_to_model[future]
+                responses[model_name] = f"❌ {model_name} error: {str(e)}"
     
-    # Fallback logic - return any valid response we got
-    valid_responses = {k: v for k, v in responses.items() if v and not v.startswith("❌") and len(v.strip()) > 10}
+    # Calculate total response time
+    total_time = time.time() - start_time
     
-    if valid_responses:
-        # Prefer Gemini, then longest response
-        if "Gemini" in valid_responses:
-            return valid_responses["Gemini"]
-        else:
-            return max(valid_responses.values(), key=len)
-    
-    # Emergency fallback - try one quick model synchronously
-    try:
-        if gemini_model:
-            quick_response = call_quantora_gemini(prompt, context)
-            if quick_response and not quick_response.startswith("❌"):
-                return quick_response
-    except:
-        pass
-    
-    # Last resort - simple response
-    return f"I understand you're asking about: {prompt[:100]}{'...' if len(prompt) > 100 else ''}\n\n⚡ I'm experiencing high load right now. Let me give you a brief response:\n\nI'd be happy to help with your question. Could you please try asking again? I'll be able to provide a more detailed response once the system load decreases."
+    # Return the best response we found
+    if best_response:
+        return best_response
+    elif first_good_response:
+        return first_good_response
+    else:
+        # If all models failed, try a simple fallback with Gemini
+        try:
+            fallback_response = call_quantora_gemini(prompt, context)
+            if fallback_response and not fallback_response.startswith("❌"):
+                return fallback_response
+        except Exception:
+            pass
+        
+        # Ultimate fallback
+        return f"I understand you're asking about: {prompt[:100]}{'...' if len(prompt) > 100 else ''}\n\n🤖 I'm experiencing some technical difficulties with the AI models right now. Please try asking your question again in a moment. I'll be able to provide you with a comprehensive response once the connection is restored."
 
 # ✅ Code Detection and Formatting
 def format_response_with_code(response):
@@ -388,7 +410,7 @@ st.markdown("""
     gap: 0.5rem;
 }
 
-.speed-badge {
+.time-badge {
     background: linear-gradient(135deg, #10b981, #059669);
     color: white;
     padding: 0.2rem 0.5rem;
@@ -423,7 +445,7 @@ st.markdown("""
 st.markdown(f"""
 <div class="main-header">
     <div class="header-title">💎 Quantora AI</div>
-    <div class="header-subtitle">{greeting} Ultra-Fast AI Assistant</div>
+    <div class="header-subtitle">{greeting} Advanced Multi-Model AI Assistant</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -456,19 +478,21 @@ if not st.session_state.chat:
     st.markdown("""
     <div class="welcome-message">
         <h3>🤖 Welcome to Quantora AI!</h3>
-        <p>Your ultra-fast AI assistant powered by multiple advanced models including Gemini and Groq.</p>
+        <p>Your advanced AI assistant powered by multiple cutting-edge models including Gemini 1.5 Pro and Groq.</p>
         <br>
         <div style="text-align: left; max-width: 600px; margin: 0 auto;">
         <strong>I can help you with:</strong><br>
-        🚀 Answer questions lightning fast<br>
+        🚀 Answer complex questions with detailed explanations<br>
         📄 Analyze uploaded documents (PDF, DOCX, CSV, etc.)<br>
-        💻 Provide properly formatted code blocks<br>
+        💻 Provide properly formatted code with explanations<br>
         🌍 Support multiple languages including Hinglish<br>
         🧠 Complex reasoning and problem-solving<br>
         📊 Data analysis and insights<br>
+        📝 Writing assistance and content creation<br>
+        🔬 Research and technical explanations<br>
         </div>
         <br>
-        <p><strong>What would you like to know today?</strong></p>
+        <p><strong>What would you like to explore today?</strong></p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -497,7 +521,7 @@ for i, chat_item in enumerate(st.session_state.chat):
         formatted_parts = format_response_with_code(message)
         
         # Display message header
-        time_badge = f'<span class="speed-badge">⚡ {response_time:.1f}s</span>' if response_time else ''
+        time_badge = f'<span class="time-badge">⏱️ {response_time:.1f}s</span>' if response_time else ''
         st.markdown(f"""
         <div class="chat-message ai-message">
             <div class="message-header">
@@ -523,7 +547,7 @@ col1, col2 = st.columns([0.85, 0.15])
 with col1:
     user_input = st.text_area(
         "Your message:",
-        placeholder="Ask Quantora anything... I can analyze documents, write code, solve problems, and more!",
+        placeholder="Ask Quantora anything... I can analyze documents, write code, solve complex problems, and provide detailed explanations!",
         height=100,
         key="main_input"
     )
@@ -540,7 +564,7 @@ if send_button and user_input.strip():
     st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
     
     # Get AI response
-    with st.spinner("🚀 Processing with AI models..."):
+    with st.spinner("🤖 Processing your request with multiple AI models..."):
         context = st.session_state.uploaded_content
         response = call_all_models_parallel(user_input.strip(), context)
     
@@ -610,12 +634,13 @@ with col2:
 with col3:
     if st.button("ℹ️ About", use_container_width=True):
         st.info("""
-        **Quantora AI Elite** v2.0
+        **Quantora AI Elite** v2.1
         
         Powered by:
         - Google Gemini 1.5 Pro
         - Groq (Multiple Models)
         - Advanced parallel processing
+        - Intelligent response selection
         
         Features:
         ✅ Multi-model AI responses
@@ -623,6 +648,7 @@ with col3:
         ✅ Code formatting
         ✅ Performance metrics
         ✅ Secure API handling
+        ✅ Enhanced response quality
         """)
 
 # ✅ Footer
