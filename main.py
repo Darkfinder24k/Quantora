@@ -199,7 +199,7 @@ header {visibility: hidden;}
 .input-wrapper {
     position: relative;
     border-radius: 20px;
-    background: rgba(30, 41, 59, 0.8);
+    background: rgba(255, 255, 255, 0.9) !important;
     backdrop-filter: blur(20px);
     border: 2px solid rgba(255, 255, 255, 0.1);
     transition: all 0.3s ease;
@@ -214,10 +214,10 @@ header {visibility: hidden;}
 .stTextArea textarea {
     width: 100%;
     min-height: 80px;
-    background: transparent;
+    background: transparent !important;
     border: none;
     padding: 1.25rem 1.5rem;
-    color: var(--text);
+    color: #000000 !important;
     font-size: 0.95rem;
     font-family: inherit;
     resize: none;
@@ -226,7 +226,7 @@ header {visibility: hidden;}
 }
 
 .stTextArea textarea::placeholder {
-    color: var(--text-muted);
+    color: #666666 !important;
 }
 
 .stButton button {
@@ -333,7 +333,7 @@ def initialize_clients():
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
         
         return gemini_model, groq_client
     except Exception as e:
@@ -543,7 +543,7 @@ def call_quantora_unified(prompt, context=""):
         futures.append(executor.submit(call_gemini_backend))
         
         # Submit Groq backends
-        groq_models = ["llama-3.1-70b-versatile", "mixtral-8x7b-32768"]
+        groq_models = [ "llama-3.1-8b-instant", "llama-3.1-70b-versatile", "gemma2-9b-it", "mixtral-8x7b-32768", "compound-beta" ]
         for model in groq_models:
             futures.append(executor.submit(call_groq_backend, model))
         
@@ -689,7 +689,7 @@ if not st.session_state.chat:
     st.markdown("""
     <div class="welcome-container">
         <div class="welcome-title">🤖 Welcome to Quantora AI</div>
-        <p>Your advanced AI assistant powered by multiple cutting-edge models</p>
+        <p>Your advanced AI assistant powered by cutting-edge answers</p>
         
         <div class="welcome-features">
             <div class="feature-card">
@@ -852,9 +852,7 @@ with col3:
         **Quantora AI Elite** v2.1
         
         Powered by:
-        - Gemini 2.0 Flash
-        - Groq (Llama 3, Mixtral)
-        
+        - Quantora
         Features:
         ✅ Document analysis
         ✅ Code formatting
