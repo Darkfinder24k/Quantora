@@ -691,7 +691,7 @@ if not st.session_state.chat:
         st.markdown("""
         <div class="welcome-container">
             <div class="welcome-title">🤖 Welcome to Quantora AI</div>
-            <p>Your advanced AI assistant powered by multiple cutting-edge models</p>
+            <p>Your advanced AI assistant powered by multiple cutting-edge answers</p>
         </div>
         """, unsafe_allow_html=True)
         
