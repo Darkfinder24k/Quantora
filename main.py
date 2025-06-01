@@ -327,13 +327,13 @@ def initialize_clients():
     """Initialize API clients with proper error handling"""
     try:
         # Get API keys from environment variables or Streamlit secrets
-        gemini_api_key = "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg"
-        groq_api_key = "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE" 
+        gemini_api_key = st.secrets.get("GEMINI_API_KEY", "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
+        groq_api_key = st.secrets.get("GROQ_API_KEY", "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE")
         
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
         
         return gemini_model, groq_client
     except Exception as e:
@@ -482,7 +482,7 @@ GROQ_MODELS = [
     "llama-3.1-8b-instant",
     "llama-3.1-70b-versatile", 
     "gemma2-9b-it",
-    "mixtral-8x7b-32768"
+    "mixtral-8x7b-32768",
     "compound-beta"
 ]
 
@@ -543,7 +543,7 @@ def call_quantora_unified(prompt, context=""):
         futures.append(executor.submit(call_gemini_backend))
         
         # Submit Groq backends
-        groq_models = ["llama-3.1-70b-versatile", "gemma2-9b-it"]
+        groq_models = ["llama-3.1-70b-versatile", "mixtral-8x7b-32768"]
         for model in groq_models:
             futures.append(executor.submit(call_groq_backend, model))
         
@@ -853,7 +853,7 @@ with col3:
         
         Powered by:
         - Gemini 2.0 Flash
-        - Groq (Llama 3, Gemma)
+        - Groq (Llama 3, Mixtral)
         
         Features:
         ✅ Document analysis
