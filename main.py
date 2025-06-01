@@ -685,39 +685,57 @@ with st.sidebar:
         st.rerun()
 
 # ✅ Welcome Message
+# ✅ Welcome Message
 if not st.session_state.chat:
-    st.markdown("""
-    <div class="welcome-container">
-        <div class="welcome-title">🤖 Welcome to Quantora AI</div>
-        <p>Your advanced AI assistant powered by cutting-edge answers</p>
+    with st.container():
+        st.markdown("""
+        <div class="welcome-container">
+            <div class="welcome-title">🤖 Welcome to Quantora AI</div>
+            <p>Your advanced AI assistant powered by multiple cutting-edge models</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        <div class="welcome-features">
+        # Feature cards in columns
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown("""
             <div class="feature-card">
                 <div class="feature-icon">🚀</div>
                 <strong>Advanced Answers</strong>
                 <p>Detailed explanations for complex questions</p>
             </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("""
             <div class="feature-card">
                 <div class="feature-icon">📄</div>
                 <strong>Document Analysis</strong>
                 <p>Process PDFs, DOCX, CSV and more</p>
             </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown("""
             <div class="feature-card">
                 <div class="feature-icon">💻</div>
                 <strong>Code Support</strong>
                 <p>Formatted code with explanations</p>
             </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown("""
             <div class="feature-card">
                 <div class="feature-icon">🌍</div>
                 <strong>Multilingual</strong>
                 <p>Supports multiple languages</p>
             </div>
-        </div>
+            """, unsafe_allow_html=True)
         
-        <p><strong>What would you like to explore today?</strong></p>
-    </div>
-    """, unsafe_allow_html=True)
-
+        st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>What would you like to explore today?</strong></p>", 
+                   unsafe_allow_html=True)
 # ✅ Display Chat History
 for i, chat_item in enumerate(st.session_state.chat):
     if len(chat_item) >= 3:
