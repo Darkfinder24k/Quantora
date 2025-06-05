@@ -484,6 +484,7 @@ GROQ_MODELS = [
     "gemma2-9b-it",
     "mixtral-8x7b-32768",
     "compound-beta"
+    "deepseek-r1"
 ]
 
 # ✅ Quantora - Unified AI Model with Response Mixing
@@ -543,7 +544,7 @@ def call_quantora_unified(prompt, context=""):
         futures.append(executor.submit(call_gemini_backend))
         
         # Submit Groq backends
-        groq_models = [ "llama-3.1-8b-instant", "llama-3.1-70b-versatile", "gemma2-9b-it", "mixtral-8x7b-32768", "compound-beta" ]
+        groq_models = [ "llama-3.1-8b-instant", "llama-3.1-70b-versatile", "gemma2-9b-it", "mixtral-8x7b-32768", "compound-beta", "deepseek-r1" ]
         for model in groq_models:
             futures.append(executor.submit(call_groq_backend, model))
         
