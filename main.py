@@ -9,9 +9,12 @@ import json
 from groq import Groq
 import concurrent.futures
 import re
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 import docx
 import pandas as pd
+import io
+import requests
+from io import BytesIO
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(
@@ -295,6 +298,18 @@ header {visibility: hidden;}
     color: var(--accent);
 }
 
+/* Image enhancement controls */
+.enhancement-controls {
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.enhancement-slider {
+    margin: 0.5rem 0;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .logo-text {
@@ -320,6 +335,17 @@ if "uploaded_content" not in st.session_state:
     st.session_state.uploaded_content = ""
 if "last_response_time" not in st.session_state:
     st.session_state.last_response_time = 0
+if "uploaded_image" not in st.session_state:
+    st.session_state.uploaded_image = None
+if "enhanced_image" not in st.session_state:
+    st.session_state.enhanced_image = None
+if "enhancement_values" not in st.session_state:
+    st.session_state.enhancement_values = {
+        "brightness": 1.0,
+        "contrast": 1.0,
+        "sharpness": 1.0,
+        "color": 1.0
+    }
 
 # ✅ API Configuration
 @st.cache_resource
@@ -333,7 +359,7 @@ def initialize_clients():
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+        gemini_model = genai.GenerativeModel("gemini-pro-vision")
         
         return gemini_model, groq_client
     except Exception as e:
@@ -398,13 +424,127 @@ def process_uploaded_file(uploaded_file):
         elif file_type in ['txt', 'md', 'py', 'js', 'html', 'css', 'json']:
             content = uploaded_file.read().decode('utf-8')
             return f"File: {uploaded_file.name}\nContent:\n{content}"
+        elif file_type in ['jpg', 'jpeg', 'png']:
+            # Store the uploaded image
+            st.session_state.uploaded_image = Image.open(uploaded_file)
+            st.session_state.enhanced_image = st.session_state.uploaded_image.copy()
+            return f"Image: {uploaded_file.name} uploaded for enhancement"
         else:
             return f"Unsupported file type: {file_type}"
     except Exception as e:
         return f"Error processing file: {e}"
 
+# ✅ Image Enhancement Functions
+def enhance_image(image, brightness=1.0, contrast=1.0, sharpness=1.0, color=1.0):
+    """Apply enhancements to an image"""
+    try:
+        enhancers = {
+            'brightness': ImageEnhance.Brightness(image),
+            'contrast': ImageEnhance.Contrast(image),
+            'sharpness': ImageEnhance.Sharpness(image),
+            'color': ImageEnhance.Color(image)
+        }
+        
+        enhanced = enhancers['brightness'].enhance(brightness)
+        enhanced = enhancers['contrast'].enhance(contrast)
+        enhanced = enhancers['sharpness'].enhance(sharpness)
+        enhanced = enhancers['color'].enhance(color)
+        
+        return enhanced
+    except Exception as e:
+        st.error(f"Error enhancing image: {e}")
+        return image
+
+def apply_image_filters(image, filter_type):
+    """Apply specific filters to an image"""
+    try:
+        if filter_type == 'blur':
+            return image.filter(ImageFilter.BLUR)
+        elif filter_type == 'contour':
+            return image.filter(ImageFilter.CONTOUR)
+        elif filter_type == 'detail':
+            return image.filter(ImageFilter.DETAIL)
+        elif filter_type == 'edge_enhance':
+            return image.filter(ImageFilter.EDGE_ENHANCE)
+        elif filter_type == 'emboss':
+            return image.filter(ImageFilter.EMBOSS)
+        elif filter_type == 'sharpen':
+            return image.filter(ImageFilter.SHARPEN)
+        elif filter_type == 'smooth':
+            return image.filter(ImageFilter.SMOOTH)
+        else:
+            return image
+    except Exception as e:
+        st.error(f"Error applying filter: {e}")
+        return image
+
+def display_image_enhancement_controls():
+    """Display controls for image enhancement"""
+    if st.session_state.uploaded_image:
+        with st.expander("🖼️ Image Enhancement Tools", expanded=True):
+            st.markdown("### Adjust Image Parameters")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                brightness = st.slider("Brightness", 0.0, 2.0, 
+                                      st.session_state.enhancement_values["brightness"], 0.1)
+                contrast = st.slider("Contrast", 0.0, 2.0, 
+                                    st.session_state.enhancement_values["contrast"], 0.1)
+            
+            with col2:
+                sharpness = st.slider("Sharpness", 0.0, 2.0, 
+                                     st.session_state.enhancement_values["sharpness"], 0.1)
+                color = st.slider("Color", 0.0, 2.0, 
+                                 st.session_state.enhancement_values["color"], 0.1)
+            
+            # Update enhancement values
+            st.session_state.enhancement_values = {
+                "brightness": brightness,
+                "contrast": contrast,
+                "sharpness": sharpness,
+                "color": color
+            }
+            
+            # Apply enhancements
+            st.session_state.enhanced_image = enhance_image(
+                st.session_state.uploaded_image,
+                brightness,
+                contrast,
+                sharpness,
+                color
+            )
+            
+            # Display filters
+            st.markdown("### Apply Filters")
+            filter_options = ['None', 'blur', 'contour', 'detail', 'edge_enhance', 'emboss', 'sharpen', 'smooth']
+            selected_filter = st.selectbox("Choose a filter", filter_options)
+            
+            if selected_filter != 'None':
+                st.session_state.enhanced_image = apply_image_filters(
+                    st.session_state.enhanced_image,
+                    selected_filter
+                )
+            
+            # Display images side by side
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(st.session_state.uploaded_image, caption="Original Image", use_column_width=True)
+            with col2:
+                st.image(st.session_state.enhanced_image, caption="Enhanced Image", use_column_width=True)
+            
+            # Download button
+            buffered = BytesIO()
+            st.session_state.enhanced_image.save(buffered, format="PNG")
+            st.download_button(
+                label="💾 Download Enhanced Image",
+                data=buffered.getvalue(),
+                file_name="enhanced_image.png",
+                mime="image/png"
+            )
+
 # ✅ Enhanced Gemini Core
-def call_quantora_gemini(prompt, context=""):
+def call_quantora_gemini(prompt, context="", image=None):
     """Main Gemini model call with enhanced parameters for best results"""
     if not gemini_model:
         return "❌ Gemini model not available. Please check API configuration."
@@ -414,12 +554,13 @@ def call_quantora_gemini(prompt, context=""):
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
 2. Use emojis appropriately to enhance readability 🚀
-3. If providing code, format it properly with markdown code blocks
+3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
 6. Provide accurate and helpful responses with proper explanations
 7. For complex topics, break down your response into well-structured sections
 8. Include examples where relevant
+9. When asked for code, always provide the full implementation unless specified otherwise
 
 {f"Document Context: {context}" if context else ""}
 
@@ -428,15 +569,28 @@ User Query: {prompt}
 Provide a comprehensive and helpful response:"""
 
     try:
-        response = gemini_model.generate_content(
-            system_prompt,
-            generation_config=genai.types.GenerationConfig(
-                max_output_tokens=2048,
-                temperature=0.7,
-                top_p=0.9,
-                top_k=40
+        if image:
+            # For image analysis
+            response = gemini_model.generate_content(
+                [system_prompt, image],
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=2048,
+                    temperature=0.7,
+                    top_p=0.9,
+                    top_k=40
+                )
             )
-        )
+        else:
+            # For text-only queries
+            response = gemini_model.generate_content(
+                system_prompt,
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=2048,
+                    temperature=0.7,
+                    top_p=0.9,
+                    top_k=40
+                )
+            )
         return response.text if response.text else "❌ Empty response from Gemini"
     except Exception as e:
         return f"❌ Gemini Error: {str(e)}"
@@ -452,11 +606,12 @@ def call_groq_model(prompt, model_name, context=""):
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
 2. Use emojis appropriately to enhance readability 🚀
-3. If providing code, format it properly with markdown code blocks
+3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including Hinglish
 5. Be friendly, professional, and engaging
 6. For complex topics, break down your response into well-structured sections
 7. Include examples where relevant
+8. When asked for code, always provide the full implementation unless specified otherwise
 
 {f"Document Context: {context}" if context else ""}
 
@@ -483,12 +638,12 @@ GROQ_MODELS = [
     "llama-3.1-70b-versatile", 
     "gemma2-9b-it",
     "mixtral-8x7b-32768",
-    "compound-beta"
+    "compound-beta",
     "deepseek-r1"
 ]
 
 # ✅ Quantora - Unified AI Model with Response Mixing
-def call_quantora_unified(prompt, context=""):
+def call_quantora_unified(prompt, context="", image=None):
     """
     Quantora - A powerful unified AI model that processes requests intelligently
     by leveraging multiple AI backends and synthesizing the best response.
@@ -497,7 +652,7 @@ def call_quantora_unified(prompt, context=""):
     def call_gemini_backend():
         """Internal Gemini processing backend"""
         try:
-            response = call_quantora_gemini(prompt, context)
+            response = call_quantora_gemini(prompt, context, image)
             return {
                 "backend": "gemini",
                 "response": response,
@@ -661,38 +816,42 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ✅ Sidebar for File Upload
+# ✅ Sidebar for File Upload and Image Enhancement
 with st.sidebar:
-    st.markdown("### 📁 Document Analysis")
+    st.markdown("### 📁 Document & Image Analysis")
     uploaded_file = st.file_uploader(
-        "Upload Document", 
-        type=['txt', 'pdf', 'docx', 'csv', 'json', 'py', 'js', 'html', 'css', 'md'],
-        help="Upload documents for AI analysis"
+        "Upload Document or Image", 
+        type=['txt', 'pdf', 'docx', 'csv', 'json', 'py', 'js', 'html', 'css', 'md', 'jpg', 'jpeg', 'png'],
+        help="Upload documents or images for AI analysis and enhancement"
     )
     
     if uploaded_file:
-        with st.spinner("🔍 Analyzing document..."):
+        with st.spinner("🔍 Analyzing content..."):
             content = process_uploaded_file(uploaded_file)
             st.session_state.uploaded_content = content
-            st.success(f"✅ {uploaded_file.name} analyzed!")
+            st.success(f"✅ {uploaded_file.name} processed!")
             
-            with st.expander("📄 Preview Content"):
-                preview_content = content[:1000] + "..." if len(content) > 1000 else content
-                st.text_area("Document Content", preview_content, height=200, disabled=True)
+            if uploaded_file.type.startswith('image/'):
+                display_image_enhancement_controls()
+            else:
+                with st.expander("📄 Preview Content"):
+                    preview_content = content[:1000] + "..." if len(content) > 1000 else content
+                    st.text_area("Document Content", preview_content, height=200, disabled=True)
 
-    if st.button("🗑️ Clear Document", use_container_width=True):
+    if st.button("🗑️ Clear Uploads", use_container_width=True):
         st.session_state.uploaded_content = ""
-        st.success("✅ Document cleared!")
+        st.session_state.uploaded_image = None
+        st.session_state.enhanced_image = None
+        st.success("✅ All uploads cleared!")
         st.rerun()
 
-# ✅ Welcome Message
 # ✅ Welcome Message
 if not st.session_state.chat:
     with st.container():
         st.markdown("""
         <div class="welcome-container">
             <div class="welcome-title">🤖 Welcome to Quantora AI</div>
-            <p>Your advanced AI assistant powered by multiple cutting-edge answers</p>
+            <p>Your advanced AI assistant powered by multiple cutting-edge models</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -720,23 +879,24 @@ if not st.session_state.chat:
         with col3:
             st.markdown("""
             <div class="feature-card">
-                <div class="feature-icon">💻</div>
-                <strong>Code Support</strong>
-                <p>Formatted code with explanations</p>
+                <div class="feature-icon">🖼️</div>
+                <strong>Image Enhancement</strong>
+                <p>Adjust brightness, contrast, and more</p>
             </div>
             """, unsafe_allow_html=True)
         
         with col4:
             st.markdown("""
             <div class="feature-card">
-                <div class="feature-icon">🌍</div>
-                <strong>Multilingual</strong>
-                <p>Supports multiple languages</p>
+                <div class="feature-icon">💻</div>
+                <strong>Full Code Support</strong>
+                <p>Complete code implementations</p>
             </div>
             """, unsafe_allow_html=True)
         
         st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>What would you like to explore today?</strong></p>", 
                    unsafe_allow_html=True)
+
 # ✅ Display Chat History
 for i, chat_item in enumerate(st.session_state.chat):
     if len(chat_item) >= 3:
@@ -800,7 +960,8 @@ if send_button and user_input.strip():
     # Get AI response
     with st.spinner("🤖 Processing your request..."):
         context = st.session_state.uploaded_content
-        response = call_quantora_unified(user_input.strip(), context)
+        image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
+        response = call_quantora_unified(user_input.strip(), context, image)
     
     # Calculate response time
     response_time = time.time() - start_time
@@ -868,13 +1029,17 @@ with col2:
 with col3:
     if st.button("ℹ️ About", use_container_width=True):
         st.info("""
-        **Quantora AI Elite** v2.1
+        **Quantora AI Elite** v2.2
         
         Powered by:
-        - Quantora
+        - Gemini Pro Vision
+        - Groq API
+        - Multiple AI models
+        
         Features:
         ✅ Document analysis
-        ✅ Code formatting
+        ✅ Image enhancement
+        ✅ Code formatting (always full code)
         ✅ Performance metrics
         ✅ Enhanced response quality
         """)
