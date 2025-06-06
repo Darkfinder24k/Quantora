@@ -359,7 +359,7 @@ def initialize_clients():
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-pro-vision")
+        gemini_model = genai.GenerativeModel("gemini-2.5-flash")
         
         return gemini_model, groq_client
     except Exception as e:
@@ -561,6 +561,7 @@ Key Instructions:
 7. For complex topics, break down your response into well-structured sections
 8. Include examples where relevant
 9. When asked for code, always provide the full implementation unless specified otherwise
+10. Answer the prompts as per the user's choice.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -612,6 +613,7 @@ Key Instructions:
 6. For complex topics, break down your response into well-structured sections
 7. Include examples where relevant
 8. When asked for code, always provide the full implementation unless specified otherwise
+9. Answer the prompts as per the user's choice.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -635,7 +637,7 @@ User Query: {prompt}"""
 # ✅ Available Groq Models
 GROQ_MODELS = [
     "llama-3.1-8b-instant",
-    "llama-3.1-70b-versatile", 
+    "llama-3.3-70b-versatile", 
     "gemma2-9b-it",
     "mixtral-8x7b-32768",
     "compound-beta",
@@ -699,7 +701,7 @@ def call_quantora_unified(prompt, context="", image=None):
         futures.append(executor.submit(call_gemini_backend))
         
         # Submit Groq backends
-        groq_models = [ "llama-3.1-8b-instant", "llama-3.1-70b-versatile", "gemma2-9b-it", "mixtral-8x7b-32768", "compound-beta", "deepseek-r1" ]
+        groq_models = [ "llama-3.1-8b-instant", "llama-3.3-70b-versatile", "gemma2-9b-it", "mixtral-8x7b-32768", "compound-beta", "deepseek-r1" ]
         for model in groq_models:
             futures.append(executor.submit(call_groq_backend, model))
         
@@ -851,7 +853,7 @@ if not st.session_state.chat:
         st.markdown("""
         <div class="welcome-container">
             <div class="welcome-title">🤖 Welcome to Quantora AI</div>
-            <p>Your advanced AI assistant powered by multiple cutting-edge models</p>
+            <p>Your advanced AI assistant powered by cutting-edge answers</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1030,11 +1032,6 @@ with col3:
     if st.button("ℹ️ About", use_container_width=True):
         st.info("""
         **Quantora AI Elite** v2.2
-        
-        Powered by:
-        - Gemini Pro Vision
-        - Groq API
-        - Multiple AI models
         
         Features:
         ✅ Document analysis
