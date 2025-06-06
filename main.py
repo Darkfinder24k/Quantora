@@ -549,7 +549,7 @@ def call_quantora_gemini(prompt, context="", image=None):
     if not gemini_model:
         return "❌ Gemini model not available. Please check API configuration."
     
-    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively.
+    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
@@ -607,7 +607,7 @@ def call_groq_model(prompt, model_name, context=""):
     if not groq_client:
         return f"❌ Groq client not available"
     
-    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively.
+    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
