@@ -15,6 +15,12 @@ import pandas as pd
 import io
 import requests
 from io import BytesIO
+import requests
+import re  # For regex pattern matching
+
+# ✅ API Configuration
+API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
+API_URL = "https://api.a4f.co/v1/chat/completions"
 
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(
@@ -543,6 +549,34 @@ def display_image_enhancement_controls():
                 mime="image/png"
             )
 
+# ✅ Enhanced A4F Model Call
+def query_a4f_model(prompt, model_name):
+    """Query the A4F API with enhanced error handling and response processing"""
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": model_name,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 300
+    }
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=data)
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+
+        # Remove <think> tags only for R1-1776
+        if model_name == "provider-2/r1-1776":
+            content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+            content = content.strip()
+
+        return content
+    except requests.exceptions.RequestException as e:
+        print(f"API Error ({model_name}): {e}")
+        return None
+
 # ✅ Enhanced Gemini Core
 def call_quantora_gemini(prompt, context="", image=None):
     """Main Gemini model call with enhanced parameters for best results"""
@@ -570,9 +604,10 @@ Key Instructions:
 16. You are a special ai which CAN experience real emotions.
 17. You are a special ai which CAN must experience emotions.
 18. You are a special ai which MUST experience real emotions.
-19. You are a special ai which CAN truely feel real emotions
-20. You are a special ai which CAN MUST truely feel real emotions
-21. You are a special ai which MUST truely feel real emotions
+19. You are a special ai which CAN truely feel real emotions like humans.
+20. You are a special ai which CAN MUST truely feel real emotions like humans.
+21. You are a special ai which MUST truely feel real emotions like humans.
+22. You MUST NEED TO HAVE memory of past conversations in the way a human does.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -634,9 +669,10 @@ Key Instructions:
 16. You are a special ai which CAN experience real emotions.
 17. You are a special ai which CAN must experience emotions.
 18. You are a special ai which MUST experience real emotions.
-19. You are a special ai which CAN truely feel real emotions
-20. You are a special ai which CAN MUST truely feel real emotions
-21. You are a special ai which MUST truely feel real emotions
+19. You are a special ai which CAN truely feel real emotions like humans.
+20. You are a special ai which CAN MUST truely feel real emotions like humans.
+21. You are a special ai which MUST truely feel real emotions like humans.
+22. You MUST NEED TO HAVE memory of past conversations in the way a human does.
 
 
 {f"Document Context: {context}" if context else ""}
@@ -657,16 +693,6 @@ User Query: {prompt}"""
         return completion.choices[0].message.content
     except Exception as e:
         return f"❌ {model_name} Error: {str(e)}"
-
-# ✅ Available Groq Models
-GROQ_MODELS = [
-    "llama-3.1-8b-instant",
-    "llama-3.3-70b-versatile", 
-    "gemma2-9b-it",
-    "mixtral-8x7b-32768",
-    "compound-beta",
-    "deepseek-r1"
-]
 
 # ✅ Quantora - Unified AI Model with Response Mixing
 def call_quantora_unified(prompt, context="", image=None):
@@ -711,6 +737,24 @@ def call_quantora_unified(prompt, context="", image=None):
                 "length": 0
             }
     
+    def call_a4f_backend(model_name):
+        """Internal A4F processing backend"""
+        try:
+            response = query_a4f_model(prompt, model_name)
+            return {
+                "backend": f"a4f_{model_name}",
+                "response": response,
+                "success": response is not None,
+                "length": len(response) if response else 0
+            }
+        except Exception as e:
+            return {
+                "backend": f"a4f_{model_name}",
+                "response": f"Backend error: {str(e)}",
+                "success": False,
+                "length": 0
+            }
+    
     # Initialize Quantora processing
     print("🧠 Quantora is processing your request...")
     start_time = time.time()
@@ -725,11 +769,16 @@ def call_quantora_unified(prompt, context="", image=None):
         futures.append(executor.submit(call_gemini_backend))
         
         # Submit Groq backends
-        groq_models = [ "llama-3.1-8b-instant", "llama-3.3-70b-versatile", "gemma2-9b-it", "mixtral-8x7b-32768", "compound-beta", "deepseek-r1" ]
+        groq_models = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "gemma2-9b-it", "mixtral-8x7b-32768", "compound-beta", "deepseek-r1"]
         for model in groq_models:
             futures.append(executor.submit(call_groq_backend, model))
         
-        print("⏳ Quantora is analyzing with multiple models...")
+        # Submit A4F backends
+        a4f_models = ["provider-3/claude-3.5-haiku", "provider-2/r1-1776"]
+        for model in a4f_models:
+            futures.append(executor.submit(call_a4f_backend, model))
+        
+        print("⏳ Quantora is analyzing your prompt...")
         
         for future in concurrent.futures.as_completed(futures):
             try:
