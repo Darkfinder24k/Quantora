@@ -774,7 +774,7 @@ def call_quantora_unified(prompt, context="", image=None):
             futures.append(executor.submit(call_groq_backend, model))
         
         # Submit A4F backends
-        a4f_models = ["provider-3/claude-3.5-haiku", "provider-2/r1-1776", "provider-5/gpt-4o", "provider-6/claude-opus-4-20250514-thinking", "provider-6/grok-3-reasoning"]
+        a4f_models = ["provider-3/claude-3.5-haiku", "provider-2/r1-1776", "provider-5/gpt-4o", "provider-6/claude-opus-4-20250514-thinking", "provider-6/grok-3-reasoning", "provider-5/gpt-4.1-nano", "provider-3/deepseek-v3"]
         for model in a4f_models:
             futures.append(executor.submit(call_a4f_backend, model))
         
