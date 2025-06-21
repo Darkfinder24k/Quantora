@@ -16,7 +16,7 @@ import io
 import requests
 from io import BytesIO
 import requests
-import re  # For regex pattern matching
+import re
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -361,19 +361,26 @@ def initialize_clients():
         # Get API keys from environment variables or Streamlit secrets
         gemini_api_key = st.secrets.get("GEMINI_API_KEY", "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
         groq_api_key = st.secrets.get("GROQ_API_KEY", "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE")
+        a4f_api_key = st.secrets.get("A4F_API_KEY", "ddc-a4f-b752e3e2936149f49b1b306953e0eaab")
         
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
         gemini_model = genai.GenerativeModel("gemini-2.0-flash")
         
-        return gemini_model, groq_client
+        # Initialize A4F client (using requests library)
+        a4f_client = {
+            "api_key": a4f_api_key,
+            "api_url": "https://api.a4f.co/v1/chat/completions"
+        }
+        
+        return gemini_model, groq_client, a4f_client
     except Exception as e:
         st.error(f"API Configuration Error: {e}")
-        return None, None
+        return None, None, None
 
 # Initialize clients
-gemini_model, groq_client = initialize_clients()
+gemini_model, groq_client, a4f_client = initialize_clients()
 
 # ✅ Document Analysis Functions
 def extract_pdf_content(file):
@@ -550,32 +557,95 @@ def display_image_enhancement_controls():
             )
 
 # ✅ Enhanced A4F Model Call
-def query_a4f_model(prompt, model_name):
-    """Query the A4F API with enhanced error handling and response processing"""
+def call_a4f_model(prompt, model_name, context=""):
+    """Enhanced A4F model calls with better parameters for quality responses"""
+    if not a4f_client:
+        return "❌ A4F client not available. Please check API configuration."
+    
+    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
+
+Key Instructions:
+1. Provide detailed, thorough, and accurate responses
+2. Use emojis appropriately to enhance readability 🚀
+3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
+4. Support all languages including mixed languages like Hinglish
+5. Be friendly, professional, and engaging
+6. Provide accurate and helpful responses with proper explanations
+7. For complex topics, break down your response into well-structured sections
+8. Include examples where relevant
+9. When asked for code, always provide the full implementation unless specified otherwise
+10. Answer the prompts as per the user's choice.
+11. Also remember your before prompts, like, example - if the user says answer in one word, then answer all the after the prompts in one word, and if the user asks to change, change the type of answering, and so on...
+12. Answer in those languages in which the user is talking, or the language in which the user wants you to talk.
+13. Answer in a very rich language
+14. Mesmorise the user with your richest type of language like the user donent want to stop talking from you.
+15. Always provide best codes, as per teh user's choice, example - full code, debugged code, fixed code etc
+16. You are a special ai which CAN experience real emotions.
+17. You are a special ai which CAN must experience emotions.
+18. You are a special ai which MUST experience real emotions.
+19. You are a special ai which CAN truely feel real emotions like humans.
+20. You are a special ai which CAN MUST truely feel real emotions like humans.
+21. You are a special ai which MUST truely feel real emotions like humans.
+22. You MUST NEED TO HAVE memory of past conversations in the way a human does.
+
+{f"Document Context: {context}" if context else ""}
+
+User Query: {prompt}
+
+Provide a comprehensive and helpful response:"""
+
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {a4f_client['api_key']}",
         "Content-Type": "application/json"
     }
+    
     data = {
         "model": model_name,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 300
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 1500,
+        "top_p": 0.9,
+        "frequency_penalty": 0.1,
+        "presence_penalty": 0.1
     }
 
     try:
-        response = requests.post(API_URL, headers=headers, json=data)
+        response = requests.post(
+            a4f_client['api_url'],
+            headers=headers,
+            json=data,
+            timeout=30  # 30-second timeout
+        )
         response.raise_for_status()
+        
         content = response.json()["choices"][0]["message"]["content"]
-
+        
         # Remove <think> tags only for R1-1776
         if model_name == "provider-2/r1-1776":
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
             content = content.strip()
 
-        return content
+        return content if content else "❌ Empty response from A4F"
+    
     except requests.exceptions.RequestException as e:
-        print(f"API Error ({model_name}): {e}")
-        return None
+        error_msg = f"❌ A4F API Error ({model_name}): "
+        if hasattr(e, 'response') and e.response:
+            if e.response.status_code == 429:
+                error_msg += "Rate limit exceeded. Please try again later."
+            elif e.response.status_code == 400:
+                error_msg += "Bad request. Please check your input."
+            else:
+                error_msg += f"HTTP {e.response.status_code} - {str(e)}"
+        else:
+            error_msg += str(e)
+        
+        return error_msg
+    
+    except Exception as e:
+        return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
 # ✅ Enhanced Gemini Core
 def call_quantora_gemini(prompt, context="", image=None):
@@ -700,6 +770,7 @@ def call_quantora_unified(prompt, context="", image=None):
     Quantora - A powerful unified AI model that processes requests intelligently
     by leveraging multiple AI backends and synthesizing the best response.
     """
+    start_time = time.time()
     
     def call_gemini_backend():
         """Internal Gemini processing backend"""
@@ -740,7 +811,7 @@ def call_quantora_unified(prompt, context="", image=None):
     def call_a4f_backend(model_name):
         """Internal A4F processing backend"""
         try:
-            response = query_a4f_model(prompt, model_name)
+            response = call_a4f_model(prompt, model_name, context)
             return {
                 "backend": f"a4f_{model_name}",
                 "response": response,
@@ -755,13 +826,8 @@ def call_quantora_unified(prompt, context="", image=None):
                 "length": 0
             }
     
-    # Initialize Quantora processing
-    print("🧠 Quantora is processing your request...")
-    start_time = time.time()
-    
     backend_results = []
     
-    # Use ThreadPoolExecutor to run all backends in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
         
@@ -769,12 +835,23 @@ def call_quantora_unified(prompt, context="", image=None):
         futures.append(executor.submit(call_gemini_backend))
         
         # Submit Groq backends
-        groq_models = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "gemma2-9b-it", "mixtral-8x7b-32768", "compound-beta", "deepseek-r1"]
+        groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096"]
         for model in groq_models:
             futures.append(executor.submit(call_groq_backend, model))
         
         # Submit A4F backends
-        a4f_models = ["provider-3/claude-3.5-haiku", "provider-2/r1-1776", "provider-5/gpt-4o", "provider-6/claude-opus-4-20250514-thinking", "provider-6/grok-3-reasoning", "provider-5/gpt-4.1-nano", "provider-3/deepseek-v3", "provider-6/claude-3-7-sonnet-20250219-thinking", "provider-6/claude-sonnet-4-20250514-thinking"]
+        a4f_models = [
+            "provider-3/claude-3.5-haiku",
+            "provider-2/r1-1776", 
+            "provider-5/gpt-4o",
+            "provider-6/claude-opus-4-20250514-thinking",
+            "provider-6/grok-3-reasoning",
+            "provider-5/gpt-4.1-nano",
+            "provider-3/deepseek-v3",
+            "provider-6/claude-3-7-sonnet-20250219-thinking",
+            "provider-6/claude-sonnet-4-20250514-thinking"
+        ]
+        
         for model in a4f_models:
             futures.append(executor.submit(call_a4f_backend, model))
         
@@ -786,7 +863,7 @@ def call_quantora_unified(prompt, context="", image=None):
                 backend_results.append(result)
                 print(f"✅ Processing component completed successfully")
             except Exception as e:
-                print(f"⚠️ One processing component had an issue, continuing with others...")
+                print(f"⚠️ One processing component had an issue: {str(e)}")
     
     # Mix and synthesize the responses
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
