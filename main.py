@@ -851,6 +851,7 @@ def call_quantora_unified(prompt, context="", image=None):
             "provider-6/claude-3-7-sonnet-20250219-thinking",
             "provider-6/claude-sonnet-4-20250514-thinking"
             "provider-5/gemini-2.5-flash-preview-05-20"
+            "provider-5/gpt-4.5-preview"
         ]
         
         for model in a4f_models:
@@ -945,6 +946,7 @@ def format_response_with_code(response):
             parts.append(('text', remaining_text))
     
     return parts if parts else [('text', response)]
+
 # ✅ Time-based greeting
 hour = datetime.now().hour
 if 6 <= hour < 12:
