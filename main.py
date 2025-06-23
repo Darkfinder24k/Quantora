@@ -835,7 +835,7 @@ def call_quantora_unified(prompt, context="", image=None):
         futures.append(executor.submit(call_gemini_backend))
         
         # Submit Groq backends
-        groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096"]
+        groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
         for model in groq_models:
             futures.append(executor.submit(call_groq_backend, model))
         
@@ -851,6 +851,7 @@ def call_quantora_unified(prompt, context="", image=None):
             "provider-6/claude-3-7-sonnet-20250219-thinking",
             "provider-6/claude-sonnet-4-20250514-thinking"
             "provider-5/gemini-2.5-flash-preview-05-20"
+            "provider-5/gpt-4.5-preview"
         ]
         
         for model in a4f_models:
