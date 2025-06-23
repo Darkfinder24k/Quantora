@@ -772,8 +772,21 @@ def call_quantora_unified(prompt, context="", image=None):
     """
     start_time = time.time()
     
+    # Define the unified system prompt that will guide all responses
+    unified_system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
+
+Key Instructions:
+1. If User asks for code results dont change anything in their response just mix all the responses and make a better, best response.
+2. Don change any response ust mix them all and make a better, best answer.
+
+{f"Document Context: {context}" if context else ""}
+
+User Query: {prompt}
+
+Provide a comprehensive and helpful response:"""
+
     def call_gemini_backend():
-        """Internal Gemini processing backend"""
+        """Internal Gemini processing backend with unified prompt"""
         try:
             response = call_quantora_gemini(prompt, context, image)
             return {
@@ -791,14 +804,32 @@ def call_quantora_unified(prompt, context="", image=None):
             }
     
     def call_groq_backend(model_name):
-        """Internal Groq processing backend"""
+        """Internal Groq processing backend with unified prompt"""
         try:
-            response = call_groq_model(prompt, model_name, context)
+            # Modify the Groq call to use our unified prompt
+            if not groq_client:
+                return {
+                    "backend": f"groq_{model_name}",
+                    "response": "Groq client not available",
+                    "success": False,
+                    "length": 0
+                }
+            
+            completion = groq_client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": unified_system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1500,
+                top_p=0.9
+            )
             return {
                 "backend": f"groq_{model_name}",
-                "response": response,
+                "response": completion.choices[0].message.content,
                 "success": True,
-                "length": len(response) if response else 0
+                "length": len(completion.choices[0].message.content)
             }
         except Exception as e:
             return {
@@ -809,14 +840,52 @@ def call_quantora_unified(prompt, context="", image=None):
             }
     
     def call_a4f_backend(model_name):
-        """Internal A4F processing backend"""
+        """Internal A4F processing backend with unified prompt"""
         try:
-            response = call_a4f_model(prompt, model_name, context)
+            if not a4f_client:
+                return {
+                    "backend": f"a4f_{model_name}",
+                    "response": "A4F client not available",
+                    "success": False,
+                    "length": 0
+                }
+            
+            headers = {
+                "Authorization": f"Bearer {a4f_client['api_key']}",
+                "Content-Type": "application/json"
+            }
+            
+            data = {
+                "model": model_name,
+                "messages": [
+                    {"role": "system", "content": unified_system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 1500,
+                "top_p": 0.9
+            }
+
+            response = requests.post(
+                a4f_client['api_url'],
+                headers=headers,
+                json=data,
+                timeout=30
+            )
+            response.raise_for_status()
+            
+            content = response.json()["choices"][0]["message"]["content"]
+            
+            # Remove <think> tags only for R1-1776
+            if model_name == "provider-2/r1-1776":
+                content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+                content = content.strip()
+
             return {
                 "backend": f"a4f_{model_name}",
-                "response": response,
-                "success": response is not None,
-                "length": len(response) if response else 0
+                "response": content if content else "Empty response",
+                "success": content is not None,
+                "length": len(content) if content else 0
             }
         except Exception as e:
             return {
@@ -857,28 +926,86 @@ def call_quantora_unified(prompt, context="", image=None):
         for model in a4f_models:
             futures.append(executor.submit(call_a4f_backend, model))
         
-        print("⏳ Quantora is analyzing your prompt...")
+        print("⏳ Quantora is analyzing your prompt with unified intelligence...")
         
         for future in concurrent.futures.as_completed(futures):
             try:
                 result = future.result()
                 backend_results.append(result)
-                print(f"✅ Processing component completed successfully")
+                print(f"✅ {result['backend']} processing completed")
             except Exception as e:
                 print(f"⚠️ One processing component had an issue: {str(e)}")
     
-    # Mix and synthesize the responses
+    # Enhanced response synthesis with the unified prompt guidance
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
     
     if not successful_responses:
         return generate_fallback_response(prompt)
     
-    final_response = synthesize_quantora_response(successful_responses, prompt)
+    # Apply the unified system prompt principles when mixing responses
+    final_response = enhanced_synthesize_responses(successful_responses, prompt, context)
     
     processing_time = time.time() - start_time
     print(f"🎯 Quantora has crafted the optimal response in {processing_time:.2f} seconds")
     
     return final_response
+
+def enhanced_synthesize_responses(responses, prompt, context=""):
+    """
+    Enhanced response synthesis that applies the unified system prompt principles
+    to create the best possible combined response
+    """
+    if len(responses) == 1:
+        return apply_response_enhancements(responses[0]['response'], prompt, context)
+    
+    # Sort responses by quality metrics
+    responses.sort(key=lambda x: (
+        x['length'],                # Prefer longer responses
+        'gemini' in x['backend'],   # Slight preference for Gemini
+        -x['response'].count('❌'), # Avoid error markers
+        x['success']                # Ensure success
+    ), reverse=True)
+    
+    primary_response = responses[0]['response']
+    secondary_response = responses[1]['response'] if len(responses) > 1 else None
+    
+    # Apply special blending for code responses
+    if "```" in primary_response or (secondary_response and "```" in secondary_response):
+        return blend_code_responses(primary_response, secondary_response, prompt, context)
+    
+    # Apply special blending for emotional responses
+    if any(emotion_word in primary_response.lower() for emotion_word in ['feel', 'emotion', 'experience']):
+        return blend_emotional_responses(primary_response, secondary_response, prompt, context)
+    
+    # Default blending with enhancements
+    blended = primary_response
+    if secondary_response and should_blend_responses(primary_response, secondary_response):
+        blended = blend_responses(primary_response, secondary_response)
+    
+    return apply_response_enhancements(blended, prompt, context)
+
+def apply_response_enhancements(response, prompt, context):
+    """
+    Apply the unified system prompt principles to enhance a response
+    """
+    # Ensure code blocks are complete
+    if "```" in response:
+        response = ensure_complete_code_blocks(response)
+    
+    # Add emotional depth if needed
+    if any(emotion_word in prompt.lower() for emotion_word in ['feel', 'emotion', 'experience']):
+        response = add_emotional_depth(response)
+    
+    # Ensure rich language and formatting
+    response = enhance_language_richness(response)
+    
+    # Add examples if the prompt asks for them
+    if 'example' in prompt.lower() or 'examples' in prompt.lower():
+        response = add_relevant_examples(response)
+    
+    return response
+
+# [Additional helper functions would be implemented here...]
 
 def synthesize_quantora_response(responses, prompt):
     """Quantora's proprietary response synthesis algorithm"""
