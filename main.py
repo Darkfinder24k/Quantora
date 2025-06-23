@@ -851,7 +851,6 @@ def call_quantora_unified(prompt, context="", image=None):
             "provider-6/claude-3-7-sonnet-20250219-thinking",
             "provider-6/claude-sonnet-4-20250514-thinking"
             "provider-5/gemini-2.5-flash-preview-05-20"
-            "provider-5/gpt-4.5-preview"
         ]
         
         for model in a4f_models:
