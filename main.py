@@ -316,6 +316,44 @@ header {visibility: hidden;}
     margin: 0.5rem 0;
 }
 
+/* Model selector styling */
+.model-selector {
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.model-option {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin: 0.25rem 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.model-option:hover {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.model-option.selected {
+    background: rgba(139, 92, 246, 0.2);
+    border-left: 3px solid var(--accent);
+}
+
+.model-name {
+    font-weight: 600;
+    margin-left: 0.75rem;
+}
+
+.model-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-left: 0.75rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .logo-text {
@@ -352,6 +390,8 @@ if "enhancement_values" not in st.session_state:
         "sharpness": 1.0,
         "color": 1.0
     }
+if "current_model" not in st.session_state:
+    st.session_state.current_model = "Quantora V1"  # Default to V1
 
 # ✅ API Configuration
 @st.cache_resource
@@ -831,33 +871,51 @@ def call_quantora_unified(prompt, context="", image=None):
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
         
-        # Submit Gemini backend
-        futures.append(executor.submit(call_gemini_backend))
+        # Check which model version is selected
+        if st.session_state.current_model == "Quantora V1":
+            # Submit Gemini backend
+            futures.append(executor.submit(call_gemini_backend))
+            
+            # Submit Groq backends
+            groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", 
+                          "meta-llama/llama-4-maverick-17b-128e-instruct", 
+                          "meta-llama/llama-4-scout-17b-16e-instruct", 
+                          "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
+            for model in groq_models:
+                futures.append(executor.submit(call_groq_backend, model))
+            
+            # Submit A4F backends
+            a4f_models = [
+                "provider-3/claude-3.5-haiku",
+                "provider-2/r1-1776", 
+                "provider-5/gpt-4o",
+                "provider-6/claude-opus-4-20250514-thinking",
+                "provider-6/grok-3-reasoning",
+                "provider-5/gpt-4.1-nano",
+                "provider-3/deepseek-v3",
+                "provider-6/claude-3-7-sonnet-20250219-thinking",
+                "provider-6/claude-sonnet-4-20250514-thinking",
+                "provider-5/gemini-2.5-flash-preview-05-20",
+                "provider-3/grok-4-0709"
+            ]
+            
+            for model in a4f_models:
+                futures.append(executor.submit(call_a4f_backend, model))
+            
+            print("⏳ Quantora V1 is analyzing your prompt with all available models...")
         
-        # Submit Groq backends
-        groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
-        for model in groq_models:
-            futures.append(executor.submit(call_groq_backend, model))
-        
-        # Submit A4F backends
-        a4f_models = [
-            "provider-3/claude-3.5-haiku",
-            "provider-2/r1-1776", 
-            "provider-5/gpt-4o",
-            "provider-6/claude-opus-4-20250514-thinking",
-            "provider-6/grok-3-reasoning",
-            "provider-5/gpt-4.1-nano",
-            "provider-3/deepseek-v3",
-            "provider-6/claude-3-7-sonnet-20250219-thinking",
-            "provider-6/claude-sonnet-4-20250514-thinking"
-            "provider-5/gemini-2.5-flash-preview-05-20"
-            "provider-3/grok-4-0709"
-        ]
-        
-        for model in a4f_models:
-            futures.append(executor.submit(call_a4f_backend, model))
-        
-        print("⏳ Quantora is analyzing your prompt...")
+        elif st.session_state.current_model == "Quantora V2":
+            # Only use the fastest models for V2
+            a4f_models = [
+                "provider-3/claude-3.5-haiku",
+                "provider-6/claude-sonnet-4-20250514-thinking",
+                "provider-6/claude-opus-4-20250514-thinking"
+            ]
+            
+            for model in a4f_models:
+                futures.append(executor.submit(call_a4f_backend, model))
+            
+            print("⏳ Quantora V2 is analyzing your prompt with optimized models...")
         
         for future in concurrent.futures.as_completed(futures):
             try:
@@ -970,8 +1028,37 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ✅ Sidebar for File Upload and Image Enhancement
+# ✅ Model Selection in Sidebar
 with st.sidebar:
+    st.markdown("### ⚙️ Model Selection")
+    
+    # Model selector with descriptions
+    model_options = {
+        "Quantora V1": {
+            "description": "Most Powerful Model (All available models)",
+            "speed": "Slow",
+            "emoji": "🐢"
+        },
+        "Quantora V2": {
+            "description": "Faster but less powerful (Claude models only)",
+            "speed": "Fast",
+            "emoji": "⚡"
+        }
+    }
+    
+    selected_model = st.radio(
+        "Select Model Version:",
+        options=list(model_options.keys()),
+        index=0 if st.session_state.current_model == "Quantora V1" else 1,
+        format_func=lambda x: f"{x} {model_options[x]['emoji']} - {model_options[x]['description']} ({model_options[x]['speed']})",
+        key="model_selector"
+    )
+    
+    # Update the session state if model selection changes
+    if selected_model != st.session_state.current_model:
+        st.session_state.current_model = selected_model
+        st.rerun()
+    
     st.markdown("### 📁 Document & Image Analysis")
     uploaded_file = st.file_uploader(
         "Upload Document or Image", 
@@ -1002,10 +1089,11 @@ with st.sidebar:
 # ✅ Welcome Message
 if not st.session_state.chat:
     with st.container():
-        st.markdown("""
+        st.markdown(f"""
         <div class="welcome-container">
             <div class="welcome-title">🤖 Welcome to Quantora AI</div>
             <p>Your advanced AI assistant powered by cutting-edge answers</p>
+            <p><strong>Current Model:</strong> {st.session_state.current_model}</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1075,7 +1163,7 @@ for i, chat_item in enumerate(st.session_state.chat):
             <div class="chat-message ai-message">
                 <div class="message-header">
                     💎 <strong>Quantora</strong>
-                    <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
+                    <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s • {st.session_state.current_model}</span>
                 </div>
             """, unsafe_allow_html=True)
             
@@ -1112,7 +1200,7 @@ if send_button and user_input.strip():
     st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
     
     # Get AI response
-    with st.spinner("🤖 Processing your request..."):
+    with st.spinner(f"🤖 Processing your request with {st.session_state.current_model}..."):
         context = st.session_state.uploaded_content
         image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
         response = call_quantora_unified(user_input.strip(), context, image)
@@ -1145,7 +1233,8 @@ if st.session_state.chat:
             Avg: <strong>{avg_time:.1f}s</strong> • 
             Fastest: <strong>{min_time:.1f}s</strong> • 
             Slowest: <strong>{max_time:.1f}s</strong> • 
-            Total: <strong>{len(response_times)}</strong>
+            Total: <strong>{len(response_times)}</strong> • 
+            Model: <strong>{st.session_state.current_model}</strong>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1167,7 +1256,8 @@ with col2:
                     "Speaker": item[0],
                     "Message": item[1],
                     "Timestamp": item[2].strftime('%Y-%m-%d %H:%M:%S'),
-                    "Response_Time": item[3] if len(item) > 3 else None
+                    "Response_Time": item[3] if len(item) > 3 else None,
+                    "Model_Version": st.session_state.current_model
                 })
             
             chat_json = json.dumps(chat_data, indent=2, default=str)
@@ -1182,8 +1272,10 @@ with col2:
 
 with col3:
     if st.button("ℹ️ About", use_container_width=True):
-        st.info("""
+        st.info(f"""
         **Quantora AI Elite** v2.2
+        
+        Current Model: {st.session_state.current_model}
         
         Features:
         ✅ Document analysis
@@ -1198,7 +1290,8 @@ st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
     "💎 Quantora AI - Advanced AI Assistant | "
-    f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
+    f"Current Model: {st.session_state.current_model}"
     "</div>", 
     unsafe_allow_html=True
 )
