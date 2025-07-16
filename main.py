@@ -1,10 +1,3 @@
-Of course. Here is the fully fixed and updated code with the requested model-switching functionality.
-
-I've added a model selection radio button in the sidebar allowing users to switch between **Quantora V1** (the original, powerful model suite) and **Quantora V2** (a faster suite using only Gemini and select Claude models). The default is V1.
-
-### Fully Fixed and Updated Code
-
-````python
 import streamlit as st
 import google.generativeai as genai
 import datetime
