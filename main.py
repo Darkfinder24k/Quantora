@@ -1166,7 +1166,7 @@ if st.session_state.chat:
         </div>
         """, unsafe_allow_html=True)
 
-# ✅ Action Buttons & Model Selection [MODIFIED]
+# ✅ Action Buttons & Model Selection
 col1, col2, col3, col4 = st.columns([1, 1, 1, 2.5])
 
 with col1:
@@ -1225,7 +1225,7 @@ st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
     "💎 Quantora AI - Advanced AI Assistant | "
-    f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M%S')}"
     "</div>", 
     unsafe_allow_html=True
 )
