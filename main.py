@@ -859,7 +859,6 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-6/claude-sonnet-4-20250514-thinking",
                 "provider-5/gemini-2.5-flash-preview-05-20",
                 "provider-3/grok-4-0709"
-                "provider-3/deepseek-v3"
             ]
             for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
