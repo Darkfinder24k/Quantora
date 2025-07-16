@@ -350,7 +350,7 @@ if "enhancement_values" not in st.session_state:
         "sharpness": 1.0,
         "color": 1.0
     }
-# ADDED: Initialize model version selection
+# Initialize model version selection
 if "model_version" not in st.session_state:
     st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
 
@@ -765,7 +765,7 @@ User Query: {prompt}"""
     except Exception as e:
         return f"❌ {model_name} Error: {str(e)}"
 
-# ✅ Quantora - Unified AI Model with Response Mixing [MODIFIED]
+# ✅ Quantora - Unified AI Model with Response Mixing
 def call_quantora_unified(prompt, context="", image=None):
     """
     Quantora - A powerful unified AI model that processes requests intelligently
@@ -1015,18 +1015,6 @@ with st.sidebar:
         st.session_state.enhanced_image = None
         st.success("✅ All uploads cleared!")
         st.rerun()
-    
-    # ADDED: Model selection in sidebar
-    st.markdown("---")
-    st.markdown("### ⚙️ Model Selection")
-    st.radio(
-        "Choose your Quantora Engine:",
-        ("Quantora V1 (Most Powerful Model But Slow)", "Quantora V2 (Faster but not as better as V1)"),
-        key="model_version",
-        help="Switch between the full-power model suite (V1) and a faster, more focused suite (V2).",
-        label_visibility="collapsed"
-    )
-
 
 # ✅ Welcome Message
 if not st.session_state.chat:
@@ -1178,8 +1166,8 @@ if st.session_state.chat:
         </div>
         """, unsafe_allow_html=True)
 
-# ✅ Action Buttons
-col1, col2, col3 = st.columns(3)
+# ✅ Action Buttons & Model Selection [MODIFIED]
+col1, col2, col3, col4 = st.columns([1, 1, 1, 2.5])
 
 with col1:
     if st.button("🗑️ Clear Chat", use_container_width=True):
@@ -1212,7 +1200,7 @@ with col2:
 with col3:
     if st.button("ℹ️ About", use_container_width=True):
         st.info("""
-        **Quantora AI Elite** v2.2
+        **Quantora AI Elite** v2.3
         
         Features:
         ✅ Document analysis
@@ -1221,6 +1209,16 @@ with col3:
         ✅ Performance metrics
         ✅ Enhanced response quality
         """)
+        
+with col4:
+    st.radio(
+        "**Engine:**",
+        options=["Quantora V1 (Most Powerful Model But Slow)", "Quantora V2 (Faster but not as better as V1)"],
+        key="model_version",
+        horizontal=True,
+        help="V1: Slower, most powerful model suite. V2: Faster, focused on Claude models.",
+        label_visibility="visible"
+    )
 
 # ✅ Footer
 st.markdown("---")
