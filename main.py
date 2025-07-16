@@ -1167,7 +1167,7 @@ if st.session_state.chat:
         """, unsafe_allow_html=True)
 
 # ✅ Action Buttons & Model Selection
-col1, col2, col3, col4 = st.columns([1, 1, 1, 2.5])
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     if st.button("🗑️ Clear Chat", use_container_width=True):
@@ -1200,7 +1200,7 @@ with col2:
 with col3:
     if st.button("ℹ️ About", use_container_width=True):
         st.info("""
-        **Quantora AI Elite** v2.3
+        **Quantora AI Elite** v2.4
         
         Features:
         ✅ Document analysis
@@ -1209,23 +1209,26 @@ with col3:
         ✅ Performance metrics
         ✅ Enhanced response quality
         """)
-        
+
+# THIS IS THE NEW CUSTOM BUTTON
 with col4:
-    st.radio(
-        "**Engine:**",
-        options=["Quantora V1 (Most Powerful Model But Slow)", "Quantora V2 (Faster but not as better as V1)"],
-        key="model_version",
-        horizontal=True,
-        help="V1: Slower, most powerful model suite. V2: Faster, focused on Claude models.",
-        label_visibility="visible"
-    )
+    with st.popover("⚙️ Select Model", use_container_width=True):
+        st.markdown("##### Select Quantora Engine")
+        st.radio(
+            "Engine Selection", # The label is hidden, but good for semantics
+            options=["Quantora V1 (Most Powerful Model But Slow)", "Quantora V2 (Faster but not as better as V1)"],
+            key="model_version",
+            label_visibility="collapsed",
+            help="V1: Slower, most powerful model suite. V2: Faster, focused on Claude models.",
+        )
+
 
 # ✅ Footer
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
     "💎 Quantora AI - Advanced AI Assistant | "
-    f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M%S')}"
+    f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     "</div>", 
     unsafe_allow_html=True
 )
