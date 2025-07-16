@@ -567,7 +567,7 @@ def call_a4f_model(prompt, model_name, context=""):
 
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
-2. Use emojis appropriately to enhance readability 🚀
+2. Use Very Ultra Professional words. You can also use words from any dictionary like oxford.
 3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
@@ -658,7 +658,7 @@ def call_quantora_gemini(prompt, context="", image=None):
 
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
-2. Use emojis appropriately to enhance readability 🚀
+2. Use Very Ultra Professional words. You can also use words from any dictionary like oxford.
 3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
@@ -723,7 +723,7 @@ def call_groq_model(prompt, model_name, context=""):
 
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
-2. Use emojis appropriately to enhance readability 🚀
+2. Use Very Ultra Professional words. You can also use words from any dictionary like oxford.
 3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
