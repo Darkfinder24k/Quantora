@@ -1,3 +1,10 @@
+Of course. Here is the fully fixed and updated code with the requested model-switching functionality.
+
+I've added a model selection radio button in the sidebar allowing users to switch between **Quantora V1** (the original, powerful model suite) and **Quantora V2** (a faster suite using only Gemini and select Claude models). The default is V1.
+
+### Fully Fixed and Updated Code
+
+````python
 import streamlit as st
 import google.generativeai as genai
 import datetime
@@ -15,40 +22,6 @@ import pandas as pd
 import io
 import requests
 from io import BytesIO
-import requests
-import re
-
-# Model Configuration Options
-MODEL_OPTIONS = {
-    "Quantora V1 (Most Powerful, Slow)": {
-        "description": "Uses all available models for the most comprehensive responses",
-        "groq_models": ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"],
-        "a4f_models": [
-            "provider-3/claude-3.5-haiku",
-            "provider-2/r1-1776", 
-            "provider-5/gpt-4o",
-            "provider-6/claude-opus-4-20250514-thinking",
-            "provider-6/grok-3-reasoning",
-            "provider-5/gpt-4.1-nano",
-            "provider-3/deepseek-v3",
-            "provider-6/claude-3-7-sonnet-20250219-thinking",
-            "provider-6/claude-sonnet-4-20250514-thinking",
-            "provider-5/gemini-2.5-flash-preview-05-20",
-            "provider-3/grok-4-0709"
-        ],
-        "use_gemini": True
-    },
-    "Quantora V2 (Faster, Less Powerful)": {
-        "description": "Uses only Claude models from A4F for faster responses",
-        "groq_models": [],
-        "a4f_models": [
-            "provider-3/claude-3.5-haiku",
-            "provider-6/claude-sonnet-4-20250514-thinking",
-            "provider-6/claude-opus-4-20250514-thinking"
-        ],
-        "use_gemini": False
-    }
-}
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -384,12 +357,9 @@ if "enhancement_values" not in st.session_state:
         "sharpness": 1.0,
         "color": 1.0
     }
-if "selected_model" not in st.session_state:
-    st.session_state.selected_model = "Quantora V1 (Most Powerful, Slow)"
-
-def get_model_config():
-    """Return the configuration for the currently selected model"""
-    return MODEL_OPTIONS.get(st.session_state.selected_model, MODEL_OPTIONS["Quantora V1 (Most Powerful, Slow)"])
+# ADDED: Initialize model version selection
+if "model_version" not in st.session_state:
+    st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
 
 # ✅ API Configuration
 @st.cache_resource
@@ -539,15 +509,15 @@ def display_image_enhancement_controls():
             
             with col1:
                 brightness = st.slider("Brightness", 0.0, 2.0, 
-                                      st.session_state.enhancement_values["brightness"], 0.1)
+                                       st.session_state.enhancement_values["brightness"], 0.1)
                 contrast = st.slider("Contrast", 0.0, 2.0, 
-                                    st.session_state.enhancement_values["contrast"], 0.1)
+                                     st.session_state.enhancement_values["contrast"], 0.1)
             
             with col2:
                 sharpness = st.slider("Sharpness", 0.0, 2.0, 
-                                     st.session_state.enhancement_values["sharpness"], 0.1)
+                                      st.session_state.enhancement_values["sharpness"], 0.1)
                 color = st.slider("Color", 0.0, 2.0, 
-                                 st.session_state.enhancement_values["color"], 0.1)
+                                  st.session_state.enhancement_values["color"], 0.1)
             
             # Update enhancement values
             st.session_state.enhancement_values = {
@@ -802,25 +772,17 @@ User Query: {prompt}"""
     except Exception as e:
         return f"❌ {model_name} Error: {str(e)}"
 
-# ✅ Quantora - Unified AI Model with Response Mixing
+# ✅ Quantora - Unified AI Model with Response Mixing [MODIFIED]
 def call_quantora_unified(prompt, context="", image=None):
     """
     Quantora - A powerful unified AI model that processes requests intelligently
     by leveraging multiple AI backends and synthesizing the best response.
+    Switches between V1 (full power) and V2 (faster) modes.
     """
     start_time = time.time()
-    model_config = get_model_config()
     
     def call_gemini_backend():
         """Internal Gemini processing backend"""
-        if not model_config["use_gemini"]:
-            return {
-                "backend": "gemini",
-                "response": "Gemini disabled in current model",
-                "success": False,
-                "length": 0
-            }
-            
         try:
             response = call_quantora_gemini(prompt, context, image)
             return {
@@ -878,19 +840,48 @@ def call_quantora_unified(prompt, context="", image=None):
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
         
-        # Submit Gemini backend if enabled
-        if model_config["use_gemini"]:
-            futures.append(executor.submit(call_gemini_backend))
+        selected_model_version = st.session_state.get("model_version", "Quantora V1 (Most Powerful Model But Slow)")
+
+        # Submit Gemini backend for both versions
+        futures.append(executor.submit(call_gemini_backend))
         
-        # Submit Groq backends
-        for model in model_config["groq_models"]:
-            futures.append(executor.submit(call_groq_backend, model))
-        
-        # Submit A4F backends
-        for model in model_config["a4f_models"]:
-            futures.append(executor.submit(call_a4f_backend, model))
-        
-        print(f"⏳ Quantora ({st.session_state.selected_model}) is analyzing your prompt...")
+        if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
+            st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
+            
+            # Submit Groq backends
+            groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
+            for model in groq_models:
+                futures.append(executor.submit(call_groq_backend, model))
+            
+            # Submit ALL A4F backends
+            a4f_models = [
+                "provider-3/claude-3.5-haiku",
+                "provider-2/r1-1776", 
+                "provider-5/gpt-4o",
+                "provider-6/claude-opus-4-20250514-thinking",
+                "provider-6/grok-3-reasoning",
+                "provider-5/gpt-4.1-nano",
+                "provider-3/deepseek-v3",
+                "provider-6/claude-3-7-sonnet-20250219-thinking",
+                "provider-6/claude-sonnet-4-20250514-thinking",
+                "provider-5/gemini-2.5-flash-preview-05-20",
+                "provider-3/grok-4-0709"
+            ]
+            for model in a4f_models:
+                futures.append(executor.submit(call_a4f_backend, model))
+        else: # Quantora V2
+            st.toast("⚡ Using Quantora V2 Engine...", icon="⚡")
+            
+            # Submit only specified A4F backends
+            a4f_v2_models = [
+                "provider-3/claude-3.5-haiku",                  # claude 3.5 haiku
+                "provider-6/claude-sonnet-4-20250514-thinking", # claude 4 sonnet
+                "provider-6/claude-opus-4-20250514-thinking"    # claude 4 opus
+            ]
+            for model in a4f_v2_models:
+                futures.append(executor.submit(call_a4f_backend, model))
+
+        print("⏳ Quantora is analyzing your prompt...")
         
         for future in concurrent.futures.as_completed(futures):
             try:
@@ -1005,23 +996,6 @@ st.markdown(f"""
 
 # ✅ Sidebar for File Upload and Image Enhancement
 with st.sidebar:
-    st.markdown("### ⚙️ Model Selection")
-    model_choice = st.selectbox(
-        "Select AI Model",
-        options=list(MODEL_OPTIONS.keys()),
-        index=0 if st.session_state.selected_model == "Quantora V1 (Most Powerful, Slow)" else 1,
-        key="model_selector",
-        help="Choose between more powerful but slower responses or faster but less comprehensive ones"
-    )
-    
-    if model_choice != st.session_state.selected_model:
-        st.session_state.selected_model = model_choice
-        st.rerun()
-    
-    # Show model description
-    model_config = get_model_config()
-    st.markdown(f"<div style='color: var(--text-muted); font-size: 0.9rem;'>{model_config['description']}</div>", unsafe_allow_html=True)
-
     st.markdown("### 📁 Document & Image Analysis")
     uploaded_file = st.file_uploader(
         "Upload Document or Image", 
@@ -1048,6 +1022,18 @@ with st.sidebar:
         st.session_state.enhanced_image = None
         st.success("✅ All uploads cleared!")
         st.rerun()
+    
+    # ADDED: Model selection in sidebar
+    st.markdown("---")
+    st.markdown("### ⚙️ Model Selection")
+    st.radio(
+        "Choose your Quantora Engine:",
+        ("Quantora V1 (Most Powerful Model But Slow)", "Quantora V2 (Faster but not as better as V1)"),
+        key="model_version",
+        help="Switch between the full-power model suite (V1) and a faster, more focused suite (V2).",
+        label_visibility="collapsed"
+    )
+
 
 # ✅ Welcome Message
 if not st.session_state.chat:
@@ -1099,7 +1085,7 @@ if not st.session_state.chat:
             """, unsafe_allow_html=True)
         
         st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>What would you like to explore today?</strong></p>", 
-                   unsafe_allow_html=True)
+                    unsafe_allow_html=True)
 
 # ✅ Display Chat History
 for i, chat_item in enumerate(st.session_state.chat):
@@ -1241,7 +1227,6 @@ with col3:
         ✅ Code formatting (always full code)
         ✅ Performance metrics
         ✅ Enhanced response quality
-        ✅ Model switching (V1/V2)
         """)
 
 # ✅ Footer
@@ -1253,3 +1238,4 @@ st.markdown(
     "</div>", 
     unsafe_allow_html=True
 )
+````
