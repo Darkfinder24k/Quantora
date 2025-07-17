@@ -851,12 +851,12 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
                 "provider-5/gpt-4o",
-                "provider-6/claude-opus-4-20250514-thinking",
+                "provider-1/claude-opus-4",
                 "provider-6/grok-3-reasoning",
                 "provider-5/gpt-4.1-nano",
                 "provider-3/deepseek-v3",
                 "provider-6/claude-3-7-sonnet-20250219-thinking",
-                "provider-6/claude-sonnet-4-20250514-thinking",
+                "provider-1/claude-sonnet-4",
                 "provider-5/gemini-2.5-flash-preview-05-20",
                 "provider-3/grok-4-0709"
             ]
@@ -868,8 +868,8 @@ def call_quantora_unified(prompt, context="", image=None):
             # Submit only specified A4F backends
             a4f_v2_models = [
                 "provider-3/claude-3.5-haiku",                  # claude 3.5 haiku
-                "provider-6/claude-sonnet-4-20250514-thinking", # claude 4 sonnet
-                "provider-6/claude-opus-4-20250514-thinking"    # claude 4 opus
+                "provider-1/claude-sonnet-4", # claude 4 sonnet
+                "provider-1/claude-opus-4"    # claude 4 opus
             ]
             for model in a4f_v2_models:
                 futures.append(executor.submit(call_a4f_backend, model))
