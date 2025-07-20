@@ -1232,7 +1232,9 @@ with col4:
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
-    "💎 Quantora AI - Advanced AI Assistant | "
+    "💎 Quantora AI - Advanced AI Assistant | 
+    Powered by Google’s Gemini, Groq Models, A4f Models
+    Quantora Can Make Mistakes..."
     f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     "</div>", 
     unsafe_allow_html=True
