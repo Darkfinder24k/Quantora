@@ -864,6 +864,7 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-2/codestral"
                 "provider-1/sonar-deep-research"
                 "provider-1/sonar-reasoning-pro"
+                "provider-2/llama-4-maverick"
             ]
             for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
