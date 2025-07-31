@@ -1452,7 +1452,7 @@ with col3:
 # ✅ Footer
 st.markdown("""
 <div style="text-align: center; color: var(--quantum-text-dim); font-size: 0.8rem; margin-top: 2rem;">
-    💎 Quantora AI Elite | Powered by Gemini, Claude, GPT, and specialized models | 
+    💎 Quantora AI Elite | Powered by Gemini, A4F, and Groq models | Quantora can make mistakes... |
     Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 </div>
 """, unsafe_allow_html=True)
