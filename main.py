@@ -15,6 +15,7 @@ import pandas as pd
 import io
 import requests
 from io import BytesIO
+import base64
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -367,7 +368,7 @@ def initialize_clients():
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+        gemini_model = genai.GenerativeModel("gemini-1.5-pro-latest")
         
         # Initialize A4F client (using requests library)
         a4f_client = {
@@ -558,7 +559,7 @@ def display_image_enhancement_controls():
             )
 
 # ✅ Enhanced A4F Model Call
-def call_a4f_model(prompt, model_name, context=""):
+def call_a4f_model(prompt, model_name, context="", image=None):
     """Enhanced A4F model calls with better parameters for quality responses"""
     if not a4f_client:
         return "❌ A4F client not available. Please check API configuration."
@@ -600,12 +601,29 @@ Provide a comprehensive and helpful response:"""
         "Content-Type": "application/json"
     }
     
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt}
+    ]
+    
+    if image:
+        # Convert image to base64
+        buffered = BytesIO()
+        image.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        messages.append({
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": f"data:image/png;base64,{img_str}"
+                }
+            ]
+        })
+    
     data = {
         "model": model_name,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
-        ],
+        "messages": messages,
         "temperature": 0.7,
         "max_tokens": 1500,
         "top_p": 0.9,
@@ -813,7 +831,7 @@ def call_quantora_unified(prompt, context="", image=None):
     def call_a4f_backend(model_name):
         """Internal A4F processing backend"""
         try:
-            response = call_a4f_model(prompt, model_name, context)
+            response = call_a4f_model(prompt, model_name, context, image)
             return {
                 "backend": f"a4f_{model_name}",
                 "response": response,
@@ -858,18 +876,19 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-6/claude-3-7-sonnet-20250219-thinking",
                 "provider-1/claude-sonnet-4",
                 "provider-5/gemini-2.5-flash-preview-05-20",
-                "provider-3/grok-4-0709"
-                "provider-1/sonar-pro"
-                "provider-3/qwen-2.5-coder-32b"
-                "provider-2/codestral"
-                "provider-1/sonar-deep-research"
-                "provider-1/sonar-reasoning-pro"
-                "provider-2/llama-4-maverick"
+                "provider-3/grok-4-0709",
+                "provider-1/sonar-pro",
+                "provider-3/qwen-2.5-coder-32b",
+                "provider-2/codestral",
+                "provider-1/sonar-deep-research",
+                "provider-1/sonar-reasoning-pro",
+                "provider-2/llama-4-maverick",
                 "provider-3/qwen-2.5-72b"
             ]
             for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-        else: # Quantora V2
+        
+        elif selected_model_version == "Quantora V2 (Faster but not as better as V1)":
             st.toast("⚡ Using Quantora V2 Engine...", icon="⚡")
             
             # Submit only specified A4F backends
@@ -879,6 +898,58 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-1/claude-opus-4"    # claude 4 opus
             ]
             for model in a4f_v2_models:
+                futures.append(executor.submit(call_a4f_backend, model))
+                
+        elif selected_model_version == "Quantora V3 (Code Specialized)":
+            st.toast("💻 Using Quantora V3 Code Engine...", icon="💻")
+            
+            # Code specialized models
+            code_models = [
+                "provider-6/claude-opus-4-20250514",  # Best for code
+                "provider-3/qwen-2.5-coder-32b",
+                "provider-2/codestral",
+                "provider-1/sonar-pro",
+                "provider-1/sonar-reasoning-pro"
+            ]
+            for model in code_models:
+                futures.append(executor.submit(call_a4f_backend, model))
+                
+        elif selected_model_version == "Quantora V4 (Long Conversation)":
+            st.toast("🗣️ Using Quantora V4 Conversation Engine...", icon="🗣️")
+            
+            # Long conversation models
+            conversation_models = [
+                "provider-1/gemini-2.5-pro",  # Best for long context
+                "provider-6/minimax-m1-40k",  # Good for long answers
+                "provider-1/claude-opus-4",   # Good for conversation
+                "provider-1/sonar-deep-research"  # Good for deep conversations
+            ]
+            for model in conversation_models:
+                futures.append(executor.submit(call_a4f_backend, model))
+                
+        elif selected_model_version == "Quantora V3 (Reasoning Specialized)":
+            st.toast("🧠 Using Quantora V3 Reasoning Engine...", icon="🧠")
+            
+            # Reasoning specialized models
+            reasoning_models = [
+                "provider-1/sonar-reasoning",
+                "provider-6/r1-1776",
+                "provider-1/sonar-reasoning-pro",
+                "provider-1/sonar-deep-research"
+            ]
+            for model in reasoning_models:
+                futures.append(executor.submit(call_a4f_backend, model))
+                
+        elif selected_model_version == "Quantora V3 (Math Specialized)":
+            st.toast("🧮 Using Quantora V3 Math Engine...", icon="🧮")
+            
+            # Math specialized models
+            math_models = [
+                "provider-3/qwen-2.5-72b",
+                "provider-1/gemini-2.5-pro",
+                "provider-6/minimax-m1-40k"
+            ]
+            for model in math_models:
                 futures.append(executor.submit(call_a4f_backend, model))
 
         print("⏳ Quantora is analyzing your prompt...")
@@ -891,18 +962,37 @@ def call_quantora_unified(prompt, context="", image=None):
             except Exception as e:
                 print(f"⚠️ One processing component had an issue: {str(e)}")
     
-    # Mix and synthesize the responses
+    # Mix and synthesize the responses using provider-1/gemini-2.5-pro from a4f
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
     
     if not successful_responses:
         return generate_fallback_response(prompt)
     
-    final_response = synthesize_quantora_response(successful_responses, prompt)
+    # Use gemini-2.5-pro from a4f for response mixing
+    mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt. 
+Combine them into one coherent, comprehensive response that maintains the best aspects of each.
+
+Original Prompt: {prompt}
+
+Responses to combine:
+{'\n\n'.join([f"Response from {r['backend']}:\n{r['response']}" for r in successful_responses])}
+
+Guidelines:
+1. Preserve all valuable information
+2. Remove any redundancies
+3. Maintain a professional, engaging tone
+4. Keep code blocks intact
+5. Ensure logical flow
+6. Add any missing context that would improve the answer
+
+Combined Response:"""
+    
+    final_response = call_a4f_model(mixing_prompt, "provider-1/gemini-2.5-pro")
     
     processing_time = time.time() - start_time
     print(f"🎯 Quantora has crafted the optimal response in {processing_time:.2f} seconds")
     
-    return final_response
+    return final_response if final_response else successful_responses[0]['response']
 
 def synthesize_quantora_response(responses, prompt):
     """Quantora's proprietary response synthesis algorithm"""
@@ -1223,10 +1313,17 @@ with col4:
         st.markdown("##### Select Quantora Engine")
         st.radio(
             "Engine Selection", # The label is hidden, but good for semantics
-            options=["Quantora V1 (Most Powerful Model But Slow)", "Quantora V2 (Faster but not as better as V1)"],
+            options=[
+                "Quantora V1 (Most Powerful Model But Slow)", 
+                "Quantora V2 (Faster but not as better as V1)",
+                "Quantora V3 (Code Specialized)",
+                "Quantora V4 (Long Conversation)",
+                "Quantora V3 (Reasoning Specialized)",
+                "Quantora V3 (Math Specialized)"
+            ],
             key="model_version",
             label_visibility="collapsed",
-            help="V1: Slower, most powerful model suite. V2: Faster, focused on Claude models.",
+            help="Select specialized model versions for different tasks",
         )
 
 
@@ -1235,7 +1332,7 @@ st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
     "💎 Quantora AI - Advanced AI Assistant | "
-    "Powered by Google’s Gemini, Groq Models, A4f Models | "
+    "Powered by Google's Gemini, Groq Models, A4f Models | "
     "Quantora Can Make Mistakes... "
     f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     "</div>", 
