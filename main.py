@@ -15,7 +15,6 @@ import pandas as pd
 import io
 import requests
 from io import BytesIO
-import base64
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -28,31 +27,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ===== Ultra Premium UI Styles =====
-def get_base64_of_bin_file(bin_file):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-
-def set_background(png_file):
-    bin_str = get_base64_of_bin_file(png_file)
-    page_bg_img = '''
-    <style>
-    .stApp {
-        background-image: url("data:image/png;base64,%s");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-        background-color: rgba(11, 13, 27, 0.9);
-        background-blend-mode: overlay;
-    }
-    </style>
-    ''' % bin_str
-    st.markdown(page_bg_img, unsafe_allow_html=True)
-
-# Uncomment if you have a background image
-# set_background('quantora_bg.png')
-
+# Remove "Made with Streamlit" footer and other elements
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden;}
@@ -63,380 +38,294 @@ header {visibility: hidden;}
 [data-testid="stDecoration"] {visibility: hidden;}
 .st-emotion-cache-zq5wmm {visibility: hidden;}
 
-/* ===== Quantum UI System ===== */
+/* ===== Quantora Premium UI ===== */
 :root {
-    --quantum-primary: #0a0e17;
-    --quantum-secondary: #13182b;
-    --quantum-accent: #7b61ff;
-    --quantum-accent-light: #9d8aff;
-    --quantum-accent-dark: #5a43d9;
-    --quantum-text: #f0f4ff;
-    --quantum-text-muted: #a1a8c7;
-    --quantum-text-dim: #6b728c;
-    --quantum-success: #00e676;
-    --quantum-warning: #ffc400;
-    --quantum-error: #ff3d71;
-    --quantum-glass: rgba(19, 24, 43, 0.7);
-    --quantum-glass-border: rgba(255, 255, 255, 0.1);
-    --quantum-shadow-sm: 0 1px 20px -5px rgba(123, 97, 255, 0.2);
-    --quantum-shadow-md: 0 10px 30px -10px rgba(123, 97, 255, 0.3);
-    --quantum-shadow-lg: 0 20px 50px -15px rgba(123, 97, 255, 0.4);
-    --quantum-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.12);
-    --quantum-elevation-2: 0 4px 6px rgba(0, 0, 0, 0.16);
-    --quantum-elevation-3: 0 10px 20px rgba(0, 0, 0, 0.2);
-    --quantum-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --quantum-font-mono: 'Fira Code', monospace;
+    --primary: #0f172a;
+    --primary-light: #1e293b;
+    --primary-lighter: #334155;
+    --accent: #8b5cf6;
+    --accent-light: #a78bfa;
+    --accent-dark: #7c3aed;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-@keyframes quantumPulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.05); opacity: 0.8; }
-}
-
-@keyframes quantumFadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes quantumGradient {
+@keyframes gradient {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
 
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .stApp {
-    background: linear-gradient(135deg, #0a0e17 0%, #13182b 50%, #0a0e17 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #252f3f 50%, #1e293b 75%, #0f172a 100%);
     background-size: 400% 400%;
-    animation: quantumGradient 15s ease infinite;
-    color: var(--quantum-text);
-    font-family: var(--quantum-font-sans);
+    animation: gradient 20s ease infinite;
+    color: var(--text);
+    font-family: var(--font-sans);
 }
 
-/* Quantum Header */
-.quantum-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 0;
-    margin-bottom: 1.5rem;
-    border-bottom: 1px solid var(--quantum-glass-border);
+/* Header styling */
+.main-header {
+    text-align: center;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    position: relative;
 }
 
-.logo-container {
+.logo {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.logo:hover {
+    transform: translateY(-2px);
 }
 
 .logo-icon {
-    width: 42px;
-    height: 42px;
-    background: linear-gradient(135deg, var(--quantum-accent), var(--quantum-accent-light));
-    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: var(--quantum-shadow-sm);
-    animation: quantumPulse 3s ease-in-out infinite;
+    box-shadow: var(--shadow-md);
+    animation: pulse 3s ease-in-out infinite;
 }
 
 .logo-text {
-    font-size: 1.8rem;
+    font-size: 2.5rem;
     font-weight: 800;
-    background: linear-gradient(135deg, #f0f4ff, #9d8aff, #7b61ff);
+    background: linear-gradient(135deg, #f8fafc, #a78bfa, #60a5fa);
+    background-size: 200% 200%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    letter-spacing: -0.5px;
+    letter-spacing: 0.05em;
+    animation: gradient 5s ease infinite;
 }
 
 .status-indicator {
-    width: 10px;
-    height: 10px;
-    background: var(--quantum-success);
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 12px;
+    height: 12px;
+    background: var(--success);
     border-radius: 50%;
-    margin-left: 0.5rem;
-    box-shadow: 0 0 10px var(--quantum-success);
-    animation: quantumPulse 2s infinite;
+    border: 2px solid var(--primary);
+    animation: pulse 2s infinite;
 }
 
-/* Quantum Chat Messages */
-.quantum-message {
-    padding: 1.25rem;
+/* Chat message styling */
+.chat-message {
+    padding: 1.5rem;
     margin: 1rem 0;
     border-radius: 16px;
-    background: var(--quantum-glass);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--quantum-glass-border);
-    box-shadow: var(--quantum-shadow-sm);
-    animation: quantumFadeIn 0.4s ease-out forwards;
+    background: var(--primary-light);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow-md);
     position: relative;
     overflow: hidden;
+    backdrop-filter: blur(10px);
+    animation: fadeIn 0.6s ease-out forwards;
 }
 
-.quantum-message::before {
+.chat-message::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, rgba(123, 97, 255, 0.05) 0%, rgba(97, 123, 255, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
     z-index: -1;
 }
 
 .user-message {
-    background: rgba(123, 97, 255, 0.15);
-    border-color: rgba(123, 97, 255, 0.3);
-    margin-left: 15%;
-    border-top-right-radius: 4px;
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.3);
 }
 
 .ai-message {
-    background: rgba(19, 24, 43, 0.8);
-    border-color: rgba(97, 123, 255, 0.3);
-    margin-right: 15%;
-    border-top-left-radius: 4px;
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.3);
 }
 
 .message-header {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
     display: flex;
     align-items: center;
-    margin-bottom: 0.75rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--quantum-text-muted);
+    gap: 0.5rem;
 }
 
 .user-message .message-header {
-    color: var(--quantum-accent-light);
+    color: #a78bfa;
 }
 
 .ai-message .message-header {
     color: #7dd3fc;
 }
 
-.message-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    margin-right: 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-    font-weight: bold;
-}
-
-.user-avatar {
-    background: linear-gradient(135deg, var(--quantum-accent), var(--quantum-accent-dark));
-    color: white;
-}
-
-.ai-avatar {
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    color: white;
-}
-
 .message-time {
-    font-size: 0.7rem;
-    color: var(--quantum-text-dim);
+    font-size: 0.75rem;
+    color: var(--text-dim);
     margin-left: auto;
-    opacity: 0.8;
 }
 
-.message-content {
-    line-height: 1.6;
-    font-size: 0.95rem;
-}
-
-/* Quantum Input Area */
-.quantum-input-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--quantum-secondary);
-    padding: 1rem;
-    box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.3);
-    z-index: 100;
+/* Input area styling */
+.input-container {
+    position: relative;
+    margin-top: 2rem;
 }
 
 .input-wrapper {
     position: relative;
-    border-radius: 16px;
-    background: rgba(30, 33, 50, 0.8) !important;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.9) !important;
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.1);
     transition: all 0.3s ease;
     overflow: hidden;
 }
 
 .input-wrapper:focus-within {
-    border-color: var(--quantum-accent);
-    box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.2);
+    border-color: rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
 }
 
 .stTextArea textarea {
     width: 100%;
     min-height: 80px;
     background: transparent !important;
-    border: none !important;
+    border: none;
     padding: 1.25rem 1.5rem;
-    color: var(--quantum-text) !important;
+    color: #000000 !important;
     font-size: 0.95rem;
-    font-family: var(--quantum-font-sans);
+    font-family: inherit;
     resize: none;
     line-height: 1.5;
-    outline: none !important;
+    outline: none;
 }
 
 .stTextArea textarea::placeholder {
-    color: var(--quantum-text-dim) !important;
-    opacity: 0.7;
+    color: #666666 !important;
 }
 
 .stButton button {
-    background: linear-gradient(135deg, var(--quantum-accent), var(--quantum-accent-light));
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
     color: white;
     border: none;
     border-radius: 12px;
     padding: 0.75rem 1.5rem;
     font-weight: 600;
     transition: all 0.3s ease;
-    box-shadow: var(--quantum-shadow-sm);
-    width: 100%;
+    box-shadow: var(--shadow-sm);
 }
 
 .stButton button:hover {
-    background: linear-gradient(135deg, var(--quantum-accent-dark), var(--quantum-accent));
+    background: linear-gradient(135deg, var(--accent-dark), var(--accent));
     transform: translateY(-2px);
-    box-shadow: var(--quantum-shadow-md);
+    box-shadow: var(--shadow-md);
 }
 
-/* Quantum Feature Cards */
-.feature-grid {
+/* Welcome message */
+.welcome-container {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 20px;
+    padding: 2rem;
+    margin: 2rem auto;
+    max-width: 800px;
+    text-align: center;
+    animation: fadeIn 0.8s ease-out;
+}
+
+.welcome-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #f8fafc, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.welcome-features {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
     margin: 2rem 0;
 }
 
 .feature-card {
-    background: var(--quantum-glass);
-    border: 1px solid var(--quantum-glass-border);
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     padding: 1.5rem;
     transition: all 0.3s ease;
-    cursor: pointer;
 }
 
 .feature-card:hover {
     transform: translateY(-5px);
-    background: rgba(30, 33, 50, 0.9);
-    border-color: var(--quantum-accent);
-    box-shadow: var(--quantum-shadow-md);
+    background: rgba(30, 41, 59, 0.8);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-lg);
 }
 
 .feature-icon {
-    font-size: 1.8rem;
-    margin-bottom: 1rem;
-    background: linear-gradient(135deg, var(--quantum-accent), var(--quantum-accent-light));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--accent);
 }
 
-/* Quantum Welcome Screen */
-.welcome-container {
-    background: linear-gradient(135deg, rgba(123, 97, 255, 0.1), rgba(59, 130, 246, 0.1));
-    border: 1px solid var(--quantum-glass-border);
-    border-radius: 20px;
-    padding: 2.5rem;
-    margin: 2rem auto;
-    max-width: 800px;
-    text-align: center;
-    backdrop-filter: blur(10px);
-    animation: quantumFadeIn 0.8s ease-out;
+/* Image enhancement controls */
+.enhancement-controls {
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 1rem 0;
 }
 
-.welcome-title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 1.5rem;
-    background: linear-gradient(135deg, #f0f4ff, #9d8aff, #7b61ff);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+.enhancement-slider {
+    margin: 0.5rem 0;
 }
 
-/* Quantum Code Blocks */
-code {
-    font-family: var(--quantum-font-mono);
-    background: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 0.2em 0.4em;
-    font-size: 0.9em;
-}
-
-pre {
-    background: rgba(11, 13, 27, 0.8) !important;
-    border: 1px solid rgba(123, 97, 255, 0.2) !important;
-    border-radius: 8px !important;
-    padding: 1rem !important;
-    overflow-x: auto;
-    font-family: var(--quantum-font-mono) !important;
-    line-height: 1.5 !important;
-}
-
-/* Quantum Tooltips */
-.tooltip {
-    position: relative;
-    display: inline-block;
-    border-bottom: 1px dotted var(--quantum-text-dim);
-}
-
-.tooltip .tooltiptext {
-    visibility: hidden;
-    width: 200px;
-    background-color: var(--quantum-secondary);
-    color: var(--quantum-text);
-    text-align: center;
-    border-radius: 6px;
-    padding: 0.5rem;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    margin-left: -100px;
-    opacity: 0;
-    transition: opacity 0.3s;
-    font-size: 0.8rem;
-    border: 1px solid var(--quantum-glass-border);
-    box-shadow: var(--quantum-shadow-md);
-}
-
-.tooltip:hover .tooltiptext {
-    visibility: visible;
-    opacity: 1;
-}
-
-/* Responsive Adjustments */
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .logo-text {
-        font-size: 1.5rem;
+        font-size: 1.8rem;
     }
     
-    .quantum-message {
+    .chat-message {
         padding: 1rem;
-        margin-left: 5% !important;
-        margin-right: 5% !important;
     }
     
     .welcome-container {
         padding: 1.5rem;
-    }
-    
-    .feature-grid {
-        grid-template-columns: 1fr;
     }
 }
 </style>
@@ -881,6 +770,7 @@ def call_quantora_unified(prompt, context="", image=None):
     """
     Quantora - A powerful unified AI model that processes requests intelligently
     by leveraging multiple AI backends and synthesizing the best response.
+    Switches between V1 (full power) and V2 (faster) modes.
     """
     start_time = time.time()
     
@@ -940,21 +830,19 @@ def call_quantora_unified(prompt, context="", image=None):
     
     backend_results = []
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
         
         selected_model_version = st.session_state.get("model_version", "Quantora V1 (Most Powerful Model But Slow)")
 
-        # Submit Gemini backend for all versions
+        # Submit Gemini backend for both versions
         futures.append(executor.submit(call_gemini_backend))
         
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
-            st.toast("🚀 Using Quantora V1 Engine (Full Power Mode)...", icon="🚀")
+            st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
             
             # Submit Groq backends
-            groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", 
-                          "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct",
-                          "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
+            groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
             
@@ -970,78 +858,38 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-6/claude-3-7-sonnet-20250219-thinking",
                 "provider-1/claude-sonnet-4",
                 "provider-5/gemini-2.5-flash-preview-05-20",
-                "provider-3/grok-4-0709",
-                "provider-1/sonar-pro",
-                "provider-3/qwen-2.5-coder-32b",
-                "provider-2/codestral",
-                "provider-1/sonar-deep-research",
-                "provider-1/sonar-reasoning-pro",
-                "provider-2/llama-4-maverick",
-                "provider-3/qwen-2.5-72b",
-                # Answer mixing models
-                "provider-6/minimax-m1-40k",
-                "provider-6/gpt-4.1"
+                "provider-3/grok-4-0709"
+                "provider-1/sonar-pro"
+                "provider-3/qwen-2.5-coder-32b"
+                "provider-2/codestral"
+                "provider-1/sonar-deep-research"
+                "provider-1/sonar-reasoning-pro"
+                "provider-2/llama-4-maverick"
+                "provider-3/qwen-2.5-72b"
             ]
             for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-                
-        elif selected_model_version == "Quantora V2 (Faster but not as better as V1)":
-            st.toast("⚡ Using Quantora V2 Engine (Balanced Mode)...", icon="⚡")
+        else: # Quantora V2
+            st.toast("⚡ Using Quantora V2 Engine...", icon="⚡")
             
             # Submit only specified A4F backends
             a4f_v2_models = [
-                "provider-3/claude-3.5-haiku",
-                "provider-1/claude-sonnet-4",
-                "provider-1/claude-opus-4",
-                "provider-6/minimax-m1-40k"
+                "provider-3/claude-3.5-haiku",                  # claude 3.5 haiku
+                "provider-1/claude-sonnet-4", # claude 4 sonnet
+                "provider-1/claude-opus-4"    # claude 4 opus
             ]
             for model in a4f_v2_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-                
-        elif selected_model_version == "Quantora V3 (Complex Reasoning & Math)":
-            st.toast("🧮 Using Quantora V3 Engine (Math & Reasoning Mode)...", icon="🧮")
-            
-            # Submit specialized reasoning models
-            a4f_v3_models = [
-                "provider-6/o3-high",
-                "provider-3/gemini-2.5-flash",
-                "provider-6/llama-4-maverick",
-                "provider-3/qwen-3-235b-a22b-2507",
-                "provider-3/deepseek-v3-0324",
-                "provider-1/sonar-reasoning-pro",
-                "provider-1/sonar-reasoning",
-                "provider-1/deepseek-r1-0528",
-                "provider-6/minimax-m1-40k"
-            ]
-            for model in a4f_v3_models:
-                futures.append(executor.submit(call_a4f_backend, model))
-                
-        elif selected_model_version == "Quantora V4 (Advanced Coding)":
-            st.toast("💻 Using Quantora V4 Engine (Coding Mode)...", icon="💻")
-            
-            # Submit specialized coding models
-            a4f_v4_models = [
-                "provider-2/llama-4-maverick",
-                "provider-3/qwen-2.5-72b",
-                "provider-2/codestral",
-                "provider-6/qwen3-coder-480b-a35b",
-                "provider-3/grok-4-0709",
-                "provider-6/claude-sonnet-4-20250514",
-                "provider-6/claude-opus-4-20250514",
-                "provider-6/minimax-m1-40k"
-            ]
-            for model in a4f_v4_models:
-                futures.append(executor.submit(call_a4f_backend, model))
 
-        print("⏳ Quantora is analyzing your prompt with multiple expert models...")
+        print("⏳ Quantora is analyzing your prompt...")
         
         for future in concurrent.futures.as_completed(futures):
             try:
                 result = future.result()
                 backend_results.append(result)
-                print(f"✅ {result['backend']} processing completed")
+                print(f"✅ Processing component completed successfully")
             except Exception as e:
-                print(f"⚠️ {result['backend']} had an issue: {str(e)}")
+                print(f"⚠️ One processing component had an issue: {str(e)}")
     
     # Mix and synthesize the responses
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
@@ -1061,40 +909,23 @@ def synthesize_quantora_response(responses, prompt):
     if len(responses) == 1:
         return responses[0]['response']
     
-    # Sort by length and preferred backends
     responses.sort(key=lambda x: (
         x['length'],
-        'minimax' in x['backend'].lower(),
-        'gpt-4.1' in x['backend'].lower(),
         'gemini' in x['backend'].lower(),
-        'claude' in x['backend'].lower(),
-        'groq' in x['backend'].lower()
+        x['success']
     ), reverse=True)
     
-    # Get top 3 responses for potential blending
-    top_responses = responses[:3]
+    best_response = responses[0]['response']
     
-    # Special handling for code-related queries
-    if any(word in prompt.lower() for word in ['code', 'program', 'script', 'function']):
-        coding_models = [r for r in top_responses if any(m in r['backend'].lower() for m in ['codestral', 'coder', 'grok'])]
-        if coding_models:
-            return coding_models[0]['response']
+    if len(responses) >= 2:
+        primary_response = responses[0]['response']
+        secondary_response = responses[1]['response']
+        
+        if len(primary_response) > 100 and len(secondary_response) > 100:
+            if should_blend_responses(primary_response, secondary_response):
+                return blend_responses(primary_response, secondary_response)
     
-    # Special handling for math/reasoning queries
-    if any(word in prompt.lower() for word in ['math', 'calculate', 'solve', 'equation', 'reasoning']):
-        math_models = [r for r in top_responses if any(m in r['backend'].lower() for m in ['sonar-reasoning', 'deepseek', 'o3-high'])]
-        if math_models:
-            return math_models[0]['response']
-    
-    # Default blending strategy
-    primary_response = top_responses[0]['response']
-    secondary_response = top_responses[1]['response']
-    
-    if len(primary_response) > 100 and len(secondary_response) > 100:
-        if should_blend_responses(primary_response, secondary_response):
-            return blend_responses(primary_response, secondary_response)
-    
-    return primary_response
+    return best_response
 
 def should_blend_responses(response1, response2):
     """Determine if responses should be blended"""
@@ -1103,10 +934,7 @@ def should_blend_responses(response1, response2):
 
 def blend_responses(primary, secondary):
     """Intelligently blend two responses"""
-    # Simple blending - take the first 60% of primary and last 40% of secondary
-    blend_point = int(len(primary) * 0.6)
-    blended = primary[:blend_point] + "\n\n" + secondary[int(len(secondary)*0.4):]
-    return blended
+    return primary
 
 def generate_fallback_response(prompt):
     """Generate a fallback response"""
@@ -1154,76 +982,39 @@ elif 18 <= hour < 24:
 else:
     greeting = "🌌 Good Night!"
 
-# ✅ Quantum Header with Logo and Status
+# ✅ Header with Quantora branding
 st.markdown(f"""
-<div class="quantum-header">
-    <div class="logo-container">
+<div class="main-header">
+    <div class="logo">
         <div class="logo-icon">💎</div>
         <div class="logo-text">Quantora</div>
         <div class="status-indicator"></div>
     </div>
-    <div style="color: var(--quantum-text-muted); font-size: 0.9rem;">
-        {greeting} Your Premium AI Assistant • v2.5
-    </div>
+    <div style="color: var(--text-muted);">{greeting} Your Premium AI Assistant</div>
 </div>
 """, unsafe_allow_html=True)
 
-# Initialize session state variables
-if "chat" not in st.session_state:
-    st.session_state.chat = []
-if "uploaded_content" not in st.session_state:
-    st.session_state.uploaded_content = ""
-if "last_response_time" not in st.session_state:
-    st.session_state.last_response_time = 0
-if "uploaded_image" not in st.session_state:
-    st.session_state.uploaded_image = None
-if "enhanced_image" not in st.session_state:
-    st.session_state.enhanced_image = None
-if "enhancement_values" not in st.session_state:
-    st.session_state.enhancement_values = {
-        "brightness": 1.0,
-        "contrast": 1.0,
-        "sharpness": 1.0,
-        "color": 1.0
-    }
-
-# ✅ Sidebar for File Upload and Settings
+# ✅ Sidebar for File Upload and Image Enhancement
 with st.sidebar:
-    st.markdown("### ⚙️ Settings & Tools")
+    st.markdown("### 📁 Document & Image Analysis")
+    uploaded_file = st.file_uploader(
+        "Upload Document or Image", 
+        type=['txt', 'pdf', 'docx', 'csv', 'json', 'py', 'js', 'html', 'css', 'md', 'jpg', 'jpeg', 'png'],
+        help="Upload documents or images for AI analysis and enhancement"
+    )
     
-    with st.expander("🔧 Model Configuration", expanded=True):
-        st.radio(
-            "Select Engine Version",
-            options=[
-                "Quantora V1 (Most Powerful Model But Slow)", 
-                "Quantora V2 (Faster but not as better as V1)",
-                "Quantora V3 (Complex Reasoning & Math)",
-                "Quantora V4 (Advanced Coding)"
-            ],
-            key="model_version",
-            help="V1: Full power, V2: Balanced, V3: Math/Logic, V4: Coding"
-        )
-    
-    with st.expander("📁 Document Analysis", expanded=True):
-        uploaded_file = st.file_uploader(
-            "Upload Document or Image", 
-            type=['txt', 'pdf', 'docx', 'csv', 'json', 'py', 'js', 'html', 'css', 'md', 'jpg', 'jpeg', 'png'],
-            help="Upload documents or images for AI analysis and enhancement",
-            label_visibility="collapsed"
-        )
-        
-        if uploaded_file:
-            with st.spinner("🔍 Analyzing content..."):
-                content = process_uploaded_file(uploaded_file)
-                st.session_state.uploaded_content = content
-                st.success(f"✅ {uploaded_file.name} processed!")
-                
-                if uploaded_file.type.startswith('image/'):
-                    display_image_enhancement_controls()
-                else:
-                    with st.expander("📄 Preview Content"):
-                        preview_content = content[:1000] + "..." if len(content) > 1000 else content
-                        st.text_area("Document Content", preview_content, height=200, disabled=True, label_visibility="collapsed")
+    if uploaded_file:
+        with st.spinner("🔍 Analyzing content..."):
+            content = process_uploaded_file(uploaded_file)
+            st.session_state.uploaded_content = content
+            st.success(f"✅ {uploaded_file.name} processed!")
+            
+            if uploaded_file.type.startswith('image/'):
+                display_image_enhancement_controls()
+            else:
+                with st.expander("📄 Preview Content"):
+                    preview_content = content[:1000] + "..." if len(content) > 1000 else content
+                    st.text_area("Document Content", preview_content, height=200, disabled=True)
 
     if st.button("🗑️ Clear Uploads", use_container_width=True):
         st.session_state.uploaded_content = ""
@@ -1237,65 +1028,52 @@ if not st.session_state.chat:
     with st.container():
         st.markdown("""
         <div class="welcome-container">
-            <div class="welcome-title">✨ Welcome to Quantora AI Elite</div>
-            <p style="color: var(--quantum-text-muted);">Your advanced AI assistant powered by cutting-edge models</p>
+            <div class="welcome-title">🤖 Welcome to Quantora AI</div>
+            <p>Your advanced AI assistant powered by cutting-edge answers</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Feature cards
-        st.markdown('<div class="feature-grid">', unsafe_allow_html=True)
+        # Feature cards in columns
+        col1, col2, col3, col4 = st.columns(4)
         
-        # Feature 1
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">🚀</div>
-            <strong>Multi-Model Intelligence</strong>
-            <p style="color: var(--quantum-text-muted); font-size: 0.9rem;">
-                Combines Gemini, Claude, GPT, and specialized models for optimal responses
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        with col1:
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-icon">🚀</div>
+                <strong>Advanced Answers</strong>
+                <p>Detailed explanations for complex questions</p>
+            </div>
+            """, unsafe_allow_html=True)
         
-        # Feature 2
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">🧠</div>
-            <strong>Advanced Reasoning</strong>
-            <p style="color: var(--quantum-text-muted); font-size: 0.9rem;">
-                Specialized modes for complex math, logic, and problem solving
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        with col2:
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-icon">📄</div>
+                <strong>Document Analysis</strong>
+                <p>Process PDFs, DOCX, CSV and more</p>
+            </div>
+            """, unsafe_allow_html=True)
         
-        # Feature 3
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">💻</div>
-            <strong>Code Expert</strong>
-            <p style="color: var(--quantum-text-muted); font-size: 0.9rem;">
-                Full code implementations with debugging and optimization
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        with col3:
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-icon">🖼️</div>
+                <strong>Image Enhancement</strong>
+                <p>Adjust brightness, contrast, and more</p>
+            </div>
+            """, unsafe_allow_html=True)
         
-        # Feature 4
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">🖼️</div>
-            <strong>Image Analysis</strong>
-            <p style="color: var(--quantum-text-muted); font-size: 0.9rem;">
-                Process and enhance images with AI-powered tools
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        with col4:
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-icon">💻</div>
+                <strong>Full Code Support</strong>
+                <p>Complete code implementations</p>
+            </div>
+            """, unsafe_allow_html=True)
         
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown("""
-        <p style="text-align: center; color: var(--quantum-text-muted); margin-top: 2rem;">
-            <strong>What would you like to explore today?</strong>
-        </p>
-        """, unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>What would you like to explore today?</strong></p>", 
+                    unsafe_allow_html=True)
 
 # ✅ Display Chat History
 for i, chat_item in enumerate(st.session_state.chat):
@@ -1305,13 +1083,12 @@ for i, chat_item in enumerate(st.session_state.chat):
         
         if speaker == "user":
             st.markdown(f"""
-            <div class="quantum-message user-message">
+            <div class="chat-message user-message">
                 <div class="message-header">
-                    <div class="message-avatar user-avatar">Y</div>
-                    <strong>You</strong>
+                    👤 <strong>You</strong>
                     <span class="message-time">{timestamp.strftime('%H:%M:%S')}</span>
                 </div>
-                <div class="message-content">{message}</div>
+                <div>{message}</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1319,13 +1096,11 @@ for i, chat_item in enumerate(st.session_state.chat):
             formatted_parts = format_response_with_code(message)
             
             st.markdown(f"""
-            <div class="quantum-message ai-message">
+            <div class="chat-message ai-message">
                 <div class="message-header">
-                    <div class="message-avatar ai-avatar">Q</div>
-                    <strong>Quantora</strong>
+                    💎 <strong>Quantora</strong>
                     <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
                 </div>
-                <div class="message-content">
             """, unsafe_allow_html=True)
             
             for part in formatted_parts:
@@ -1334,13 +1109,10 @@ for i, chat_item in enumerate(st.session_state.chat):
                 elif part[0] == 'code':
                     st.code(part[1], language=part[2])
             
-            st.markdown("""
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
 # ✅ Input Interface
-st.markdown('<div class="quantum-input-container">', unsafe_allow_html=True)
+st.markdown("---")
 col1, col2 = st.columns([0.85, 0.15])
 
 with col1:
@@ -1356,8 +1128,6 @@ with col2:
     st.write("")  # Spacing
     send_button = st.button("💬 Send", use_container_width=True, type="primary")
 
-st.markdown('</div>', unsafe_allow_html=True)
-
 # ✅ Process User Input
 if send_button and user_input.strip():
     start_time = time.time()
@@ -1366,7 +1136,7 @@ if send_button and user_input.strip():
     st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
     
     # Get AI response
-    with st.spinner("🤖 Quantora is thinking..."):
+    with st.spinner("🤖 Processing your request..."):
         context = st.session_state.uploaded_content
         image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
         response = call_quantora_unified(user_input.strip(), context, image)
@@ -1394,26 +1164,26 @@ if st.session_state.chat:
         max_time = max(response_times)
         
         st.markdown(f"""
-        <div style="background: var(--quantum-glass); border-radius: 12px; padding: 1rem; margin: 1rem 0; text-align: center; border: 1px solid var(--quantum-glass-border);">
+        <div style="background: rgba(30, 41, 59, 0.6); border-radius: 12px; padding: 1rem; margin: 1rem 0; text-align: center;">
             📊 <strong>Performance Metrics:</strong> 
             Avg: <strong>{avg_time:.1f}s</strong> • 
             Fastest: <strong>{min_time:.1f}s</strong> • 
             Slowest: <strong>{max_time:.1f}s</strong> • 
-            Total: <strong>{len(response_times)}</strong> responses
+            Total: <strong>{len(response_times)}</strong>
         </div>
         """, unsafe_allow_html=True)
 
-# ✅ Action Buttons
-col1, col2, col3 = st.columns([0.3, 0.3, 0.4])
+# ✅ Action Buttons & Model Selection
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    if st.button("🗑️ Clear Chat", use_container_width=True, help="Clear the conversation history"):
+    if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.chat = []
         st.success("✅ Chat cleared!")
         st.rerun()
 
 with col2:
-    if st.button("📊 Export Chat", use_container_width=True, help="Export conversation as JSON"):
+    if st.button("📊 Export Chat", use_container_width=True):
         if st.session_state.chat:
             chat_data = []
             for item in st.session_state.chat:
@@ -1426,33 +1196,48 @@ with col2:
             
             chat_json = json.dumps(chat_data, indent=2, default=str)
             st.download_button(
-                label="💾 Download Chat",
+                label="💾 Download Chat JSON",
                 data=chat_json,
                 file_name=f"quantora_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json",
-                use_container_width=True
+                mime="application/json"
             )
         else:
             st.info("No chat history to export")
 
 with col3:
-    if st.button("ℹ️ About Quantora", use_container_width=True, help="Learn about this AI assistant"):
+    if st.button("ℹ️ About", use_container_width=True):
         st.info("""
-        **Quantora AI Elite** v2.5  
-        *The most advanced AI assistant*  
+        **Quantora AI Elite** v2.4
         
         Features:
-        - Multi-model intelligence (Gemini, Claude, GPT, and more)
-        - Specialized modes for coding, math, and reasoning
-        - Document analysis (PDF, DOCX, CSV, images)
-        - Response blending from multiple expert models
-        - Professional-grade output with code formatting
+        ✅ Document analysis
+        ✅ Image enhancement
+        ✅ Code formatting (always full code)
+        ✅ Performance metrics
+        ✅ Enhanced response quality
         """)
 
+# THIS IS THE NEW CUSTOM BUTTON
+with col4:
+    with st.popover("⚙️ Select Model", use_container_width=True):
+        st.markdown("##### Select Quantora Engine")
+        st.radio(
+            "Engine Selection", # The label is hidden, but good for semantics
+            options=["Quantora V1 (Most Powerful Model But Slow)", "Quantora V2 (Faster but not as better as V1)"],
+            key="model_version",
+            label_visibility="collapsed",
+            help="V1: Slower, most powerful model suite. V2: Faster, focused on Claude models.",
+        )
+
+
 # ✅ Footer
-st.markdown("""
-<div style="text-align: center; color: var(--quantum-text-dim); font-size: 0.8rem; margin-top: 2rem;">
-    💎 Quantora AI Elite | Powered by Gemini, A4F, and Groq models | Quantora can make mistakes... |
-    Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-</div>
-""", unsafe_allow_html=True)
+st.markdown("---")
+st.markdown(
+    "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
+    "💎 Quantora AI - Advanced AI Assistant | "
+    "Powered by Google’s Gemini, Groq Models, A4f Models | "
+    "Quantora Can Make Mistakes... "
+    f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    "</div>", 
+    unsafe_allow_html=True
+)
