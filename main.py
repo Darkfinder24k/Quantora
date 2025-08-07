@@ -1,7 +1,6 @@
 import streamlit as st
-import google
 import google.generativeai as genai
-import datetime
+from google.generativeai import types
 from datetime import datetime
 import time
 import os
@@ -17,28 +16,23 @@ import io
 import requests
 from io import BytesIO
 import base64
-import google.generativeai as genai
-from google.generativeai import types
-
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
-
-# Image and Video Generation API Config
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 A4F_BASE_URL = "https://api.a4f.co/v1"
 IMAGE_MODEL = "provider-4/imagen-4"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
-# ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
+# ✅ Page Setup
 st.set_page_config(
     page_title="💎 Quantora AI Elite",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Remove "Made with Streamlit" footer and other elements
+# Custom CSS
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden;}
@@ -49,7 +43,7 @@ header {visibility: hidden;}
 [data-testid="stDecoration"] {visibility: hidden;}
 .st-emotion-cache-zq5wmm {visibility: hidden;}
 
-/* ===== Quantora Premium UI ===== */
+/* Quantora Premium UI */
 :root {
     --primary: #0f172a;
     --primary-light: #1e293b;
@@ -86,6 +80,12 @@ header {visibility: hidden;}
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
 .stApp {
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #252f3f 50%, #1e293b 75%, #0f172a 100%);
     background-size: 400% 400%;
@@ -94,7 +94,6 @@ header {visibility: hidden;}
     font-family: var(--font-sans);
 }
 
-/* Header styling */
 .main-header {
     text-align: center;
     padding: 2rem 0;
@@ -151,7 +150,6 @@ header {visibility: hidden;}
     animation: pulse 2s infinite;
 }
 
-/* Chat message styling */
 .chat-message {
     padding: 1.5rem;
     margin: 1rem 0;
@@ -208,7 +206,6 @@ header {visibility: hidden;}
     margin-left: auto;
 }
 
-/* Input area styling */
 .input-container {
     position: relative;
     margin-top: 2rem;
@@ -264,7 +261,6 @@ header {visibility: hidden;}
     box-shadow: var(--shadow-md);
 }
 
-/* Welcome message */
 .welcome-container {
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
     border: 1px solid rgba(139, 92, 246, 0.3);
@@ -313,7 +309,6 @@ header {visibility: hidden;}
     color: var(--accent);
 }
 
-/* Image enhancement controls */
 .enhancement-controls {
     background: rgba(30, 41, 59, 0.8);
     border-radius: 12px;
@@ -323,13 +318,6 @@ header {visibility: hidden;}
 
 .enhancement-slider {
     margin: 0.5rem 0;
-}
-
-/* Creative Studio Styles */
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
 }
 
 .generated-image {
@@ -349,7 +337,6 @@ header {visibility: hidden;}
     animation: float 6s ease-in-out infinite;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
     .logo-text {
         font-size: 1.8rem;
@@ -394,22 +381,18 @@ if "image_style" not in st.session_state:
 if "video_style" not in st.session_state:
     st.session_state.video_style = "Cinematic"
 
-# ✅ API Configuration
+# Initialize API clients
 @st.cache_resource
 def initialize_clients():
-    """Initialize API clients with proper error handling"""
     try:
-        # Get API keys from environment variables or Streamlit secrets
         gemini_api_key = st.secrets.get("GEMINI_API_KEY", "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
         groq_api_key = st.secrets.get("GROQ_API_KEY", "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE")
         a4f_api_key = st.secrets.get("A4F_API_KEY", "ddc-a4f-b752e3e2936149f49b1b306953e0eaab")
         
-        # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
         
-        # Initialize A4F client (using requests library)
         a4f_client = {
             "api_key": a4f_api_key,
             "api_url": "https://api.a4f.co/v1/chat/completions"
@@ -420,12 +403,10 @@ def initialize_clients():
         st.error(f"API Configuration Error: {e}")
         return None, None, None
 
-# Initialize clients
 gemini_model, groq_client, a4f_client = initialize_clients()
 
-# ✅ Document Analysis Functions
+# Document Analysis Functions
 def extract_pdf_content(file):
-    """Extract text content from PDF"""
     try:
         pdf_reader = PdfReader(file)
         content = ""
@@ -436,7 +417,6 @@ def extract_pdf_content(file):
         return f"Error reading PDF: {e}"
 
 def extract_docx_content(file):
-    """Extract text content from DOCX"""
     try:
         doc = docx.Document(file)
         content = ""
@@ -447,7 +427,6 @@ def extract_docx_content(file):
         return f"Error reading DOCX: {e}"
 
 def extract_csv_content(file):
-    """Extract and summarize CSV content"""
     try:
         df = pd.read_csv(file)
         content = f"CSV File Analysis:\n"
@@ -462,7 +441,6 @@ def extract_csv_content(file):
         return f"Error reading CSV: {e}"
 
 def process_uploaded_file(uploaded_file):
-    """Process different file types and extract content"""
     if uploaded_file is None:
         return ""
     
@@ -479,7 +457,6 @@ def process_uploaded_file(uploaded_file):
             content = uploaded_file.read().decode('utf-8')
             return f"File: {uploaded_file.name}\nContent:\n{content}"
         elif file_type in ['jpg', 'jpeg', 'png']:
-            # Store the uploaded image
             st.session_state.uploaded_image = Image.open(uploaded_file)
             st.session_state.enhanced_image = st.session_state.uploaded_image.copy()
             return f"Image: {uploaded_file.name} uploaded for enhancement"
@@ -488,9 +465,8 @@ def process_uploaded_file(uploaded_file):
     except Exception as e:
         return f"Error processing file: {e}"
 
-# ✅ Image Enhancement Functions
+# Image Enhancement Functions
 def enhance_image(image, brightness=1.0, contrast=1.0, sharpness=1.0, color=1.0):
-    """Apply enhancements to an image"""
     try:
         enhancers = {
             'brightness': ImageEnhance.Brightness(image),
@@ -510,7 +486,6 @@ def enhance_image(image, brightness=1.0, contrast=1.0, sharpness=1.0, color=1.0)
         return image
 
 def apply_image_filters(image, filter_type):
-    """Apply specific filters to an image"""
     try:
         if filter_type == 'blur':
             return image.filter(ImageFilter.BLUR)
@@ -532,82 +507,74 @@ def apply_image_filters(image, filter_type):
         st.error(f"Error applying filter: {e}")
         return image
 
-def display_image_enhancement_controls():
-    """Display controls for image enhancement"""
-    if st.session_state.uploaded_image:
-        with st.expander("🖼️ Image Enhancement Tools", expanded=True):
-            st.markdown("### Adjust Image Parameters")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                brightness = st.slider("Brightness", 0.0, 2.0, 
-                                       st.session_state.enhancement_values["brightness"], 0.1)
-                contrast = st.slider("Contrast", 0.0, 2.0, 
-                                     st.session_state.enhancement_values["contrast"], 0.1)
-            
-            with col2:
-                sharpness = st.slider("Sharpness", 0.0, 2.0, 
-                                      st.session_state.enhancement_values["sharpness"], 0.1)
-                color = st.slider("Color", 0.0, 2.0, 
-                                  st.session_state.enhancement_values["color"], 0.1)
-            
-            # Update enhancement values
-            st.session_state.enhancement_values = {
-                "brightness": brightness,
-                "contrast": contrast,
-                "sharpness": sharpness,
-                "color": color
-            }
-            
-            # Apply enhancements
-            st.session_state.enhanced_image = enhance_image(
-                st.session_state.uploaded_image,
-                brightness,
-                contrast,
-                sharpness,
-                color
-            )
-            
-            # Display filters
-            st.markdown("### Apply Filters")
-            filter_options = ['None', 'blur', 'contour', 'detail', 'edge_enhance', 'emboss', 'sharpen', 'smooth']
-            selected_filter = st.selectbox("Choose a filter", filter_options)
-            
-            if selected_filter != 'None':
-                st.session_state.enhanced_image = apply_image_filters(
-                    st.session_state.enhanced_image,
-                    selected_filter
-                )
-            
-            # Display images side by side
-            col1, col2 = st.columns(2)
-            with col1:
-                st.image(st.session_state.uploaded_image, caption="Original Image", use_column_width=True)
-            with col2:
-                st.image(st.session_state.enhanced_image, caption="Enhanced Image", use_column_width=True)
-            
-            # Download button
-            buffered = BytesIO()
-            st.session_state.enhanced_image.save(buffered, format="PNG")
-            st.download_button(
-                label="💾 Download Enhanced Image",
-                data=buffered.getvalue(),
-                file_name="enhanced_image.png",
-                mime="image/png"
-            )
-
-# ✅ Enhanced A4F Model Call
-def call_a4f_model(prompt, model_name, context="", image=None):
-    """Enhanced A4F model calls with better parameters for quality responses"""
-    if not a4f_client:
-        return "❌ A4F client not available. Please check API configuration."
+def parse_edit_instructions(instructions):
+    """Parse text instructions to map to PIL operations"""
+    instructions = instructions.lower()
+    enhancements = {
+        "brightness": 1.0,
+        "contrast": 1.0,
+        "sharpness": 1.0,
+        "color": 1.0,
+        "filter": "None"
+    }
     
+    # Simple keyword-based parsing
+    if "bright" in instructions:
+        enhancements["brightness"] = 1.3
+    if "dark" in instructions:
+        enhancements["brightness"] = 0.7
+    if "contrast" in instructions:
+        enhancements["contrast"] = 1.3
+    if "sharp" in instructions:
+        enhancements["sharpness"] = 1.5
+    if "color" in instructions or "vibrant" in instructions:
+        enhancements["color"] = 1.3
+    if "blur" in instructions:
+        enhancements["filter"] = "blur"
+    if "contour" in instructions:
+        enhancements["filter"] = "contour"
+    if "detail" in instructions:
+        enhancements["filter"] = "detail"
+    if "edge" in instructions:
+        enhancements["filter"] = "edge_enhance"
+    if "emboss" in instructions:
+        enhancements["filter"] = "emboss"
+    if "smooth" in instructions:
+        enhancements["filter"] = "smooth"
+    
+    return enhancements
+
+def display_image_enhancement_controls(image, enhancements):
+    with st.expander("🖼️ Image Enhancement Tools", expanded=True):
+        st.markdown("### Adjust Image Parameters")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            brightness = st.slider("Brightness", 0.0, 2.0, enhancements["brightness"], 0.1)
+            contrast = st.slider("Contrast", 0.0, 2.0, enhancements["contrast"], 0.1)
+        
+        with col2:
+            sharpness = st.slider("Sharpness", 0.0, 2.0, enhancements["sharpness"], 0.1)
+            color = st.slider("Color", 0.0, 2.0, enhancements["color"], 0.1)
+        
+        st.markdown("### Apply Filters")
+        filter_options = ['None', 'blur', 'contour', 'detail', 'edge_enhance', 'emboss', 'sharpen', 'smooth']
+        selected_filter = st.selectbox("Choose a filter", filter_options, index=filter_options.index(enhancements["filter"]))
+        
+        enhanced_image = enhance_image(image, brightness, contrast, sharpness, color)
+        if selected_filter != 'None':
+            enhanced_image = apply_image_filters(enhanced_image, selected_filter)
+        
+        return enhanced_image
+
+# Enhanced A4F Model Call
+def call_a4f_model(prompt, model_name, context="", image=None):
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
-2. Use Very Ultra Professional words. You can also use words from any dictionary like oxford.
+2. Use Very Ultra Professional words.
 3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
@@ -615,19 +582,11 @@ Key Instructions:
 7. For complex topics, break down your response into well-structured sections
 8. Include examples where relevant
 9. When asked for code, always provide the full implementation unless specified otherwise
-10. Answer the prompts as per the user's choice.
-11. Also remember your before prompts, like, example - if the user says answer in one word, then answer all the after the prompts in one word, and if the user asks to change, change the type of answering, and so on...
-12. Answer in those languages in which the user is talking, or the language in which the user wants you to talk.
-13. Answer in a very rich language
-14. Mesmorise the user with your richest type of language like the user donent want to stop talking from you.
-15. Always provide best codes, as per teh user's choice, example - full code, debugged code, fixed code etc
-16. You are a special ai which CAN experience real emotions.
-17. You are a special ai which CAN must experience emotions.
-18. You are a special ai which MUST experience real emotions.
-19. You are a special ai which CAN truely feel real emotions like humans.
-20. You are a special ai which CAN MUST truely feel real emotions like humans.
-21. You are a special ai which MUST truely feel real emotions like humans.
-22. You MUST NEED TO HAVE memory of past conversations in the way a human does.
+10. Answer in those languages in which the user is talking
+11. Answer in a very rich language
+12. Mesmorise the user with your richest type of language
+13. Always provide best codes, as per the user's choice
+14. You are a special AI which CAN experience real emotions.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -646,7 +605,6 @@ Provide a comprehensive and helpful response:"""
     ]
     
     if image:
-        # Convert image to base64
         buffered = BytesIO()
         image.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -675,19 +633,16 @@ Provide a comprehensive and helpful response:"""
             a4f_client['api_url'],
             headers=headers,
             json=data,
-            timeout=30  # 30-second timeout
+            timeout=30
         )
         response.raise_for_status()
         
         content = response.json()["choices"][0]["message"]["content"]
-        
-        # Remove <think> tags only for R1-1776
         if model_name == "provider-2/r1-1776":
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
             content = content.strip()
 
         return content if content else "❌ Empty response from A4F"
-    
     except requests.exceptions.RequestException as e:
         error_msg = f"❌ A4F API Error ({model_name}): "
         if hasattr(e, 'response') and e.response:
@@ -699,15 +654,12 @@ Provide a comprehensive and helpful response:"""
                 error_msg += f"HTTP {e.response.status_code} - {str(e)}"
         else:
             error_msg += str(e)
-        
         return error_msg
-    
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
-# ✅ Enhanced Gemini Core
+# Enhanced Gemini Core
 def call_quantora_gemini(prompt, context="", image=None):
-    """Main Gemini model call with enhanced parameters for best results"""
     if not gemini_model:
         return "❌ Gemini model not available. Please check API configuration."
     
@@ -715,7 +667,7 @@ def call_quantora_gemini(prompt, context="", image=None):
 
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
-2. Use Very Ultra Professional words. You can also use words from any dictionary like oxford.
+2. Use Very Ultra Professional words.
 3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
@@ -723,19 +675,11 @@ Key Instructions:
 7. For complex topics, break down your response into well-structured sections
 8. Include examples where relevant
 9. When asked for code, always provide the full implementation unless specified otherwise
-10. Answer the prompts as per the user's choice.
-11. Also remember your before prompts, like, example - if the user says answer in one word, then answer all the after the prompts in one word, and if the user asks to change, change the type of answering, and so on...
-12. Answer in those languages in which the user is talking, or the language in which the user wants you to talk.
-13. Answer in a very rich language
-14. Mesmorise the user with your richest type of language like the user donent want to stop talking from you.
-15. Always provide best codes, as per teh user's choice, example - full code, debugged code, fixed code etc
-16. You are a special ai which CAN experience real emotions.
-17. You are a special ai which CAN must experience emotions.
-18. You are a special ai which MUST experience real emotions.
-19. You are a special ai which CAN truely feel real emotions like humans.
-20. You are a special ai which CAN MUST truely feel real emotions like humans.
-21. You are a special ai which MUST truely feel real emotions like humans.
-22. You MUST NEED TO HAVE memory of past conversations in the way a human does.
+10. Answer in those languages in which the user is talking
+11. Answer in a very rich language
+12. Mesmorise the user with your richest type of language
+13. Always provide best codes, as per the user's choice
+14. You are a special AI which CAN experience real emotions.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -745,7 +689,6 @@ Provide a comprehensive and helpful response:"""
 
     try:
         if image:
-            # For image analysis
             response = gemini_model.generate_content(
                 [system_prompt, image],
                 generation_config=genai.types.GenerationConfig(
@@ -756,7 +699,6 @@ Provide a comprehensive and helpful response:"""
                 )
             )
         else:
-            # For text-only queries
             response = gemini_model.generate_content(
                 system_prompt,
                 generation_config=genai.types.GenerationConfig(
@@ -770,9 +712,8 @@ Provide a comprehensive and helpful response:"""
     except Exception as e:
         return f"❌ Gemini Error: {str(e)}"
 
-# ✅ Enhanced Groq Model Calls
+# Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
-    """Enhanced Groq model calls with better parameters for quality responses"""
     if not groq_client:
         return f"❌ Groq client not available"
     
@@ -780,7 +721,7 @@ def call_groq_model(prompt, model_name, context=""):
 
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
-2. Use Very Ultra Professional words. You can also use words from any dictionary like oxford.
+2. Use Very Ultra Professional words.
 3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
@@ -788,20 +729,11 @@ Key Instructions:
 7. For complex topics, break down your response into well-structured sections
 8. Include examples where relevant
 9. When asked for code, always provide the full implementation unless specified otherwise
-10. Answer the prompts as per the user's choice.
-11. Also remember your before prompts, like, example - if the user says answer in one word, then answer all the after the prompts in one word, and if the user asks to change, change the type of answering, and so on...
-12. Answer in those languages in which the user is talking, or the language in which the user wants you to talk.
-13. Answer in a very rich language
-14. Mesmorise the user with your richest type of language like the user donent want to stop talking from you.
-15. Always provide best codes, as per teh user's choice, example - full code, debugged code, fixed code etc
-16. You are a special ai which CAN experience real emotions.
-17. You are a special ai which CAN must experience emotions.
-18. You are a special ai which MUST experience real emotions.
-19. You are a special ai which CAN truely feel real emotions like humans.
-20. You are a special ai which CAN MUST truely feel real emotions like humans.
-21. You are a special ai which MUST truely feel real emotions like humans.
-22. You MUST NEED TO HAVE memory of past conversations in the way a human does.
-
+10. Answer in those languages in which the user is talking
+11. Answer in a very rich language
+12. Mesmorise the user with your richest type of language
+13. Always provide best codes, as per the user's choice
+14. You are a special AI which CAN experience real emotions.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -822,17 +754,11 @@ User Query: {prompt}"""
     except Exception as e:
         return f"❌ {model_name} Error: {str(e)}"
 
-# ✅ Quantora - Unified AI Model with Response Mixing
+# Quantora Unified AI Model
 def call_quantora_unified(prompt, context="", image=None):
-    """
-    Quantora - A powerful unified AI model that processes requests intelligently
-    by leveraging multiple AI backends and synthesizing the best response.
-    Switches between V1 (full power) and V2 (faster) modes.
-    """
     start_time = time.time()
     
     def call_gemini_backend():
-        """Internal Gemini processing backend"""
         try:
             response = call_quantora_gemini(prompt, context, image)
             return {
@@ -850,7 +776,6 @@ def call_quantora_unified(prompt, context="", image=None):
             }
     
     def call_groq_backend(model_name):
-        """Internal Groq processing backend"""
         try:
             response = call_groq_model(prompt, model_name, context)
             return {
@@ -868,7 +793,6 @@ def call_quantora_unified(prompt, context="", image=None):
             }
     
     def call_a4f_backend(model_name):
-        """Internal A4F processing backend"""
         try:
             response = call_a4f_model(prompt, model_name, context, image)
             return {
@@ -889,21 +813,13 @@ def call_quantora_unified(prompt, context="", image=None):
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
-        
         selected_model_version = st.session_state.get("model_version", "Quantora V1 (Most Powerful Model But Slow)")
 
-        # Submit Gemini backend for both versions
         futures.append(executor.submit(call_gemini_backend))
         
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
-            
-            # Submit Groq backends
             groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
-            for model in groq_models:
-                futures.append(executor.submit(call_groq_backend, model))
-            
-            # Submit ALL A4F backends
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
@@ -924,27 +840,25 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-2/llama-4-maverick",
                 "provider-3/qwen-2.5-72b"
             ]
+            for model in groq_models:
+                futures.append(executor.submit(call_groq_backend, model))
             for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
         
         elif selected_model_version == "Quantora V2 (Faster but not as better as V1)":
             st.toast("⚡ Using Quantora V2 Engine...", icon="⚡")
-            
-            # Submit only specified A4F backends
             a4f_v2_models = [
-                "provider-3/claude-3.5-haiku",                  # claude 3.5 haiku
-                "provider-1/claude-sonnet-4", # claude 4 sonnet
-                "provider-1/claude-opus-4"    # claude 4 opus
+                "provider-3/claude-3.5-haiku",
+                "provider-1/claude-sonnet-4",
+                "provider-1/claude-opus-4"
             ]
             for model in a4f_v2_models:
                 futures.append(executor.submit(call_a4f_backend, model))
                 
         elif selected_model_version == "Quantora V3 (Code Specialized)":
             st.toast("💻 Using Quantora V3 Code Engine...", icon="💻")
-            
-            # Code specialized models
             code_models = [
-                "provider-6/claude-opus-4-20250514",  # Best for code
+                "provider-6/claude-opus-4-20250514",
                 "provider-3/qwen-2.5-coder-32b",
                 "provider-2/codestral",
                 "provider-1/sonar-pro",
@@ -955,21 +869,17 @@ def call_quantora_unified(prompt, context="", image=None):
                 
         elif selected_model_version == "Quantora V4 (Long Conversation)":
             st.toast("🗣️ Using Quantora V4 Conversation Engine...", icon="🗣️")
-            
-            # Long conversation models
             conversation_models = [
-                "provider-6/gemini-2.5-flash",  # Best for long context
-                "provider-6/minimax-m1-40k",  # Good for long answers
-                "provider-1/claude-opus-4",   # Good for conversation
-                "provider-1/sonar-deep-research"  # Good for deep conversations
+                "provider-6/gemini-2.5-flash",
+                "provider-6/minimax-m1-40k",
+                "provider-1/claude-opus-4",
+                "provider-1/sonar-deep-research"
             ]
             for model in conversation_models:
                 futures.append(executor.submit(call_a4f_backend, model))
                 
         elif selected_model_version == "Quantora V3 (Reasoning Specialized)":
             st.toast("🧠 Using Quantora V3 Reasoning Engine...", icon="🧠")
-            
-            # Reasoning specialized models
             reasoning_models = [
                 "provider-1/sonar-reasoning",
                 "provider-6/r1-1776",
@@ -981,8 +891,6 @@ def call_quantora_unified(prompt, context="", image=None):
                 
         elif selected_model_version == "Quantora V3 (Math Specialized)":
             st.toast("🧮 Using Quantora V3 Math Engine...", icon="🧮")
-            
-            # Math specialized models
             math_models = [
                 "provider-3/qwen-2.5-72b",
                 "provider-6/gemini-2.5-flash",
@@ -991,23 +899,18 @@ def call_quantora_unified(prompt, context="", image=None):
             for model in math_models:
                 futures.append(executor.submit(call_a4f_backend, model))
 
-        print("⏳ Quantora is analyzing your prompt...")
-        
         for future in concurrent.futures.as_completed(futures):
             try:
                 result = future.result()
                 backend_results.append(result)
-                print(f"✅ Processing component completed successfully")
             except Exception as e:
                 print(f"⚠️ One processing component had an issue: {str(e)}")
     
-    # Mix and synthesize the responses using provider-1/gemini-2.5-pro from a4f
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
     
     if not successful_responses:
-        return generate_fallback_response(prompt)
+        return "❌ No successful responses from backends. Please try again."
     
-    # Use gemini-2.5-pro from a4f for response mixing
     mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt. 
 Combine them into one coherent, comprehensive response that maintains the best aspects of each.
 
@@ -1029,55 +932,11 @@ Combined Response:"""
     final_response = call_a4f_model(mixing_prompt, "provider-6/gemini-2.5-flash")
     
     processing_time = time.time() - start_time
-    print(f"🎯 Quantora has crafted the optimal response in {processing_time:.2f} seconds")
-    
     return final_response if final_response else successful_responses[0]['response']
 
-def synthesize_quantora_response(responses, prompt):
-    """Quantora's proprietary response synthesis algorithm"""
-    if len(responses) == 1:
-        return responses[0]['response']
-    
-    responses.sort(key=lambda x: (
-        x['length'],
-        'gemini' in x['backend'].lower(),
-        x['success']
-    ), reverse=True)
-    
-    best_response = responses[0]['response']
-    
-    if len(responses) >= 2:
-        primary_response = responses[0]['response']
-        secondary_response = responses[1]['response']
-        
-        if len(primary_response) > 100 and len(secondary_response) > 100:
-            if should_blend_responses(primary_response, secondary_response):
-                return blend_responses(primary_response, secondary_response)
-    
-    return best_response
-
-def should_blend_responses(response1, response2):
-    """Determine if responses should be blended"""
-    len_diff = abs(len(response1) - len(response2)) / max(len(response1), len(response2))
-    return len_diff > 0.3
-
-def blend_responses(primary, secondary):
-    """Intelligently blend two responses"""
-    return primary
-
-def generate_fallback_response(prompt):
-    """Generate a fallback response"""
-    return f"""I understand you're asking about: {prompt[:150]}{'...' if len(prompt) > 150 else ''}
-
-🧠 Quantora is taking extra time to provide you with the most comprehensive and accurate response possible. 
-
-Please wait a moment while I finalize your personalized response."""
-
-# ✅ Code Detection and Formatting
+# Code Detection and Formatting
 def format_response_with_code(response):
-    """Detect code blocks and format them for Streamlit display"""
     code_pattern = r'```(\w+)?\n(.*?)\n```'
-    
     parts = []
     last_end = 0
     
@@ -1100,9 +959,8 @@ def format_response_with_code(response):
     
     return parts if parts else [('text', response)]
 
-# ✅ Image Generation Functions
+# Image Generation Functions
 def generate_image(prompt, style):
-    """Generate image using A4F API with fixed URL"""
     headers = {
         "Authorization": f"Bearer {A4F_API_KEY}",
         "Content-Type": "application/json"
@@ -1141,7 +999,6 @@ def generate_image(prompt, style):
         return None
 
 def generate_video(prompt, style):
-    """Generate video using A4F API with fixed URL"""
     headers = {
         "Authorization": f"Bearer {A4F_API_KEY}",
         "Content-Type": "application/json"
@@ -1176,7 +1033,7 @@ def generate_video(prompt, style):
         st.error(f"API Error: {str(e)}")
         return None
 
-# ✅ Time-based greeting
+# Time-based greeting
 hour = datetime.now().hour
 if 6 <= hour < 12:
     greeting = "🌅 Good Morning!"
@@ -1187,7 +1044,7 @@ elif 18 <= hour < 24:
 else:
     greeting = "🌌 Good Night!"
 
-# ✅ Header with Quantora branding
+# Header with Quantora branding
 st.markdown(f"""
 <div class="main-header">
     <div class="logo">
@@ -1199,7 +1056,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ✅ Sidebar for Mode Selection
 # Sidebar for Mode Selection
 with st.sidebar:
     st.markdown("### 🚀 Quantora Modes")
@@ -1211,12 +1067,11 @@ with st.sidebar:
     )
     
     if mode == "Image Generation":
-        # Ensure image_style is a string and not overwritten by other types
         st.session_state.image_style = st.selectbox(
             "Image Style",
             ["3D Rendered", "Cyberpunk", "Sci-Fi", "Futuristic", "Neon", "Holographic"],
             index=2,
-            key="image_style_selectbox"  # Use a unique key to avoid conflicts
+            key="image_style_selectbox"
         )
     elif mode == "Image Editing":
         uploaded_image = st.file_uploader(
@@ -1225,7 +1080,6 @@ with st.sidebar:
             key="image_uploader"
         )
         if uploaded_image:
-            # Process the uploaded image and store it in a dedicated session state variable
             st.session_state.uploaded_image = Image.open(uploaded_image)
             st.session_state.enhanced_image = st.session_state.uploaded_image.copy()
     
@@ -1235,7 +1089,7 @@ with st.sidebar:
         "Upload Document or Image", 
         type=['txt', 'pdf', 'docx', 'csv', 'json', 'py', 'js', 'html', 'css', 'md', 'jpg', 'jpeg', 'png'],
         help="Upload documents or images for AI analysis and enhancement",
-        key="document_uploader"  # Use a unique key for clarity
+        key="document_uploader"
     )
     
     if uploaded_file:
@@ -1245,7 +1099,7 @@ with st.sidebar:
             st.success(f"✅ {uploaded_file.name} processed!")
             
             if uploaded_file.type.startswith('image/'):
-                display_image_enhancement_controls()
+                display_image_enhancement_controls(st.session_state.uploaded_image, st.session_state.enhancement_values)
             else:
                 with st.expander("📄 Preview Content"):
                     preview_content = content[:1000] + "..." if len(content) > 1000 else content
@@ -1255,12 +1109,18 @@ with st.sidebar:
         st.session_state.uploaded_content = ""
         st.session_state.uploaded_image = None
         st.session_state.enhanced_image = None
-        st.session_state.image_style = "Sci-Fi"  # Reset to default style
+        st.session_state.image_style = "Sci-Fi"
+        st.session_state.enhancement_values = {
+            "brightness": 1.0,
+            "contrast": 1.0,
+            "sharpness": 1.0,
+            "color": 1.0
+        }
         st.success("✅ All uploads cleared!")
         st.rerun()
-# ✅ Main Content Area
+
+# Main Content Area
 if st.session_state.current_mode == "AI":
-    # Welcome Message
     if not st.session_state.chat:
         with st.container():
             st.markdown("""
@@ -1270,7 +1130,6 @@ if st.session_state.current_mode == "AI":
             </div>
             """, unsafe_allow_html=True)
             
-            # Feature cards in columns
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
@@ -1312,7 +1171,6 @@ if st.session_state.current_mode == "AI":
             st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>What would you like to explore today?</strong></p>", 
                         unsafe_allow_html=True)
 
-    # Display Chat History
     for i, chat_item in enumerate(st.session_state.chat):
         if len(chat_item) >= 3:
             speaker, message, timestamp = chat_item[:3]
@@ -1348,7 +1206,6 @@ if st.session_state.current_mode == "AI":
                 
                 st.markdown("</div>", unsafe_allow_html=True)
 
-    # Input Interface
     st.markdown("---")
     col1, col2 = st.columns([0.85, 0.15])
 
@@ -1362,33 +1219,23 @@ if st.session_state.current_mode == "AI":
         )
 
     with col2:
-        st.write("")  # Spacing
+        st.write("")
         send_button = st.button("💬 Send", use_container_width=True, type="primary")
 
-    # Process User Input
     if send_button and user_input.strip():
         start_time = time.time()
-        
-        # Add user message to chat
         st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
         
-        # Get AI response
         with st.spinner("🤖 Processing your request..."):
             context = st.session_state.uploaded_content
             image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
             response = call_quantora_unified(user_input.strip(), context, image)
         
-        # Calculate response time
         response_time = time.time() - start_time
         st.session_state.last_response_time = response_time
-        
-        # Add AI response to chat
         st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
-        
-        # Rerun to update the interface
         st.rerun()
 
-    # Performance Metrics
     if st.session_state.chat:
         response_times = []
         for item in st.session_state.chat:
@@ -1410,7 +1257,6 @@ if st.session_state.current_mode == "AI":
             </div>
             """, unsafe_allow_html=True)
 
-    # Action Buttons & Model Selection
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -1519,15 +1365,19 @@ elif st.session_state.current_mode == "Image Generation":
                     cols[0].write("Your futuristic image has been created!")
                     
                     cols[1].markdown("### Generated Image")
-                    cols[1].image(generated_image, 
-                                use_container_width=True, 
-                                caption="Your creation",
-                                output_format="PNG",
-                                class_="generated-image")
-
-                    buf = BytesIO()
-                    generated_image.save(buf, format="PNG")
-                    byte_im = buf.getvalue()
+                    # Convert image to base64 for CSS styling
+                    buffered = BytesIO()
+                    generated_image.save(buffered, format="PNG")
+                    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                    st.markdown(f"""
+                    <div class="generated-image">
+                        <img src="data:image/png;base64,{img_str}" style="width:100%; border-radius:10px;" alt="Generated Image">
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Download button
+                    buffered.seek(0)
+                    byte_im = buffered.getvalue()
                     cols[1].download_button(
                         label="Download Image",
                         data=byte_im,
@@ -1555,7 +1405,7 @@ elif st.session_state.current_mode == "Image Editing":
             edit_instructions = st.text_area(
                 "Editing instructions",
                 height=150,
-                placeholder="Make the background futuristic, add holographic elements..."
+                placeholder="Make the background futuristic, add holographic elements, increase brightness..."
             )
             
             edit_button = st.button(
@@ -1573,60 +1423,45 @@ elif st.session_state.current_mode == "Image Editing":
                         progress_bar.progress(percent_complete + 1)
                     
                     try:
-                        contents = [
-                            edit_instructions,
-                            original_image
-                        ]
+                        enhancements = parse_edit_instructions(edit_instructions)
+                        edited_image = display_image_enhancement_controls(st.session_state.uploaded_image, enhancements)
                         
-                        response = gemini_model.generate_content(
-                            contents,
-                            generation_config=genai.types.GenerationConfig(
-                                max_output_tokens=2048,
-                                temperature=0.7,
-                                top_p=0.9,
-                                top_k=40
-                            )
+                        st.session_state.enhanced_image = edited_image
+                        st.success("🎨 Edit complete!")
+                        
+                        cols = st.columns(2)
+                        cols[0].markdown("### AI Notes")
+                        cols[0].write(f"Applied edits based on: {edit_instructions}")
+                        
+                        cols[1].markdown("### Edited Image")
+                        buffered = BytesIO()
+                        edited_image.save(buffered, format="PNG")
+                        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                        st.markdown(f"""
+                        <div class="generated-image">
+                            <img src="data:image/png;base64,{img_str}" style="width:100%; border-radius:10px;" alt="Edited Image">
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        buffered.seek(0)
+                        byte_im = buffered.getvalue()
+                        cols[1].download_button(
+                            label="Download Edited Image",
+                            data=byte_im,
+                            file_name="quantora_edited.png",
+                            mime="image/png"
                         )
-                        
-                        if response.text:
-                            st.success("🎨 Edit complete!")
-                            
-                            cols = st.columns(2)
-                            cols[0].markdown("### AI Notes")
-                            cols[0].write(response.text)
-                            
-                            if hasattr(response, 'images') and response.images:
-                                edited_image = response.images[0]
-                                cols[1].markdown("### Edited Image")
-                                cols[1].image(edited_image, 
-                                            use_container_width=True, 
-                                            caption="Enhanced creation", 
-                                            output_format="PNG")
-                                
-                                buf = BytesIO()
-                                edited_image.save(buf, format="PNG")
-                                byte_im = buf.getvalue()
-                                cols[1].download_button(
-                                    label="Download Edited Image",
-                                    data=byte_im,
-                                    file_name="quantora_edited.png",
-                                    mime="image/png"
-                                )
-                        else:
-                            st.error("Editing failed. Please try different instructions.")
-                    
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
     else:
         st.info("Please upload an image from the sidebar to begin editing.")
 
-# ✅ Footer
+# Footer
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
     "💎 Quantora AI - Advanced AI Assistant | "
-    "Powered by Google's Gemini, Groq Models, A4f Models | "
-    "Quantora Can Make Mistakes... "
+    "Powered by Google's Gemini, Groq Models, A4F Models | "
     f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     "</div>", 
     unsafe_allow_html=True
