@@ -1200,6 +1200,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ✅ Sidebar for Mode Selection
+# Sidebar for Mode Selection
 with st.sidebar:
     st.markdown("### 🚀 Quantora Modes")
     mode = st.radio(
@@ -1210,25 +1211,31 @@ with st.sidebar:
     )
     
     if mode == "Image Generation":
+        # Ensure image_style is a string and not overwritten by other types
         st.session_state.image_style = st.selectbox(
             "Image Style",
             ["3D Rendered", "Cyberpunk", "Sci-Fi", "Futuristic", "Neon", "Holographic"],
             index=2,
-            key="image_style"
+            key="image_style_selectbox"  # Use a unique key to avoid conflicts
         )
     elif mode == "Image Editing":
-        st.session_state.uploaded_image = st.file_uploader(
+        uploaded_image = st.file_uploader(
             "Upload Image to Edit",
             type=["png", "jpg", "jpeg"],
             key="image_uploader"
         )
+        if uploaded_image:
+            # Process the uploaded image and store it in a dedicated session state variable
+            st.session_state.uploaded_image = Image.open(uploaded_image)
+            st.session_state.enhanced_image = st.session_state.uploaded_image.copy()
     
     st.markdown("---")
     st.markdown("### 📁 Document & Image Analysis")
     uploaded_file = st.file_uploader(
         "Upload Document or Image", 
         type=['txt', 'pdf', 'docx', 'csv', 'json', 'py', 'js', 'html', 'css', 'md', 'jpg', 'jpeg', 'png'],
-        help="Upload documents or images for AI analysis and enhancement"
+        help="Upload documents or images for AI analysis and enhancement",
+        key="document_uploader"  # Use a unique key for clarity
     )
     
     if uploaded_file:
@@ -1248,9 +1255,9 @@ with st.sidebar:
         st.session_state.uploaded_content = ""
         st.session_state.uploaded_image = None
         st.session_state.enhanced_image = None
+        st.session_state.image_style = "Sci-Fi"  # Reset to default style
         st.success("✅ All uploads cleared!")
         st.rerun()
-
 # ✅ Main Content Area
 if st.session_state.current_mode == "AI":
     # Welcome Message
