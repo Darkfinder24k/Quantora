@@ -32,6 +32,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+st.markdown("""
+<button class="sidebar-toggle" onclick="toggleSidebar()">Toggle Sidebar</button>
+<script>
+function toggleSidebar() {
+    const sidebar = document.querySelector('[data-testid="stSidebar"]');
+    const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
+    sidebar.setAttribute('aria-expanded', !isExpanded);
+}
+</script>
+""", unsafe_allow_html=True)
+
 # Custom CSS
 hide_streamlit_style = """
 <style>
