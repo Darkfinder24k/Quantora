@@ -368,7 +368,7 @@ def initialize_clients():
         # Initialize clients
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-1.5-pro-latest")
+        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
         
         # Initialize A4F client (using requests library)
         a4f_client = {
@@ -919,7 +919,7 @@ def call_quantora_unified(prompt, context="", image=None):
             
             # Long conversation models
             conversation_models = [
-                "provider-1/gemini-2.5-pro",  # Best for long context
+                "provider-3/gemini-2.5-pro",  # Best for long context
                 "provider-6/minimax-m1-40k",  # Good for long answers
                 "provider-1/claude-opus-4",   # Good for conversation
                 "provider-1/sonar-deep-research"  # Good for deep conversations
@@ -946,7 +946,7 @@ def call_quantora_unified(prompt, context="", image=None):
             # Math specialized models
             math_models = [
                 "provider-3/qwen-2.5-72b",
-                "provider-1/gemini-2.5-pro",
+                "provider-3/gemini-2.5-pro",
                 "provider-6/minimax-m1-40k"
             ]
             for model in math_models:
@@ -987,7 +987,7 @@ Guidelines:
 
 Combined Response:"""
     
-    final_response = call_a4f_model(mixing_prompt, "provider-1/gemini-2.5-pro")
+    final_response = call_a4f_model(mixing_prompt, "provider-3/gemini-2.5-pro")
     
     processing_time = time.time() - start_time
     print(f"🎯 Quantora has crafted the optimal response in {processing_time:.2f} seconds")
