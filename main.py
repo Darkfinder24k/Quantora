@@ -16,16 +16,24 @@ import io
 import requests
 from io import BytesIO
 import base64
+from google import genai as google_genai
+from google.genai import types
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 
+# Image and Video Generation API Config
+A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
+A4F_BASE_URL = "https://api.a4f.co/v1"
+IMAGE_MODEL = "provider-4/imagen-4"
+VIDEO_MODEL = "provider-6/wan-2.1"
+
 # ✅ Page Setup - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(
     page_title="💎 Quantora AI Elite",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # Remove "Made with Streamlit" footer and other elements
@@ -315,6 +323,30 @@ header {visibility: hidden;}
     margin: 0.5rem 0;
 }
 
+/* Creative Studio Styles */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+.generated-image {
+    animation: float 4s ease-in-out infinite;
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+    transition: all 0.3s ease;
+}
+
+.generated-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.8);
+}
+
+.generated-video {
+    animation: float 6s ease-in-out infinite;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .logo-text {
@@ -351,9 +383,14 @@ if "enhancement_values" not in st.session_state:
         "sharpness": 1.0,
         "color": 1.0
     }
-# Initialize model version selection
 if "model_version" not in st.session_state:
     st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
+if "current_mode" not in st.session_state:
+    st.session_state.current_mode = "AI"
+if "image_style" not in st.session_state:
+    st.session_state.image_style = "Sci-Fi"
+if "video_style" not in st.session_state:
+    st.session_state.video_style = "Cinematic"
 
 # ✅ API Configuration
 @st.cache_resource
@@ -1061,6 +1098,82 @@ def format_response_with_code(response):
     
     return parts if parts else [('text', response)]
 
+# ✅ Image Generation Functions
+def generate_image(prompt, style):
+    """Generate image using A4F API with fixed URL"""
+    headers = {
+        "Authorization": f"Bearer {A4F_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    enhanced_prompt = f"{prompt}, {style} style, ultra HD, photorealistic, cinematic lighting"
+    
+    payload = {
+        "model": IMAGE_MODEL,
+        "prompt": enhanced_prompt,
+        "num_images": 1,
+        "width": 1024,
+        "height": 1024,
+        "steps": 50,
+        "guidance_scale": 7.5
+    }
+    
+    try:
+        response = requests.post(
+            f"{A4F_BASE_URL}/images/generations",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if 'data' in result and len(result['data']) > 0:
+                image_url = result['data'][0]['url']
+                image_response = requests.get(image_url, timeout=30)
+                if image_response.status_code == 200:
+                    return Image.open(BytesIO(image_response.content))
+        return None
+    except Exception as e:
+        st.error(f"API Error: {str(e)}")
+        return None
+
+def generate_video(prompt, style):
+    """Generate video using A4F API with fixed URL"""
+    headers = {
+        "Authorization": f"Bearer {A4F_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    enhanced_prompt = f"{prompt}, {style} style, cinematic, high quality, 4K resolution"
+    
+    payload = {
+        "model": VIDEO_MODEL,
+        "prompt": enhanced_prompt,
+        "num_videos": 1,
+        "width": 1024,
+        "height": 576,
+        "duration": 4,
+        "fps": 24
+    }
+    
+    try:
+        response = requests.post(
+            f"{A4F_BASE_URL}/videos/generations",
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if 'data' in result and len(result['data']) > 0:
+                return result['data'][0]['url']
+        return None
+    except Exception as e:
+        st.error(f"API Error: {str(e)}")
+        return None
+
 # ✅ Time-based greeting
 hour = datetime.now().hour
 if 6 <= hour < 12:
@@ -1084,8 +1197,31 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ✅ Sidebar for File Upload and Image Enhancement
+# ✅ Sidebar for Mode Selection
 with st.sidebar:
+    st.markdown("### 🚀 Quantora Modes")
+    mode = st.radio(
+        "Select Mode",
+        ["AI", "Image Generation", "Image Editing"],
+        index=0,
+        key="current_mode"
+    )
+    
+    if mode == "Image Generation":
+        st.session_state.image_style = st.selectbox(
+            "Image Style",
+            ["3D Rendered", "Cyberpunk", "Sci-Fi", "Futuristic", "Neon", "Holographic"],
+            index=2,
+            key="image_style"
+        )
+    elif mode == "Image Editing":
+        st.session_state.uploaded_image = st.file_uploader(
+            "Upload Image to Edit",
+            type=["png", "jpg", "jpeg"],
+            key="image_uploader"
+        )
+    
+    st.markdown("---")
     st.markdown("### 📁 Document & Image Analysis")
     uploaded_file = st.file_uploader(
         "Upload Document or Image", 
@@ -1113,219 +1249,367 @@ with st.sidebar:
         st.success("✅ All uploads cleared!")
         st.rerun()
 
-# ✅ Welcome Message
-if not st.session_state.chat:
-    with st.container():
-        st.markdown("""
-        <div class="welcome-container">
-            <div class="welcome-title">🤖 Welcome to Quantora AI</div>
-            <p>Your advanced AI assistant powered by cutting-edge answers</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Feature cards in columns
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
+# ✅ Main Content Area
+if st.session_state.current_mode == "AI":
+    # Welcome Message
+    if not st.session_state.chat:
+        with st.container():
             st.markdown("""
-            <div class="feature-card">
-                <div class="feature-icon">🚀</div>
-                <strong>Advanced Answers</strong>
-                <p>Detailed explanations for complex questions</p>
+            <div class="welcome-container">
+                <div class="welcome-title">🤖 Welcome to Quantora AI</div>
+                <p>Your advanced AI assistant powered by cutting-edge answers</p>
             </div>
             """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("""
-            <div class="feature-card">
-                <div class="feature-icon">📄</div>
-                <strong>Document Analysis</strong>
-                <p>Process PDFs, DOCX, CSV and more</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown("""
-            <div class="feature-card">
-                <div class="feature-icon">🖼️</div>
-                <strong>Image Enhancement</strong>
-                <p>Adjust brightness, contrast, and more</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            st.markdown("""
-            <div class="feature-card">
-                <div class="feature-icon">💻</div>
-                <strong>Full Code Support</strong>
-                <p>Complete code implementations</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>What would you like to explore today?</strong></p>", 
-                    unsafe_allow_html=True)
-
-# ✅ Display Chat History
-for i, chat_item in enumerate(st.session_state.chat):
-    if len(chat_item) >= 3:
-        speaker, message, timestamp = chat_item[:3]
-        response_time = chat_item[3] if len(chat_item) > 3 else None
-        
-        if speaker == "user":
-            st.markdown(f"""
-            <div class="chat-message user-message">
-                <div class="message-header">
-                    👤 <strong>You</strong>
-                    <span class="message-time">{timestamp.strftime('%H:%M:%S')}</span>
+            
+            # Feature cards in columns
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.markdown("""
+                <div class="feature-card">
+                    <div class="feature-icon">🚀</div>
+                    <strong>Advanced Answers</strong>
+                    <p>Detailed explanations for complex questions</p>
                 </div>
-                <div>{message}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        elif speaker in ["quantora", "ai"]:
-            formatted_parts = format_response_with_code(message)
+                """, unsafe_allow_html=True)
             
-            st.markdown(f"""
-            <div class="chat-message ai-message">
-                <div class="message-header">
-                    💎 <strong>Quantora</strong>
-                    <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
+            with col2:
+                st.markdown("""
+                <div class="feature-card">
+                    <div class="feature-icon">📄</div>
+                    <strong>Document Analysis</strong>
+                    <p>Process PDFs, DOCX, CSV and more</p>
                 </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             
-            for part in formatted_parts:
-                if part[0] == 'text':
-                    st.markdown(f"<div>{part[1]}</div>", unsafe_allow_html=True)
-                elif part[0] == 'code':
-                    st.code(part[1], language=part[2])
+            with col3:
+                st.markdown("""
+                <div class="feature-card">
+                    <div class="feature-icon">🖼️</div>
+                    <strong>Image Enhancement</strong>
+                    <p>Adjust brightness, contrast, and more</p>
+                </div>
+                """, unsafe_allow_html=True)
             
-            st.markdown("</div>", unsafe_allow_html=True)
-
-# ✅ Input Interface
-st.markdown("---")
-col1, col2 = st.columns([0.85, 0.15])
-
-with col1:
-    user_input = st.text_area(
-        "Your message:",
-        placeholder="Ask Quantora anything...",
-        height=100,
-        key="main_input",
-        label_visibility="collapsed"
-    )
-
-with col2:
-    st.write("")  # Spacing
-    send_button = st.button("💬 Send", use_container_width=True, type="primary")
-
-# ✅ Process User Input
-if send_button and user_input.strip():
-    start_time = time.time()
-    
-    # Add user message to chat
-    st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
-    
-    # Get AI response
-    with st.spinner("🤖 Processing your request..."):
-        context = st.session_state.uploaded_content
-        image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
-        response = call_quantora_unified(user_input.strip(), context, image)
-    
-    # Calculate response time
-    response_time = time.time() - start_time
-    st.session_state.last_response_time = response_time
-    
-    # Add AI response to chat
-    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
-    
-    # Rerun to update the interface
-    st.rerun()
-
-# ✅ Performance Metrics
-if st.session_state.chat:
-    response_times = []
-    for item in st.session_state.chat:
-        if len(item) > 3 and item[0] == "quantora" and isinstance(item[3], (int, float)):
-            response_times.append(item[3])
-    
-    if response_times:
-        avg_time = sum(response_times) / len(response_times)
-        min_time = min(response_times)
-        max_time = max(response_times)
-        
-        st.markdown(f"""
-        <div style="background: rgba(30, 41, 59, 0.6); border-radius: 12px; padding: 1rem; margin: 1rem 0; text-align: center;">
-            📊 <strong>Performance Metrics:</strong> 
-            Avg: <strong>{avg_time:.1f}s</strong> • 
-            Fastest: <strong>{min_time:.1f}s</strong> • 
-            Slowest: <strong>{max_time:.1f}s</strong> • 
-            Total: <strong>{len(response_times)}</strong>
-        </div>
-        """, unsafe_allow_html=True)
-
-# ✅ Action Buttons & Model Selection
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    if st.button("🗑️ Clear Chat", use_container_width=True):
-        st.session_state.chat = []
-        st.success("✅ Chat cleared!")
-        st.rerun()
-
-with col2:
-    if st.button("📊 Export Chat", use_container_width=True):
-        if st.session_state.chat:
-            chat_data = []
-            for item in st.session_state.chat:
-                chat_data.append({
-                    "Speaker": item[0],
-                    "Message": item[1],
-                    "Timestamp": item[2].strftime('%Y-%m-%d %H:%M:%S'),
-                    "Response_Time": item[3] if len(item) > 3 else None
-                })
+            with col4:
+                st.markdown("""
+                <div class="feature-card">
+                    <div class="feature-icon">💻</div>
+                    <strong>Full Code Support</strong>
+                    <p>Complete code implementations</p>
+                </div>
+                """, unsafe_allow_html=True)
             
-            chat_json = json.dumps(chat_data, indent=2, default=str)
-            st.download_button(
-                label="💾 Download Chat JSON",
-                data=chat_json,
-                file_name=f"quantora_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json"
-            )
-        else:
-            st.info("No chat history to export")
+            st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>What would you like to explore today?</strong></p>", 
+                        unsafe_allow_html=True)
 
-with col3:
-    if st.button("ℹ️ About", use_container_width=True):
-        st.info("""
-        **Quantora AI Elite** v2.4
-        
-        Features:
-        ✅ Document analysis
-        ✅ Image enhancement
-        ✅ Code formatting (always full code)
-        ✅ Performance metrics
-        ✅ Enhanced response quality
-        """)
+    # Display Chat History
+    for i, chat_item in enumerate(st.session_state.chat):
+        if len(chat_item) >= 3:
+            speaker, message, timestamp = chat_item[:3]
+            response_time = chat_item[3] if len(chat_item) > 3 else None
+            
+            if speaker == "user":
+                st.markdown(f"""
+                <div class="chat-message user-message">
+                    <div class="message-header">
+                        👤 <strong>You</strong>
+                        <span class="message-time">{timestamp.strftime('%H:%M:%S')}</span>
+                    </div>
+                    <div>{message}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            elif speaker in ["quantora", "ai"]:
+                formatted_parts = format_response_with_code(message)
+                
+                st.markdown(f"""
+                <div class="chat-message ai-message">
+                    <div class="message-header">
+                        💎 <strong>Quantora</strong>
+                        <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                for part in formatted_parts:
+                    if part[0] == 'text':
+                        st.markdown(f"<div>{part[1]}</div>", unsafe_allow_html=True)
+                    elif part[0] == 'code':
+                        st.code(part[1], language=part[2])
+                
+                st.markdown("</div>", unsafe_allow_html=True)
 
-# THIS IS THE NEW CUSTOM BUTTON
-with col4:
-    with st.popover("⚙️ Select Model", use_container_width=True):
-        st.markdown("##### Select Quantora Engine")
-        st.radio(
-            "Engine Selection", # The label is hidden, but good for semantics
-            options=[
-                "Quantora V1 (Most Powerful Model But Slow)", 
-                "Quantora V2 (Faster but not as better as V1)",
-                "Quantora V3 (Code Specialized)",
-                "Quantora V4 (Long Conversation)",
-                "Quantora V3 (Reasoning Specialized)",
-                "Quantora V3 (Math Specialized)"
-            ],
-            key="model_version",
-            label_visibility="collapsed",
-            help="Select specialized model versions for different tasks",
+    # Input Interface
+    st.markdown("---")
+    col1, col2 = st.columns([0.85, 0.15])
+
+    with col1:
+        user_input = st.text_area(
+            "Your message:",
+            placeholder="Ask Quantora anything...",
+            height=100,
+            key="main_input",
+            label_visibility="collapsed"
         )
 
+    with col2:
+        st.write("")  # Spacing
+        send_button = st.button("💬 Send", use_container_width=True, type="primary")
+
+    # Process User Input
+    if send_button and user_input.strip():
+        start_time = time.time()
+        
+        # Add user message to chat
+        st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
+        
+        # Get AI response
+        with st.spinner("🤖 Processing your request..."):
+            context = st.session_state.uploaded_content
+            image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
+            response = call_quantora_unified(user_input.strip(), context, image)
+        
+        # Calculate response time
+        response_time = time.time() - start_time
+        st.session_state.last_response_time = response_time
+        
+        # Add AI response to chat
+        st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+        
+        # Rerun to update the interface
+        st.rerun()
+
+    # Performance Metrics
+    if st.session_state.chat:
+        response_times = []
+        for item in st.session_state.chat:
+            if len(item) > 3 and item[0] == "quantora" and isinstance(item[3], (int, float)):
+                response_times.append(item[3])
+        
+        if response_times:
+            avg_time = sum(response_times) / len(response_times)
+            min_time = min(response_times)
+            max_time = max(response_times)
+            
+            st.markdown(f"""
+            <div style="background: rgba(30, 41, 59, 0.6); border-radius: 12px; padding: 1rem; margin: 1rem 0; text-align: center;">
+                📊 <strong>Performance Metrics:</strong> 
+                Avg: <strong>{avg_time:.1f}s</strong> • 
+                Fastest: <strong>{min_time:.1f}s</strong> • 
+                Slowest: <strong>{max_time:.1f}s</strong> • 
+                Total: <strong>{len(response_times)}</strong>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # Action Buttons & Model Selection
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state.chat = []
+            st.success("✅ Chat cleared!")
+            st.rerun()
+
+    with col2:
+        if st.button("📊 Export Chat", use_container_width=True):
+            if st.session_state.chat:
+                chat_data = []
+                for item in st.session_state.chat:
+                    chat_data.append({
+                        "Speaker": item[0],
+                        "Message": item[1],
+                        "Timestamp": item[2].strftime('%Y-%m-%d %H:%M:%S'),
+                        "Response_Time": item[3] if len(item) > 3 else None
+                    })
+                
+                chat_json = json.dumps(chat_data, indent=2, default=str)
+                st.download_button(
+                    label="💾 Download Chat JSON",
+                    data=chat_json,
+                    file_name=f"quantora_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
+                )
+            else:
+                st.info("No chat history to export")
+
+    with col3:
+        if st.button("ℹ️ About", use_container_width=True):
+            st.info("""
+            **Quantora AI Elite** v2.4
+            
+            Features:
+            ✅ Document analysis
+            ✅ Image enhancement
+            ✅ Code formatting (always full code)
+            ✅ Performance metrics
+            ✅ Enhanced response quality
+            """)
+
+    with col4:
+        with st.popover("⚙️ Select Model", use_container_width=True):
+            st.markdown("##### Select Quantora Engine")
+            st.radio(
+                "Engine Selection",
+                options=[
+                    "Quantora V1 (Most Powerful Model But Slow)", 
+                    "Quantora V2 (Faster but not as better as V1)",
+                    "Quantora V3 (Code Specialized)",
+                    "Quantora V4 (Long Conversation)",
+                    "Quantora V3 (Reasoning Specialized)",
+                    "Quantora V3 (Math Specialized)"
+                ],
+                key="model_version",
+                label_visibility="collapsed",
+                help="Select specialized model versions for different tasks",
+            )
+
+elif st.session_state.current_mode == "Image Generation":
+    st.title("🖼️ Quantora Image Generation")
+    st.markdown("Create stunning AI-generated images with Quantora's advanced image generation capabilities.")
+    
+    with st.form("image_generation_form"):
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            prompt = st.text_area(
+                "Describe your image...",
+                height=200,
+                placeholder="A cybernetic owl with neon wings perched on a futuristic skyscraper..."
+            )
+
+            generate_button = st.form_submit_button(
+                "Generate Image",
+                type="primary"
+            )
+
+        with col2:
+            st.markdown("### 💡 Prompt Tips")
+            st.markdown("""
+            - Be descriptive with details
+            - Mention lighting and style
+            - Include futuristic elements
+            - Example: "A floating city at sunset with neon lights"
+            """)
+
+    if generate_button and prompt:
+        with st.spinner("Generating your vision..."):
+            progress_bar = st.progress(0)
+            
+            for percent_complete in range(100):
+                time.sleep(0.02)
+                progress_bar.progress(percent_complete + 1)
+            
+            try:
+                generated_image = generate_image(prompt, st.session_state.image_style)
+                
+                if generated_image:
+                    st.success("✨ Image generation complete!")
+                    
+                    cols = st.columns(2)
+                    cols[0].markdown("### AI Notes")
+                    cols[0].write("Your futuristic image has been created!")
+                    
+                    cols[1].markdown("### Generated Image")
+                    cols[1].image(generated_image, 
+                                use_container_width=True, 
+                                caption="Your creation",
+                                output_format="PNG",
+                                class_="generated-image")
+
+                    buf = BytesIO()
+                    generated_image.save(buf, format="PNG")
+                    byte_im = buf.getvalue()
+                    cols[1].download_button(
+                        label="Download Image",
+                        data=byte_im,
+                        file_name="quantora_image.png",
+                        mime="image/png"
+                    )
+                else:
+                    st.error("Image generation failed. Please try again.")
+            
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+
+elif st.session_state.current_mode == "Image Editing":
+    st.title("🖌️ Quantora Image Editing Studio")
+    st.markdown("Enhance and transform your images with Quantora's advanced editing tools.")
+    
+    if st.session_state.uploaded_image:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            original_image = st.session_state.uploaded_image
+            st.image(original_image, caption="Original Image", use_container_width=True)
+        
+        with col2:
+            edit_instructions = st.text_area(
+                "Editing instructions",
+                height=150,
+                placeholder="Make the background futuristic, add holographic elements..."
+            )
+            
+            edit_button = st.button(
+                "Apply Edits",
+                use_container_width=True,
+                key="edit_button"
+            )
+            
+            if edit_button and edit_instructions:
+                with st.spinner("Editing your image..."):
+                    progress_bar = st.progress(0)
+                    
+                    for percent_complete in range(100):
+                        time.sleep(0.02)
+                        progress_bar.progress(percent_complete + 1)
+                    
+                    try:
+                        contents = [
+                            edit_instructions,
+                            original_image
+                        ]
+                        
+                        response = gemini_model.generate_content(
+                            contents,
+                            generation_config=genai.types.GenerationConfig(
+                                max_output_tokens=2048,
+                                temperature=0.7,
+                                top_p=0.9,
+                                top_k=40
+                            )
+                        )
+                        
+                        if response.text:
+                            st.success("🎨 Edit complete!")
+                            
+                            cols = st.columns(2)
+                            cols[0].markdown("### AI Notes")
+                            cols[0].write(response.text)
+                            
+                            if hasattr(response, 'images') and response.images:
+                                edited_image = response.images[0]
+                                cols[1].markdown("### Edited Image")
+                                cols[1].image(edited_image, 
+                                            use_container_width=True, 
+                                            caption="Enhanced creation", 
+                                            output_format="PNG")
+                                
+                                buf = BytesIO()
+                                edited_image.save(buf, format="PNG")
+                                byte_im = buf.getvalue()
+                                cols[1].download_button(
+                                    label="Download Edited Image",
+                                    data=byte_im,
+                                    file_name="quantora_edited.png",
+                                    mime="image/png"
+                                )
+                        else:
+                            st.error("Editing failed. Please try different instructions.")
+                    
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+    else:
+        st.info("Please upload an image from the sidebar to begin editing.")
 
 # ✅ Footer
 st.markdown("---")
