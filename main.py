@@ -17,8 +17,9 @@ import io
 import requests
 from io import BytesIO
 import base64
-from google import genai as google_genai
-from google.genai import types
+import google.generativeai as genai
+from google.generativeai import types
+
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
