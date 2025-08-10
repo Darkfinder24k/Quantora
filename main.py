@@ -16,6 +16,8 @@ import io
 import requests
 from io import BytesIO
 import base64
+import yfinance as yf
+import plotly.graph_objects as go
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -32,18 +34,42 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Custom CSS with sidebar toggle
 st.markdown("""
-<button class="sidebar-toggle" onclick="toggleSidebar()">Toggle Sidebar</button>
+<style>
+    .sidebar-toggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 999;
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .sidebar-toggle:hover {
+        transform: scale(1.1);
+    }
+</style>
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
 <script>
-function toggleSidebar() {
-    const sidebar = document.querySelector('[data-testid="stSidebar"]');
-    const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
-    sidebar.setAttribute('aria-expanded', !isExpanded);
-}
+    function toggleSidebar() {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
+        sidebar.setAttribute('aria-expanded', !isExpanded);
+    }
 </script>
 """, unsafe_allow_html=True)
 
-# Custom CSS
+# Rest of your existing CSS
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden;}
@@ -381,7 +407,8 @@ if "enhancement_values" not in st.session_state:
         "brightness": 1.0,
         "contrast": 1.0,
         "sharpness": 1.0,
-        "color": 1.0
+        "color": 1.0,
+        "filter": "None"  # Added filter key to fix the KeyError
     }
 if "model_version" not in st.session_state:
     st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
@@ -391,6 +418,12 @@ if "image_style" not in st.session_state:
     st.session_state.image_style = "Sci-Fi"
 if "video_style" not in st.session_state:
     st.session_state.video_style = "Cinematic"
+if "quantora_logged_in" not in st.session_state:
+    st.session_state.quantora_logged_in = False
+if "quantora_liked_posts" not in st.session_state:
+    st.session_state.quantora_liked_posts = set()
+if "view_profile" not in st.session_state:
+    st.session_state.view_profile = None
 
 # Initialize API clients
 @st.cache_resource
@@ -1067,12 +1100,1298 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# --------------------------
+# QUANTORA TRADE CHARTS MODULE
+# --------------------------
+def quantora_trade_charts():
+    st.title("📈 Quantora Trade Charts")
+    st.markdown("Advanced financial analysis and visualization tools powered by Quantora AI")
+    
+    # Stock selection
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        ticker = st.text_input("Enter stock symbol (e.g. AAPL, MSFT, TSLA)", "AAPL")
+    with col2:
+        period = st.selectbox("Time period", ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y"])
+    
+    if st.button("Generate Analysis"):
+        with st.spinner("Fetching market data..."):
+            try:
+                stock = yf.Ticker(ticker)
+                hist = stock.history(period=period)
+                
+                if hist.empty:
+                    st.error("No data found for this symbol. Please try another.")
+                    return
+                
+                # Basic info
+                st.subheader(f"📊 {ticker} - {stock.info.get('longName', 'N/A')}")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Current Price", f"${stock.info.get('currentPrice', 'N/A')}")
+                with col2:
+                    change = stock.info.get('regularMarketChange', 0)
+                    change_percent = stock.info.get('regularMarketChangePercent', 0)
+                    st.metric("Daily Change", f"${change:.2f}", f"{change_percent:.2f}%")
+                with col3:
+                    st.metric("Market Cap", f"${stock.info.get('marketCap', 'N/A'):,}")
+                
+                # Candlestick chart
+                st.subheader("Candlestick Chart")
+                fig = go.Figure(data=[go.Candlestick(
+                    x=hist.index,
+                    open=hist['Open'],
+                    high=hist['High'],
+                    low=hist['Low'],
+                    close=hist['Close']
+                )])
+                fig.update_layout(
+                    title=f"{ticker} Price Movement",
+                    xaxis_title="Date",
+                    yaxis_title="Price (USD)",
+                    template="plotly_dark"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Volume chart
+                st.subheader("Trading Volume")
+                fig2 = go.Figure(data=[go.Bar(
+                    x=hist.index,
+                    y=hist['Volume'],
+                    marker_color='#8b5cf6'
+                )])
+                fig2.update_layout(
+                    title=f"{ticker} Trading Volume",
+                    xaxis_title="Date",
+                    yaxis_title="Volume",
+                    template="plotly_dark"
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+                
+                # Additional metrics
+                st.subheader("Key Metrics")
+                metrics = {
+                    "52 Week High": stock.info.get('fiftyTwoWeekHigh'),
+                    "52 Week Low": stock.info.get('fiftyTwoWeekLow'),
+                    "PE Ratio": stock.info.get('trailingPE'),
+                    "Dividend Yield": stock.info.get('dividendYield'),
+                    "Beta": stock.info.get('beta'),
+                    "Average Volume": stock.info.get('averageVolume')
+                }
+                
+                cols = st.columns(3)
+                for i, (metric, value) in enumerate(metrics.items()):
+                    with cols[i % 3]:
+                        if value is not None:
+                            if metric == "Dividend Yield":
+                                st.metric(metric, f"{value*100:.2f}%")
+                            elif metric == "Average Volume":
+                                st.metric(metric, f"{value:,.0f}")
+                            else:
+                                st.metric(metric, f"{value:.2f}")
+                        else:
+                            st.metric(metric, "N/A")
+                
+                # AI Analysis
+                st.subheader("📈 Quantora AI Analysis")
+                analysis_prompt = f"""
+                Provide a technical analysis of {ticker} stock based on the following data:
+                - Current Price: ${stock.info.get('currentPrice', 'N/A')}
+                - 52 Week Range: ${stock.info.get('fiftyTwoWeekLow', 'N/A')} - ${stock.info.get('fiftyTwoWeekHigh', 'N/A')}
+                - PE Ratio: {stock.info.get('trailingPE', 'N/A')}
+                - Market Cap: ${stock.info.get('marketCap', 'N/A'):,}
+                - Recent Performance: 
+                  {hist.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].to_string()}
+                
+                Provide insights on:
+                1. Current trend
+                2. Key support/resistance levels
+                3. Volume analysis
+                4. Technical indicators summary
+                5. Short-term and long-term outlook
+                
+                Keep the analysis professional but accessible to retail investors.
+                """
+                
+                with st.spinner("Generating AI analysis..."):
+                    analysis = call_quantora_unified(analysis_prompt)
+                    st.markdown(analysis)
+                
+            except Exception as e:
+                st.error(f"Error fetching data: {str(e)}")
+
+# --------------------------
+# QUANTORA NEWS MODULE
+# --------------------------
+def quantora_news():
+    today = datetime.now().strftime("%B %d, %Y")
+    st.markdown(f"""
+        <div style='text-align: center; padding: 10px 0 20px 0;'>
+            <h1 style='font-size: 3em; margin-bottom: 0;'>🧠 Quantora AI News Digest</h1>
+            <p style='color: gray; font-size: 1.2em;'>The most powerful news summary for <strong>{today}</strong></p>
+            <p style='font-size: 0.9em; color: #888;'>Generated by Quantora AI</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Dynamically dated prompt
+    prompt = f"""
+    You are Quantora AI, a cutting-edge real-time news analysis system. Give the MOST Trending news for {today}. Create the top news digest for {today} based on live global and Indian events 'like' operation sindoor, using a professional journalist tone.
+
+    Structure your summary into the following categories:
+
+    1. 🔴 Topic - 1 (2 detailed paragraphs)
+    2. 💰 Topic - 2 (1 paragraph)
+    3. 🏙️ Topic - 3 (2–3 bullet points)
+    4. 🏛️ Topic - 4 (2–3 bullet points)
+    5. 🎬 Topic - 5 (2–3 bullet points)
+    6. 🌍 Topic - 6 (1 paragraph)
+
+    Only include realistic and relevant news that would appear on Aaj Tak, ABP News, Zee News, and BBC for {today}.
+    """
+
+    # Generate news
+    with st.spinner("🔍 Quantora AI is gathering and analyzing today's global news..."):
+        response = call_quantora_unified(prompt)
+        news = response
+
+    # Display news with black text (no images)
+    news_lines = news.split('\n\n')
+    for line in news_lines:
+        if line.strip():  # Skip empty lines
+            # Display the news text
+            st.markdown(f"""
+            <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,0.08); font-size: 1.1em; line-height: 1.8; color: #000000;">
+                <p>{line}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+        <div style='text-align: center; font-size: 0.85em; color: gray; padding-top: 10px;'>
+            🔹 Powered by Quantora AI • Delivering Intelligence, Not Just Information.
+        </div>
+    """, unsafe_allow_html=True)
+
+# --------------------------
+# QUANTORA SEARCH ENGINE MODULE
+# --------------------------
+def quantora_search_engine():
+    # API Configuration
+    API_KEY = "AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig"
+    SEARCH_ENGINE_ID = "c38572640fa0441bc"
+
+    # Premium UI HTML/CSS/JS
+    premium_ui = """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --dark-gradient: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 100%);
+        --glass-bg: rgba(255, 255, 255, 0.05);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --text-primary: #ffffff;
+        --text-secondary: #b8bcc8;
+        --accent-blue: #00d4ff;
+        --accent-purple: #8b5cf6;
+        --accent-pink: #ec4899;
+        --success-green: #10b981;
+        --warning-orange: #f59e0b;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body, .stApp {
+        background: var(--dark-gradient);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--text-primary);
+        overflow-x: hidden;
+    }
+
+    /* Animated Background */
+    .animated-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: var(--dark-gradient);
+    }
+
+    .animated-bg::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(120, 219, 226, 0.2) 0%, transparent 50%);
+        animation: backgroundShift 20s ease-in-out infinite;
+    }
+
+    @keyframes backgroundShift {
+        0%, 100% { transform: translateX(0) translateY(0); }
+        25% { transform: translateX(-10px) translateY(-5px); }
+        50% { transform: translateX(10px) translateY(5px); }
+        75% { transform: translateX(-5px) translateY(10px); }
+    }
+
+    /* Header Styles */
+    .quantora-header {
+        text-align: center;
+        padding: 2rem 0;
+        position: relative;
+    }
+
+    .quantora-logo {
+        font-size: 4rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+        animation: logoGlow 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes logoGlow {
+        from { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3)); }
+        to { filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.5)); }
+    }
+
+    .quantora-tagline {
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+        font-weight: 300;
+        margin-bottom: 2rem;
+    }
+
+    /* Search Container */
+    .search-container {
+        max-width: 800px;
+        margin: 0 auto 3rem;
+        padding: 0 2rem;
+    }
+
+    .search-box {
+        position: relative;
+        margin-bottom: 2rem;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 1.5rem 6rem 1.5rem 2rem;
+        font-size: 1.1rem;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 25px;
+        color: var(--text-primary);
+        backdrop-filter: blur(20px);
+        transition: all 0.3s ease;
+        outline: none;
+        font-family: inherit;
+    }
+
+    .search-input:focus {
+        border-color: var(--accent-blue);
+        box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .search-input::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .search-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--primary-gradient);
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 20px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .search-btn:hover {
+        transform: translateY(-50%) scale(1.05);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Tab Navigation */
+    .tab-navigation {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        padding: 0.8rem 2rem;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 15px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        font-weight: 500;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .tab-btn.active {
+        background: var(--primary-gradient);
+        color: white;
+        border-color: transparent;
+    }
+
+    .tab-btn:hover:not(.active) {
+        color: var(--text-primary);
+        border-color: var(--accent-blue);
+        transform: translateY(-2px);
+    }
+
+    /* Results Container */
+    .results-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+    }
+
+    .result-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        backdrop-filter: blur(20px);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .result-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: var(--primary-gradient);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .result-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        border-color: var(--accent-blue);
+    }
+
+    .result-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .result-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--accent-blue);
+        margin-bottom: 0.5rem;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .result-title:hover {
+        color: var(--accent-purple);
+    }
+
+    .result-url {
+        color: var(--success-green);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .result-snippet {
+        color: var(--text-secondary);
+        line-height: 1.6;
+        font-size: 1rem;
+    }
+
+    /* Image Grid */
+    .image-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .image-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 15px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+
+    .image-card:hover {
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .image-card img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .image-card:hover img {
+        transform: scale(1.1);
+    }
+
+    /* Shopping Cards */
+    .shopping-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .shopping-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(20px);
+        position: relative;
+    }
+
+    .shopping-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    .shopping-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+    }
+
+    .shopping-content {
+        padding: 1.5rem;
+    }
+
+    .shopping-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .shopping-price {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--accent-blue);
+        margin-bottom: 1rem;
+    }
+
+    .shopping-description {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: 1rem;
+    }
+
+    .shop-btn {
+        width: 100%;
+        padding: 0.8rem;
+        background: var(--secondary-gradient);
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .shop-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(240, 147, 251, 0.4);
+    }
+
+    /* Loading Animation */
+    .loading-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid var(--glass-border);
+        border-top: 3px solid var(--accent-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .quantora-logo {
+            font-size: 2.5rem;
+        }
+        
+        .search-input {
+            padding: 1.2rem 5rem 1.2rem 1.5rem;
+            font-size: 1rem;
+        }
+        
+        .tab-navigation {
+            gap: 0.5rem;
+        }
+        
+        .tab-btn {
+            padding: 0.6rem 1.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .result-card {
+            padding: 1.5rem;
+        }
+        
+        .image-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .shopping-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+    }
+
+    /* Utility Classes */
+    .text-gradient {
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .glass-effect {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+    }
+
+    .hover-lift {
+        transition: transform 0.3s ease;
+    }
+
+    .hover-lift:hover {
+        transform: translateY(-5px);
+    }
+
+    /* Hide Streamlit elements */
+    .stApp > header {
+        display: none;
+    }
+
+    .stApp > footer {
+        display: none;
+    }
+
+    #MainMenu {
+        display: none;
+    }
+
+    .stDeployButton {
+        display: none;
+    }
+
+    .stDecoration {
+        display: none;
+    }
+
+    </style>
+
+    <div class="animated-bg"></div>
+
+    <div class="quantora-header">
+        <div class="quantora-logo">⚛️ QUANTORA</div>
+        <div class="quantora-tagline">Advanced Search Intelligence • Discover • Explore • Shop</div>
+    </div>
+
+    <script>
+    // Add interactive background particles
+    function createParticles() {
+        const container = document.querySelector('.animated-bg');
+        if (!container) return;
+        
+        for (let i = 0; i < 50; i++) {
+            const particle = document.createElement('div');
+            particle.style.cssText = `
+                position: absolute;
+                width: 2px;
+                height: 2px;
+                background: rgba(0, 212, 255, 0.5);
+                border-radius: 50%;
+                top: ${Math.random() * 100}%;
+                left: ${Math.random() * 100}%;
+                animation: float ${5 + Math.random() * 10}s ease-in-out infinite;
+                animation-delay: ${Math.random() * 5}s;
+            `;
+            container.appendChild(particle);
+        }
+    }
+
+    // Floating animation for particles
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0; }
+            10%, 90% { opacity: 1; }
+            50% { transform: translateY(-20px) translateX(10px); }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Initialize particles when page loads
+    setTimeout(createParticles, 1000);
+
+    // Add smooth scrolling
+    document.addEventListener('DOMContentLoaded', function() {
+        document.documentElement.style.scrollBehavior = 'smooth';
+    });
+    </script>
+    """
+    st.markdown(premium_ui, unsafe_allow_html=True)
+
+    # Initialize Session State
+    if 'search_query' not in st.session_state:
+        st.session_state.search_query = ""
+    if 'search_results' not in st.session_state:
+        st.session_state.search_results = []
+    if 'current_tab' not in st.session_state:
+        st.session_state.current_tab = "web"
+
+    # Search Interface
+    search_col1, search_col2 = st.columns([6, 1])
+
+    with search_col1:
+        search_query = st.text_input(
+            "",
+            value=st.session_state.search_query,
+            placeholder="🔍 Enter your search query...",
+            key="main_search",
+            label_visibility="collapsed"
+        )
+
+    with search_col2:
+        search_clicked = st.button("🚀 Search", key="search_btn", use_container_width=True)
+
+    # Tab Navigation
+    tab_col1, tab_col2, tab_col3, tab_col4 = st.columns(4)
+
+    with tab_col1:
+        if st.button("🌐 Web Results", key="web_tab", use_container_width=True):
+            st.session_state.current_tab = "web"
+
+    with tab_col2:
+        if st.button("🖼️ Images", key="images_tab", use_container_width=True):
+            st.session_state.current_tab = "images"
+
+    with tab_col3:
+        if st.button("🛒 Shopping", key="shopping_tab", use_container_width=True):
+            st.session_state.current_tab = "shopping"
+
+    with tab_col4:
+        if st.button("📰 News", key="news_tab", use_container_width=True):
+            st.session_state.current_tab = "news"
+
+    # Search Logic
+    if search_clicked and search_query:
+        st.session_state.search_query = search_query
+        
+        # Show loading animation
+        with st.spinner("🔍 Quantora is processing your query..."):
+            if st.session_state.current_tab == "web":
+                st.session_state.search_results = fetch_quantora_results(
+                    search_query, API_KEY, SEARCH_ENGINE_ID, num=10
+                )
+            elif st.session_state.current_tab == "images":
+                st.session_state.search_results = fetch_image_results(
+                    search_query, API_KEY, SEARCH_ENGINE_ID, num_images=16
+                )
+            elif st.session_state.current_tab == "shopping":
+                shopping_query = f"{search_query} buy shop price store"
+                st.session_state.search_results = fetch_quantora_results(
+                    shopping_query, API_KEY, SEARCH_ENGINE_ID, num=12
+                )
+            elif st.session_state.current_tab == "news":
+                news_query = f"{search_query} news latest"
+                st.session_state.search_results = fetch_quantora_results(
+                    news_query, API_KEY, SEARCH_ENGINE_ID, num=10
+                )
+
+    # Display Results
+    if st.session_state.search_query and st.session_state.search_results:
+        
+        # Results count
+        st.markdown(f"""
+        <div style="text-align: center; margin: 2rem 0; color: var(--text-secondary);">
+            Found <span style="color: var(--accent-blue); font-weight: 600;">{len(st.session_state.search_results)}</span> 
+            results for "<span style="color: var(--text-primary);">{st.session_state.search_query}</span>"
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.session_state.current_tab == "web":
+            # Web Results
+            for i, result in enumerate(st.session_state.search_results):
+                title = result.get('title', 'No Title')
+                link = result.get('link', '#')
+                snippet = result.get('snippet', 'No description available')
+                
+                st.markdown(f"""
+                <div class="result-card">
+                    <a href="{link}" target="_blank" class="result-title">{title}</a>
+                    <div class="result-url">{link}</div>
+                    <div class="result-snippet">{snippet}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        elif st.session_state.current_tab == "images":
+            # Image Results
+            st.markdown('<div class="image-grid">', unsafe_allow_html=True)
+            
+            cols = st.columns(4)
+            for i, result in enumerate(st.session_state.search_results):
+                image_url = result.get('link', '')
+                title = result.get('title', 'Image')
+                
+                with cols[i % 4]:
+                    try:
+                        st.image(image_url, caption=title[:50] + "..." if len(title) > 50 else title)
+                    except:
+                        st.info("Image unavailable")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        elif st.session_state.current_tab == "shopping":
+            # Shopping Results
+            st.markdown('<div class="shopping-grid">', unsafe_allow_html=True)
+            
+            cols = st.columns(3)
+            for i, result in enumerate(st.session_state.search_results):
+                title = result.get('title', 'Product')
+                link = result.get('link', '#')
+                snippet = result.get('snippet', 'No description available')
+                
+                # Try to get product image
+                try:
+                    image_results = fetch_image_results(title, API_KEY, SEARCH_ENGINE_ID, num_images=1)
+                    image_url = image_results[0].get('link') if image_results else None
+                except:
+                    image_url = None
+                
+                with cols[i % 3]:
+                    st.markdown(f"""
+                    <div class="shopping-card">
+                        {f'<img src="{image_url}" class="shopping-image" alt="{title}">' if image_url else '<div class="shopping-image" style="background: linear-gradient(45deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem;">🛒</div>'}
+                        <div class="shopping-content">
+                            <div class="shopping-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
+                            <div class="shopping-description">{snippet[:100]}{'...' if len(snippet) > 100 else ''}</div>
+                            <a href="{link}" target="_blank">
+                                <button class="shop-btn">View Product →</button>
+                            </a>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        elif st.session_state.current_tab == "news":
+            # News Results
+            for i, result in enumerate(st.session_state.search_results):
+                title = result.get('title', 'No Title')
+                link = result.get('link', '#')
+                snippet = result.get('snippet', 'No description available')
+                
+                st.markdown(f"""
+                <div class="result-card">
+                    <a href="{link}" target="_blank" class="result-title">📰 {title}</a>
+                    <div class="result-url">{link}</div>
+                    <div class="result-snippet">{snippet}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    elif st.session_state.search_query and not st.session_state.search_results:
+        st.markdown("""
+        <div style="text-align: center; margin: 4rem 0; color: var(--text-secondary);">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">🔍</div>
+            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">No results found</div>
+            <div>Try different keywords or check your spelling</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    else:
+        # Welcome message
+        st.markdown("""
+        <div style="text-align: center; margin: 4rem 0; color: var(--text-secondary);">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">🚀</div>
+            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">Welcome to Quantora</div>
+            <div>Your advanced search intelligence platform</div>
+            <div style="margin-top: 2rem;">
+                <div style="display: inline-block; margin: 0 1rem; padding: 1rem; background: var(--glass-bg); border-radius: 10px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 1.5rem;">🌐</div>
+                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Web Search</div>
+                </div>
+                <div style="display: inline-block; margin: 0 1rem; padding: 1rem; background: var(--glass-bg); border-radius: 10px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 1.5rem;">🖼️</div>
+                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Image Search</div>
+                </div>
+                <div style="display: inline-block; margin: 0 1rem; padding: 1rem; background: var(--glass-bg); border-radius: 10px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 1.5rem;">🛒</div>
+                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Shopping</div>
+                </div>
+                <div style="display: inline-block; margin: 0 1rem; padding: 1rem; background: var(--glass-bg); border-radius: 10px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 1.5rem;">📰</div>
+                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">News</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Footer
+    st.markdown("""
+    <div style="text-align: center; margin: 4rem 0 2rem; padding: 2rem; border-top: 1px solid var(--glass-border);">
+        <div style="color: var(--text-secondary); font-size: 0.9rem;">
+            Powered by <span class="text-gradient" style="font-weight: 600;">Quantora Advanced Search Intelligence</span>
+        </div>
+        <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem;">
+            Built with ⚛️ Modern Web Technologies
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def fetch_quantora_results(search_term, api_key, cse_id, **kwargs):
+    try:
+        service = build("customsearch", "v1", developerKey=api_key)
+        res = service.cse().list(q=search_term, cx=cse_id, **kwargs).execute()
+        return res.get("items", [])
+    except Exception as e:
+        st.error(f"Search error: {e}")
+        return []
+
+def fetch_image_results(search_term, api_key, cse_id, num_images=8):
+    try:
+        service = build("customsearch", "v1", developerKey=api_key)
+        res = service.cse().list(q=search_term, cx=cse_id, searchType='image', num=num_images).execute()
+        return res.get("items", [])
+    except Exception as e:
+        return []
+
+# --------------------------
+# QUANTORA SOCIAL MEDIA MODULE
+# --------------------------
+def quantora_social_media():
+    QUANTORA_POSTS_CSV = "quantora_social_posts.csv"
+    QUANTORA_USERS_CSV = "quantora_social_users.csv"
+    QUANTORA_FOLLOWS_CSV = "quantora_social_follows.csv"
+    QUANTORA_IMAGES_DIR = "quantora_social_images"
+    QUANTORA_PROFILE_PICS_DIR = "quantora_social_profile_pics"
+    DEFAULT_PROFILE_PIC = "default_profile.png"
+
+    if not os.path.exists(QUANTORA_POSTS_CSV):
+        quantora_df_posts = pd.DataFrame(columns=['quantora_username', 'quantora_timestamp', 'quantora_text', 'quantora_image_path', 'quantora_likes', 'quantora_comments'])
+        quantora_df_posts.to_csv(QUANTORA_POSTS_CSV, index=False)
+
+    if not os.path.exists(QUANTORA_USERS_CSV):
+        quantora_df_users = pd.DataFrame(columns=['quantora_email', 'quantora_username', 'quantora_password', 'quantora_profile_pic', 'bio'])
+        quantora_df_users.to_csv(QUANTORA_USERS_CSV, index=False)
+
+    if not os.path.exists(QUANTORA_FOLLOWS_CSV):
+        quantora_df_follows = pd.DataFrame(columns=['follower', 'followed'])
+        quantora_df_follows.to_csv(QUANTORA_FOLLOWS_CSV, index=False)
+
+    if not os.path.exists(QUANTORA_IMAGES_DIR):
+        os.makedirs(QUANTORA_IMAGES_DIR)
+
+    if not os.path.exists(QUANTORA_PROFILE_PICS_DIR):
+        os.makedirs(QUANTORA_PROFILE_PICS_DIR)
+
+    # Helper Functions
+    def handle_hashtags(text):
+        return text
+
+    def quantora_user_info_header(username, show_follow=False):
+        quantora_users_df = pd.read_csv(QUANTORA_USERS_CSV)
+        try:
+            quantora_user_data = quantora_users_df[quantora_users_df['quantora_username'] == username].iloc[0]
+            quantora_profile_pic_path = quantora_user_data.get('quantora_profile_pic', DEFAULT_PROFILE_PIC)
+            if not os.path.exists(quantora_profile_pic_path):
+                quantora_profile_pic_path = DEFAULT_PROFILE_PIC
+        except IndexError:
+            quantora_profile_pic_path = DEFAULT_PROFILE_PIC
+
+        col1, col2 = st.columns([0.08, 0.92])
+        with col1:
+            st.markdown(f'<img src="{quantora_profile_pic_path}" width="36" style="border-radius: 50%; object-fit: cover;">', unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"<strong style='font-size: 1.1em;'>{username}</strong>", unsafe_allow_html=True)
+            if show_follow and username != st.session_state.quantora_username:
+                is_following = is_user_following(st.session_state.quantora_username, username)
+                follow_text = "Following" if is_following else "Follow"
+                if st.button(follow_text, key=f"follow_{username}", use_container_width=True):
+                    update_follow(st.session_state.quantora_username, username, not is_following)
+                    st.rerun()
+
+    def quantora_post_actions(row, index):
+        quantora_username = row['quantora_username']
+        quantora_timestamp = row['quantora_timestamp']
+        quantora_likes = int(row.get('quantora_likes', 0))
+        quantora_post_key = f"{quantora_username}_{quantora_timestamp}"
+        liked = quantora_post_key in st.session_state.quantora_liked_posts
+
+        col1, col2, _ = st.columns([0.15, 0.15, 0.7])
+        with col1:
+            like_button_label = f"{'❤️' if liked else '🤍'} {quantora_likes}"
+            if st.button(like_button_label, key=f"like_btn_{index}", use_container_width=True):
+                quantora_df = pd.read_csv(QUANTORA_POSTS_CSV)
+                if liked:
+                    quantora_df.at[index, 'quantora_likes'] -= 1
+                    st.session_state.quantora_liked_posts.discard(quantora_post_key)
+                else:
+                    quantora_df.at[index, 'quantora_likes'] += 1
+                    st.session_state.quantora_liked_posts.add(quantora_post_key)
+                quantora_df.to_csv(QUANTORA_POSTS_CSV, index=False)
+                st.rerun()
+        with col2:
+            with st.expander("💬 Comments", expanded=False):
+                quantora_comment_section(row, index)
+
+    def quantora_comment_section(row, index):
+        quantora_username = row['quantora_username']
+        quantora_comments_raw = row.get('quantora_comments', '')
+        if pd.isna(quantora_comments_raw):
+            quantora_comments_raw = ""
+        quantora_comments = quantora_comments_raw.split("|") if quantora_comments_raw else []
+        for c in quantora_comments:
+            if c:
+                parts = c.split(": ", 1)
+                if len(parts) == 2:
+                    commenter, comment_text = parts[0], parts[1]
+                    colored_commenter = f'<span style="color: black;">{commenter}:</span>'
+                    colored_comment_text = f'<span style="color: black;">{comment_text}</span>'
+                    st.markdown(
+                        f"<div style='padding: 8px; margin-bottom: 5px; background-color: #f0f2f5; border-radius: 5px; width: 100%; box-sizing: border-box;'><strong>{colored_commenter}</strong> {colored_comment_text}</div>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    colored_c = f'<span style="color: black;">{c}</span>'
+                    st.markdown(
+                        f"<div style='margin-bottom: 5px; width: 100%; box-sizing: border-box;'>- {colored_c}</div>",
+                        unsafe_allow_html=True
+                    )
+
+        with st.container():
+            comment_input_col, comment_button_col = st.columns([0.95, 0.05])
+            with comment_input_col:
+                quantora_new_comment = st.text_input(
+                    "",
+                    placeholder="Add a comment...",
+                    key=f"comment_input_{index}",
+                    help="Type your comment here"
+                )
+            with comment_button_col:
+                if st.button("Post", key=f"comment_post_btn_{index}", use_container_width=True):
+                    if quantora_new_comment:
+                        quantora_df = pd.read_csv(QUANTORA_POSTS_CSV)
+                        colored_username = f'<span style="color: black;">{st.session_state.quantora_username}:</span>'
+                        colored_new_comment = f'<span style="color: black;">{quantora_new_comment}</span>'
+                        quantora_updated_comment = f"{st.session_state.quantora_username}: {quantora_new_comment}"
+                        quantora_combined_comments = (
+                            quantora_comments_raw + f"|{quantora_updated_comment}"
+                            if quantora_comments_raw
+                            else quantora_updated_comment
+                        )
+                        quantora_df.at[index, 'quantora_comments'] = quantora_combined_comments
+                        quantora_df.to_csv(QUANTORA_POSTS_CSV, index=False)
+                        st.run()
+
+    def is_user_following(follower, followed):
+        try:
+            follows_df = pd.read_csv(QUANTORA_FOLLOWS_CSV)
+            return ((follows_df['follower'] == follower) & (follows_df['followed'] == followed)).any()
+        except FileNotFoundError:
+            return False
+
+    def update_follow(follower, followed, follow=True):
+        follows_df = pd.read_csv(QUANTORA_FOLLOWS_CSV) if os.path.exists(QUANTORA_FOLLOWS_CSV) else pd.DataFrame(columns=['follower', 'followed'])
+        if follow:
+            if not ((follows_df['follower'] == follower) & (follows_df['followed'] == followed)).any():
+                new_follow = pd.DataFrame([[follower, followed]], columns=['follower', 'followed'])
+                new_follow.to_csv(QUANTORA_FOLLOWS_CSV, mode='a', header=False, index=False)
+        else:
+            follows_df = follows_df[~((follows_df['follower'] == follower) & (follows_df['followed'] == followed))]
+            follows_df.to_csv(QUANTORA_FOLLOWS_CSV, index=False)
+
+    def search_users(query):
+        users_df = pd.read_csv(QUANTORA_USERS_CSV)
+        results = users_df[users_df['quantora_username'].str.contains(query, case=False)]
+        return results
+
+    def get_user_posts(username):
+        posts_df = pd.read_csv(QUANTORA_POSTS_CSV)
+        return posts_df[posts_df['quantora_username'] == username].sort_values(by='quantora_timestamp', ascending=False)
+
+    def get_followers(username):
+        follows_df = pd.read_csv(QUANTORA_FOLLOWS_CSV) if os.path.exists(QUANTORA_FOLLOWS_CSV) else pd.DataFrame(columns=['follower', 'followed'])
+        return follows_df[follows_df['followed'] == username]['follower'].tolist()
+
+    def get_following(username):
+        follows_df = pd.read_csv(QUANTORA_FOLLOWS_CSV) if os.path.exists(QUANTORA_FOLLOWS_CSV) else pd.DataFrame(columns=['follower', 'followed'])
+        return follows_df[follows_df['follower'] == username]['followed'].tolist()
+
+    # User Auth
+    def quantora_register_user():
+        st.subheader("Join the Quantora Universe!")
+        quantora_email = st.text_input("Your Email (optional)")
+        quantora_username = st.text_input("Choose a Username")
+        quantora_password = st.text_input("Create a Password", type="password")
+        quantora_bio = st.text_area("Tell us about yourself (optional)")
+        quantora_profile_pic_upload = st.file_uploader("Add a Profile Picture (optional)", type=["jpg", "jpeg", "png"])
+
+        if st.button("Embark on Your Quantora Journey"):
+            quantora_users_df = pd.read_csv(QUANTORA_USERS_CSV)
+            if quantora_username in quantora_users_df['quantora_username'].values:
+                st.error("This username is already taken. Let your uniqueness shine with another!")
+            elif not quantora_username:
+                st.error("A username is your key to the Quantora Universe!")
+            elif not quantora_password:
+                st.error("Set a password to secure your Quantora experience!")
+            else:
+                quantora_profile_pic_path = DEFAULT_PROFILE_PIC
+                if quantora_profile_pic_upload is not None:
+                    pic_filename = f"{quantora_username}_{int(time.time())}_{quantora_profile_pic_upload.name}"
+                    quantora_profile_pic_path = os.path.join(QUANTORA_PROFILE_PICS_DIR, pic_filename)
+                    with open(quantora_profile_pic_path, "wb") as f:
+                        f.write(quantora_profile_pic_upload.getbuffer())
+
+                quantora_new_user = pd.DataFrame([[quantora_email, quantora_username, quantora_password, quantora_profile_pic_path, quantora_bio]],
+                                            columns=['quantora_email', 'quantora_username', 'quantora_password', 'quantora_profile_pic', 'bio'])
+                quantora_new_user.to_csv(QUANTORA_USERS_CSV, mode='a', header=False, index=False)
+                st.success("Welcome to Quantora! Log in to begin your adventure.")
+
+    def quantora_login_user():
+        st.subheader("Re-enter the Quantora Universe")
+        quantora_username = st.text_input("Username")
+        quantora_password = st.text_input("Password", type="password")
+        if st.button("Unlock Quantora"):
+            quantora_users_df = pd.read_csv(QUANTORA_USERS_CSV)
+            user_match = quantora_users_df[
+                (quantora_users_df['quantora_username'] == quantora_username) &
+                (quantora_users_df['quantora_password'] == quantora_password)
+            ]
+            if not user_match.empty:
+                st.session_state.quantora_logged_in = True
+                st.session_state.quantora_username = quantora_username
+                st.success(f"Welcome back, @{quantora_username}! The Quantora Universe awaits.")
+                st.rerun()
+            else:
+                st.error("Incorrect username or password. Double-check your credentials to rejoin Quantora.")
+
+    # Post Creation
+    def quantora_new_post():
+        st.subheader("Share Your Moment on Quantora")
+        quantora_post_text = st.text_area("What's happening?", height=150)
+        quantora_uploaded_file = st.file_uploader("Add a Photo or Video (optional)", type=["jpg", "jpeg", "png"])
+
+        if st.button("Post to Quantora"):
+            quantora_image_path = ""
+            if quantora_uploaded_file is not None:
+                image_filename = f"{st.session_state.quantora_username}_{int(time.time())}_{quantora_uploaded_file.name}"
+                quantora_image_path = os.path.join(QUANTORA_IMAGES_DIR, image_filename)
+                with open(quantora_image_path, "wb") as f:
+                    f.write(quantora_uploaded_file.getbuffer())
+
+            quantora_new_data = pd.DataFrame([[st.session_state.quantora_username, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), quantora_post_text, quantora_image_path, 0, ""]],
+                                        columns=['quantora_username', 'quantora_timestamp', 'quantora_text', 'quantora_image_path', 'quantora_likes', 'quantora_comments'])
+            quantora_new_data.to_csv(QUANTORA_POSTS_CSV, mode='a', header=False, index=False)
+            st.success("Your post has been shared with the Quantora community!")
+            st.rerun()
+
+    # Social Feed
+    def quantora_social_feed():
+        st.subheader("Your Quantora Feed")
+        try:
+            quantora_df = pd.read_csv(QUANTORA_POSTS_CSV)
+            all_posts = quantora_df.sort_values(by='quantora_timestamp', ascending=False)
+            for index, row in all_posts.iterrows():
+                st.markdown("<div style='margin-bottom: 20px; padding: 15px; border: 1px solid #e1e4e8; border-radius: 10px; background-color: #fff;'>", unsafe_allow_html=True)
+                quantora_user_info_header(row['quantora_username'])
+                st.markdown(f"<div style='margin-top: 10px; font-size: 1em; line-height: 1.4;'>{handle_hashtags(row.get('quantora_text', ''))}</div>", unsafe_allow_html=True)
+                image_path = row.get('quantora_image_path')
+                if image_path and isinstance(image_path, str) and os.path.exists(image_path):
+                    st.image(image_path, use_column_width=True, style="margin-top: 10px; border-radius: 8px;")
+                st.markdown("<hr style='margin: 15px 0; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
+                quantora_post_actions(row, index)
+                st.markdown("</div>", unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Error loading feed: {e}")
+
+    # Profile Page
+    def quantora_profile(view_username=None):
+        username_to_view = view_username if view_username else st.session_state.quantora_username
+        st.subheader(f"@{username_to_view}")
+
+        try:
+            user_data = pd.read_csv(QUANTORA_USERS_CSV)
+            user_profile = user_data[user_data['quantora_username'] == username_to_view].iloc[0]
+            bio = user_profile.get('bio', 'No bio available.')
+            profile_pic = user_profile.get('quantora_profile_pic', DEFAULT_PROFILE_PIC)
+
+            if not isinstance(profile_pic, str):
+                profile_pic = DEFAULT_PROFILE_PIC
+
+            followers = get_followers(username_to_view)
+            following = get_following(username_to_view)
+            posts = get_user_posts(username_to_view)
+
+            col1, col2 = st.columns([0.2, 0.8])
+            with col1:
+                st.markdown(f'<img src="{profile_pic}" width="80" style="border-radius: 50%; object-fit: cover;">', unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"<strong style='font-size: 1.5em;'>{username_to_view}</strong>", unsafe_allow_html=True)
+                st.markdown(f"<span style='color: #777;'>{len(posts)} posts | {len(followers)} followers | {len(following)} following</span>", unsafe_allow_html=True)
+                st.markdown(f"<p style='margin-top: 5px;'>{bio}</p>", unsafe_allow_html=True)
+                if username_to_view != st.session_state.quantora_username:
+                    is_following = is_user_following(st.session_state.quantora_username, username_to_view)
+                    follow_text = "Following" if is_following else "Follow"
+                    if st.button(follow_text, key=f"profile_follow_{username_to_view}", use_container_width=True):
+                        update_follow(st.session_state.quantora_username, username_to_view, not is_following)
+                        st.rerun()
+
+            st.subheader("Posts")
+            if not posts.empty:
+                cols = st.columns(3)
+                for i, row in posts.iterrows():
+                    with cols[i % 3]:
+                        if row['quantora_image_path'] and os.path.exists(row['quantora_image_path']):
+                            st.image(row['quantora_image_path'], use_column_width=True, style="border-radius: 5px;")
+                        else:
+                            st.info("No image")
+            else:
+                st.info(f"@{username_to_view} hasn't posted yet.")
+
+        except IndexError:
+            st.error(f"User @{username_to_view} not found.")
+        except FileNotFoundError:
+            st.error("User data file not found.")
+        except Exception as e:
+            st.error(f"An error occurred while loading the profile: {e}")
+
+    # Search
+    def quantora_search():
+        st.subheader("Search Users")
+        query = st.text_input("Search for usernames:")
+        if query:
+            results = search_users(query)
+            if not results.empty:
+                for index, user in results.iterrows():
+                    if st.button(f"@{user['quantora_username']}", key=f"search_result_{index}"):
+                        st.session_state.view_profile = user['quantora_username']
+                        st.rerun()
+            else:
+                st.info("No users found matching your search.")
+        if 'view_profile' in st.session_state:
+            quantora_profile(st.session_state.view_profile)
+            if st.button("Back to Search"):
+                del st.session_state.view_profile
+                st.rerun()
+
+    # Navigation
+    def quantora_sidebar():
+        st.sidebar.title("✨ The Quantora Universe")
+        if st.session_state.quantora_logged_in:
+            st.sidebar.success(f"Navigating as @{st.session_state.quantora_username}")
+            menu = st.sidebar.radio("Explore the Universe", ["Your Feed", "Create Post", "Your Profile", "Search", "Logout"])
+            return menu
+        else:
+            st.sidebar.info("Embark on a new social journey with Quantora!")
+            auth_action = st.sidebar.radio("Your Gateway", ["Log In", "Join Quantora"])
+            return auth_action
+
+    # Main App Logic
+    navigation = quantora_sidebar()
+
+    if st.session_state.quantora_logged_in:
+        if navigation == "Your Feed":
+            quantora_social_feed()
+        elif navigation == "Create Post":
+            quantora_new_post()
+        elif navigation == "Your Profile":
+            quantora_profile()
+        elif navigation == "Search":
+            quantora_search()
+        elif navigation == "Logout":
+            st.session_state.quantora_logged_in = False
+            st.session_state.quantora_username = ""
+            st.session_state.view_profile = None
+            st.rerun()
+    else:
+        if navigation == "Log In":
+            quantora_login_user()
+        elif navigation == "Join Quantora":
+            quantora_register_user()
+
+# --------------------------
+# MAIN APP NAVIGATION
+# --------------------------
+
 # Sidebar for Mode Selection
 with st.sidebar:
     st.markdown("### 🚀 Quantora Modes")
     mode = st.radio(
         "Select Mode",
-        ["AI", "Image Generation", "Image Editing"],
+        ["AI", "Image Generation", "Image Editing", "Quantora News", "Quantora Trade Charts", "Quantora Search Engine", "Quantora Social Media"],
         index=0,
         key="current_mode"
     )
@@ -1125,7 +2444,8 @@ with st.sidebar:
             "brightness": 1.0,
             "contrast": 1.0,
             "sharpness": 1.0,
-            "color": 1.0
+            "color": 1.0,
+            "filter": "None"
         }
         st.success("✅ All uploads cleared!")
         st.rerun()
@@ -1466,6 +2786,18 @@ elif st.session_state.current_mode == "Image Editing":
                         st.error(f"Error: {str(e)}")
     else:
         st.info("Please upload an image from the sidebar to begin editing.")
+
+elif st.session_state.current_mode == "Quantora News":
+    quantora_news()
+
+elif st.session_state.current_mode == "Quantora Trade Charts":
+    quantora_trade_charts()
+
+elif st.session_state.current_mode == "Quantora Search Engine":
+    quantora_search_engine()
+
+elif st.session_state.current_mode == "Quantora Social Media":
+    quantora_social_media()
 
 # Footer
 st.markdown("---")
