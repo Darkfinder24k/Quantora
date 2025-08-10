@@ -18,6 +18,7 @@ from io import BytesIO
 import base64
 import yfinance as yf
 import plotly.graph_objects as go
+from googleapiclient.discovery import build
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -35,6 +36,7 @@ st.set_page_config(
 )
 
 # Custom CSS with sidebar toggle
+# Replace your current sidebar toggle CSS/JS with this updated version:
 st.markdown("""
 <style>
     .sidebar-toggle {
@@ -58,6 +60,12 @@ st.markdown("""
     .sidebar-toggle:hover {
         transform: scale(1.1);
     }
+    [data-testid="stSidebar"] {
+        transition: transform 300ms ease-in-out;
+    }
+    [data-testid="stSidebar"][aria-expanded="false"] {
+        transform: translateX(-100%);
+    }
 </style>
 <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
 <script>
@@ -65,6 +73,8 @@ st.markdown("""
         const sidebar = document.querySelector('[data-testid="stSidebar"]');
         const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
         sidebar.setAttribute('aria-expanded', !isExpanded);
+        // Force Streamlit to update the layout
+        window.dispatchEvent(new Event('resize'));
     }
 </script>
 """, unsafe_allow_html=True)
