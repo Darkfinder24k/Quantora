@@ -1019,14 +1019,17 @@ def generate_image(prompt, style):
         # Configure Gemini - make sure you have the API key in your Streamlit secrets
         genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
         
-        # Create the model
-        model = genai.GenerativeModel('imagen-3.0-generate-002')
-        
         # Enhanced prompt with style
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
         
         # Generate the image
-        response = model.generate_content(enhanced_prompt)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-preview-image-generation",
+            contents=contents,
+            config=types.GenerateContentConfig(
+              response_modalities=['TEXT', 'IMAGE']
+            )
+        )
         
         # Get the image data
         if response._result.candidates and response._result.candidates[0].content.parts:
