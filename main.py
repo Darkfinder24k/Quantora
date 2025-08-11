@@ -1028,7 +1028,6 @@ def generate_image(prompt, style):
         # Generate the image
         response = model.generate_content(
             contents=[enhanced_prompt],
-            response_modalities=['TEXT', 'IMAGE'],
             generation_config={
                 "temperature": 0.9,
                 "top_p": 0.95,
