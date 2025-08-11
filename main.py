@@ -1015,43 +1015,31 @@ def format_response_with_code(response):
 
 # Image Generation Functions
 def generate_image(prompt, style):
-    headers = {
-        "Authorization": f"Bearer {A4F_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    enhanced_prompt = f"{prompt}, {style} style, ultra HD, photorealistic, cinematic lighting"
-    
-    payload = {
-        "model": IMAGE_MODEL,
-        "prompt": enhanced_prompt,
-        "num_images": 1,
-        "width": 1024,
-        "height": 1024,
-        "steps": 50,
-        "guidance_scale": 7.5
-    }
-    
     try:
-        response = requests.post(
-            f"{A4F_BASE_URL}/images/generations",
-            headers=headers,
-            json=payload,
-            timeout=30
-        )
+        # Configure Gemini - make sure you have the API key in your Streamlit secrets
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         
-        if response.status_code == 200:
-            result = response.json()
-            if 'data' in result and len(result['data']) > 0:
-                image_url = result['data'][0]['url']
-                image_response = requests.get(image_url, timeout=30)
-                if image_response.status_code == 200:
-                    return Image.open(BytesIO(image_response.content))
-        return None
+        # Create the model
+        model = genai.GenerativeModel('gemini-pro-vision')
+        
+        # Enhanced prompt with style
+        enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
+        
+        # Generate the image
+        response = model.generate_content(enhanced_prompt)
+        
+        # Get the image data
+        if response._result.candidates and response._result.candidates[0].content.parts:
+            image_data = response._result.candidates[0].content.parts[0].inline_data.data
+            image = Image.open(io.BytesIO(image_data))
+            return image
+        else:
+            st.error("No image was generated. Please try again with a different prompt.")
+            return None
+            
     except Exception as e:
-        st.error(f"API Error: {str(e)}")
+        st.error(f"Error generating image: {str(e)}")
         return None
-
 def generate_video(prompt, style):
     headers = {
         "Authorization": f"Bearer {A4F_API_KEY}",
