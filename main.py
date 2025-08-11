@@ -1014,11 +1014,6 @@ def format_response_with_code(response):
     return parts if parts else [('text', response)]
 
 # Image Generation Functions
-import google.generativeai as genai
-from PIL import Image
-import io
-import streamlit as st
-
 def generate_image(prompt, style):
     try:
         # Configure Gemini
@@ -1028,33 +1023,28 @@ def generate_image(prompt, style):
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
 
         # Initialize the model
-        model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash-preview-image-generation"
-        )
+        model = genai.GenerativeModel("gemini-2.0-flash-preview-image-generation")
 
-        # Generate the image (set modality to IMAGE only)
+        # Generate the image
         response = model.generate_content(
-            contents=[enhanced_prompt],
+            [enhanced_prompt],
             generation_config={
                 "temperature": 0.9,
                 "top_p": 0.95,
-                "top_k": 40,
-            },
-            request_options={"response_modality": ["IMAGE"]}
+                "top_k": 40
+            }
         )
 
-        # Debug: Print the full response
+        # Debug: Print raw response
         print("Full response:", response)
 
         # Extract image data
-        if hasattr(response, '_result') and response._result.candidates:
-            for candidate in response._result.candidates:
-                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
-                    for part in candidate.content.parts:
-                        if hasattr(part, 'inline_data') and hasattr(part.inline_data, 'data'):
-                            image_data = part.inline_data.data
-                            image = Image.open(io.BytesIO(image_data))
-                            return image
+        for candidate in response.candidates:
+            for part in candidate.content.parts:
+                if part.inline_data:
+                    image_data = part.inline_data.data
+                    image = Image.open(io.BytesIO(image_data))
+                    return image
 
         st.error("No image data found in the response.")
         return None
@@ -1062,7 +1052,6 @@ def generate_image(prompt, style):
     except Exception as e:
         st.error(f"Error generating image: {str(e)}")
         return None
-
 
 def generate_video(prompt, style):
     headers = {
