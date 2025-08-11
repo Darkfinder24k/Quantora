@@ -1,8 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
 from google.generativeai import types
-from google import genai
-from google.genai import types
 from datetime import datetime
 import time
 import os
