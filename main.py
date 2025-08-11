@@ -1014,31 +1014,39 @@ def format_response_with_code(response):
     return parts if parts else [('text', response)]
 
 # Image Generation Functions
+import google.generativeai as genai
+from PIL import Image
+import io
+import streamlit as st
+
 def generate_image(prompt, style):
     try:
         # Configure Gemini
         genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
-        
+
         # Enhanced prompt with style
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
-        
+
         # Initialize the model
-        model = genai.GenerativeModel('gemini-2.0-flash-preview-image-generation')
-        
-        # Generate the content without specifying response_mime_type
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash-preview-image-generation"
+        )
+
+        # Generate the image (set modality to IMAGE only)
         response = model.generate_content(
             contents=[enhanced_prompt],
             generation_config={
                 "temperature": 0.9,
                 "top_p": 0.95,
-                "top_k": 40
-            }
+                "top_k": 40,
+            },
+            request_options={"response_modality": ["IMAGE"]}
         )
-        
-        # Debug: Print the full response structure
+
+        # Debug: Print the full response
         print("Full response:", response)
-        
-        # Get the image data from the response
+
+        # Extract image data
         if hasattr(response, '_result') and response._result.candidates:
             for candidate in response._result.candidates:
                 if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
@@ -1047,13 +1055,14 @@ def generate_image(prompt, style):
                             image_data = part.inline_data.data
                             image = Image.open(io.BytesIO(image_data))
                             return image
-        
+
         st.error("No image data found in the response.")
         return None
-        
+
     except Exception as e:
         st.error(f"Error generating image: {str(e)}")
         return None
+
 
 def generate_video(prompt, style):
     headers = {
