@@ -1017,10 +1017,10 @@ def format_response_with_code(response):
 def generate_image(prompt, style):
     try:
         # Configure Gemini - make sure you have the API key in your Streamlit secrets
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
         
         # Create the model
-        model = genai.GenerativeModel('gemini-pro-vision')
+        model = genai.GenerativeModel('gemini-2.0-flash-preview-image-generation')
         
         # Enhanced prompt with style
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
