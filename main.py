@@ -1017,17 +1017,19 @@ def format_response_with_code(response):
 def generate_image(prompt, style):
     try:
         # Configure Gemini - make sure you have the API key in your Streamlit secrets
-        image_gen_api_key = genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
+        genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
         
         # Enhanced prompt with style
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
         
+        # Initialize the model
+        model = genai.GenerativeModel('gemini-2.0-flash-preview-image-generation')
+        
         # Generate the image
-        response = image_gen_api_key.models.generate_content(
-            model="gemini-2.0-flash-preview-image-generation",
-            contents=contents,
-            config=types.GenerateContentConfig(
-              response_modalities=['TEXT', 'IMAGE']
+        response = model.generate_content(
+            contents=[enhanced_prompt],
+            generation_config=genai.types.GenerationConfig(
+                response_mime_type="image/png"
             )
         )
         
@@ -1043,6 +1045,7 @@ def generate_image(prompt, style):
     except Exception as e:
         st.error(f"Error generating image: {str(e)}")
         return None
+
 def generate_video(prompt, style):
     headers = {
         "Authorization": f"Bearer {A4F_API_KEY}",
