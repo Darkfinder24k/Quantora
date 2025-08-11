@@ -1016,7 +1016,7 @@ def format_response_with_code(response):
 # Image Generation Functions
 def generate_image(prompt, style):
     try:
-        # Configure Gemini - make sure you have the API key in your Streamlit secrets
+        # Configure Gemini
         genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
         
         # Enhanced prompt with style
@@ -1029,7 +1029,7 @@ def generate_image(prompt, style):
         response = model.generate_content(
             contents=[enhanced_prompt],
             generation_config=genai.types.GenerationConfig(
-                response_mime_type="image/png"
+                response_modalities=['IMAGE']
             )
         )
         
