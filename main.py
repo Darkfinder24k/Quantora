@@ -1025,24 +1025,30 @@ def generate_image(prompt, style):
         # Initialize the model
         model = genai.GenerativeModel('gemini-2.0-flash-preview-image-generation')
         
-        # Generate the content with both text and image responses
+        # Generate the content without specifying response_mime_type
         response = model.generate_content(
             contents=[enhanced_prompt],
-            generation_config=genai.types.GenerationConfig(
-                response_mime_type="image/png"  # Request image response
-            )
+            generation_config={
+                "temperature": 0.9,
+                "top_p": 0.95,
+                "top_k": 40
+            }
         )
         
-        # Get the image data from the response
-        if response._result.candidates:
-            for candidate in response._result.candidates:
-                for part in candidate.content.parts:
-                    if hasattr(part, 'inline_data'):
-                        image_data = part.inline_data.data
-                        image = Image.open(io.BytesIO(image_data))
-                        return image
+        # Debug: Print the full response structure
+        print("Full response:", response)
         
-        st.error("No image was generated in the response.")
+        # Get the image data from the response
+        if hasattr(response, '_result') and response._result.candidates:
+            for candidate in response._result.candidates:
+                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'inline_data') and hasattr(part.inline_data, 'data'):
+                            image_data = part.inline_data.data
+                            image = Image.open(io.BytesIO(image_data))
+                            return image
+        
+        st.error("No image data found in the response.")
         return None
         
     except Exception as e:
