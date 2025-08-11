@@ -1020,7 +1020,7 @@ def generate_image(prompt, style):
         genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
         
         # Create the model
-        model = genai.GenerativeModel('gemini-2.0-flash-preview-image-generation')
+        model = genai.GenerativeModel('imagen-4.0-generate-preview-06-06')
         
         # Enhanced prompt with style
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
