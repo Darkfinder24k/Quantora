@@ -1014,6 +1014,7 @@ def format_response_with_code(response):
     return parts if parts else [('text', response)]
 
 # Image Generation Functions
+
 def generate_image(prompt, style):
     try:
         # Configure Gemini
@@ -1025,20 +1026,21 @@ def generate_image(prompt, style):
         # Initialize the model
         model = genai.GenerativeModel("gemini-2.0-flash-preview-image-generation")
 
-        # Generate the image
+        # Generate both text + image
         response = model.generate_content(
             [enhanced_prompt],
             generation_config={
                 "temperature": 0.9,
                 "top_p": 0.95,
-                "top_k": 40
+                "top_k": 40,
+                "response_mime_type": "image/png"  # request image output
             }
         )
 
-        # Debug: Print raw response
+        # Debug: print raw response for inspection
         print("Full response:", response)
 
-        # Extract image data
+        # Extract image data from candidates
         for candidate in response.candidates:
             for part in candidate.content.parts:
                 if part.inline_data:
@@ -1052,6 +1054,7 @@ def generate_image(prompt, style):
     except Exception as e:
         st.error(f"Error generating image: {str(e)}")
         return None
+
 
 def generate_video(prompt, style):
     headers = {
