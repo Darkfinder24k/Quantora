@@ -1028,9 +1028,11 @@ def generate_image(prompt, style):
         # Generate the image
         response = model.generate_content(
             contents=[enhanced_prompt],
-            generation_config=genai.types.GenerationConfig(
-                response_modalities=['IMAGE']
-            )
+            generation_config={
+                "temperature": 0.9,
+                "top_p": 0.95,
+                "top_k": 40
+            }
         )
         
         # Get the image data
