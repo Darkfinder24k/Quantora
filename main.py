@@ -1018,13 +1018,13 @@ def format_response_with_code(response):
 def generate_image(prompt, style):
     try:
         # Initialize client
-        client = genai.Client(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
+        genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
 
         # Enhanced prompt
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
 
         # Request both TEXT + IMAGE to avoid 400 error
-        response = client.models.generate_content(
+        response = configure.models.generate_content(
             model="gemini-2.0-flash-preview-image-generation",
             contents=enhanced_prompt,
             config=types.GenerateContentConfig(
