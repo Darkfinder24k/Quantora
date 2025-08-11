@@ -1017,43 +1017,36 @@ def format_response_with_code(response):
 
 def generate_image(prompt, style):
     try:
-        # Configure Gemini
-        genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
+        # Initialize client
+        client = genai.Client(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
 
-        # Enhanced prompt with style
+        # Enhanced prompt
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
 
-        # Initialize the model
-        model = genai.GenerativeModel("gemini-2.0-flash-preview-image-generation")
-
-        # Generate both text + image
-        response = model.generate_content(
-            [enhanced_prompt],
-            generation_config={
-                "temperature": 0.9,
-                "top_p": 0.95,
-                "top_k": 40,
-                "response_mime_type": "image/png"  # request image output
-            }
+        # Request both TEXT + IMAGE to avoid 400 error
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-preview-image-generation",
+            contents=enhanced_prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"]
+            )
         )
 
-        # Debug: print raw response for inspection
-        print("Full response:", response)
+        # Process response
+        image_found = False
+        for part in response.candidates[0].content.parts:
+            if part.text:
+                st.write(part.text)  # optional caption
+            elif part.inline_data:
+                image = Image.open(BytesIO(part.inline_data.data))
+                st.image(image)
+                image_found = True
 
-        # Extract image data from candidates
-        for candidate in response.candidates:
-            for part in candidate.content.parts:
-                if part.inline_data:
-                    image_data = part.inline_data.data
-                    image = Image.open(io.BytesIO(image_data))
-                    return image
-
-        st.error("No image data found in the response.")
-        return None
+        if not image_found:
+            st.error("No image data found in the response.")
 
     except Exception as e:
         st.error(f"Error generating image: {str(e)}")
-        return None
 
 
 def generate_video(prompt, style):
