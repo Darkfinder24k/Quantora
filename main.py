@@ -39,11 +39,12 @@ st.set_page_config(
 # Replace your current sidebar toggle CSS/JS with this updated version:
 st.markdown("""
 <style>
+    /* Floating toggle button always visible in main page */
     .sidebar-toggle {
         position: fixed;
         bottom: 20px;
-        right: 20px;
-        z-index: 999;
+        left: 20px; /* Place on left so it makes sense for sidebar */
+        z-index: 1000;
         background: linear-gradient(135deg, #8b5cf6, #6d28d9);
         color: white;
         border: none;
@@ -56,10 +57,13 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
+        transition: transform 0.2s ease;
     }
     .sidebar-toggle:hover {
         transform: scale(1.1);
     }
+
+    /* Sidebar animation */
     [data-testid="stSidebar"] {
         transition: transform 300ms ease-in-out;
     }
@@ -67,13 +71,15 @@ st.markdown("""
         transform: translateX(-100%);
     }
 </style>
+
+<!-- Always-visible toggle button -->
 <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+
 <script>
     function toggleSidebar() {
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        const sidebar = parent.document.querySelector('[data-testid="stSidebar"]');
         const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
-        sidebar.setAttribute('aria-expanded', !isExpanded);
-        // Force Streamlit to update the layout
+        sidebar.setAttribute('aria-expanded', String(!isExpanded));
         window.dispatchEvent(new Event('resize'));
     }
 </script>
