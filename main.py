@@ -38,58 +38,46 @@ st.set_page_config(
 # Custom CSS with sidebar toggle
 # Replace your current sidebar toggle CSS/JS with this updated version:
 # Place this in your main content area, NOT in the sidebar
-with st.sidebar:
-    st.title("Sidebar Content")
-    st.write("This is sidebar content")
-    
-    # You can add a hide button within the sidebar
-    if st.button("Hide Sidebar"):
-        # This won't actually hide the sidebar, but you can use session state
-        # to conditionally show/hide sidebar content
-        st.session_state.show_sidebar = False
-
-# Method 2: Using session state to conditionally show sidebar content
-if 'show_sidebar' not in st.session_state:
-    st.session_state.show_sidebar = True
-
-# Show sidebar content conditionally
-if st.session_state.show_sidebar:
-    with st.sidebar:
-        st.title("Dynamic Sidebar")
-        st.write("This sidebar can be toggled")
-        
-        if st.button("Hide This Sidebar"):
-            st.session_state.show_sidebar = False
-            st.rerun()
-
-# Show toggle button in main area when sidebar is hidden
-if not st.session_state.show_sidebar:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col1:
-        if st.button("Show Sidebar"):
-            st.session_state.show_sidebar = True
-            st.rerun()
-
-# Method 3: Using CSS to style the default Streamlit sidebar toggle
 st.markdown("""
 <style>
-    /* Style the default Streamlit sidebar toggle arrow */
-    button[kind="header"] {
-        background-color: transparent;
-        color: #ff6b6b;
+    .sidebar-toggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 999;
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-    
-    /* Optional: Style the sidebar */
-    .css-1d391kg {
-        padding-top: 1rem;
+    .sidebar-toggle:hover {
+        transform: scale(1.1);
     }
-    
-    /* Make the collapse/expand arrow more visible */
-    .css-1kyxreq {
-        background-color: #f0f2f6;
-        border-radius: 5px;
+    [data-testid="stSidebar"] {
+        transition: transform 300ms ease-in-out;
+    }
+    [data-testid="stSidebar"][aria-expanded="false"] {
+        transform: translateX(-100%);
     }
 </style>
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<script>
+    function toggleSidebar() {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
+        sidebar.setAttribute('aria-expanded', !isExpanded);
+        // Force Streamlit to update the layout
+        window.dispatchEvent(new Event('resize'));
+    }
+</script>
 """, unsafe_allow_html=True)
 
 # Rest of your existing CSS
