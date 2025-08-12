@@ -39,11 +39,11 @@ st.set_page_config(
 # Replace your current sidebar toggle CSS/JS with this updated version:
 st.markdown("""
 <style>
-    /* Floating toggle button always visible in main page */
+    /* Floating toggle button */
     .sidebar-toggle {
         position: fixed;
         bottom: 20px;
-        left: 20px; /* Place on left so it makes sense for sidebar */
+        left: 20px;
         z-index: 1000;
         background: linear-gradient(135deg, #8b5cf6, #6d28d9);
         color: white;
@@ -63,24 +63,36 @@ st.markdown("""
         transform: scale(1.1);
     }
 
-    /* Sidebar animation */
+    /* Sidebar base style */
     [data-testid="stSidebar"] {
         transition: transform 300ms ease-in-out;
     }
-    [data-testid="stSidebar"][aria-expanded="false"] {
-        transform: translateX(-100%);
+    .sidebar-hidden {
+        transform: translateX(-100%) !important;
+    }
+    .sidebar-visible {
+        transform: translateX(0) !important;
     }
 </style>
 
-<!-- Always-visible toggle button -->
 <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
 
 <script>
+    let sidebarVisible = true;
+
     function toggleSidebar() {
         const sidebar = parent.document.querySelector('[data-testid="stSidebar"]');
-        const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
-        sidebar.setAttribute('aria-expanded', String(!isExpanded));
-        window.dispatchEvent(new Event('resize'));
+        if (!sidebar) return;
+
+        if (sidebarVisible) {
+            sidebar.classList.add("sidebar-hidden");
+            sidebar.classList.remove("sidebar-visible");
+        } else {
+            sidebar.classList.remove("sidebar-hidden");
+            sidebar.classList.add("sidebar-visible");
+        }
+
+        sidebarVisible = !sidebarVisible;
     }
 </script>
 """, unsafe_allow_html=True)
