@@ -38,108 +38,58 @@ st.set_page_config(
 # Custom CSS with sidebar toggle
 # Replace your current sidebar toggle CSS/JS with this updated version:
 # Place this in your main content area, NOT in the sidebar
+with st.sidebar:
+    st.title("Sidebar Content")
+    st.write("This is sidebar content")
+    
+    # You can add a hide button within the sidebar
+    if st.button("Hide Sidebar"):
+        # This won't actually hide the sidebar, but you can use session state
+        # to conditionally show/hide sidebar content
+        st.session_state.show_sidebar = False
+
+# Method 2: Using session state to conditionally show sidebar content
+if 'show_sidebar' not in st.session_state:
+    st.session_state.show_sidebar = True
+
+# Show sidebar content conditionally
+if st.session_state.show_sidebar:
+    with st.sidebar:
+        st.title("Dynamic Sidebar")
+        st.write("This sidebar can be toggled")
+        
+        if st.button("Hide This Sidebar"):
+            st.session_state.show_sidebar = False
+            st.rerun()
+
+# Show toggle button in main area when sidebar is hidden
+if not st.session_state.show_sidebar:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        if st.button("Show Sidebar"):
+            st.session_state.show_sidebar = True
+            st.rerun()
+
+# Method 3: Using CSS to style the default Streamlit sidebar toggle
 st.markdown("""
 <style>
-    /* Floating toggle button - positioned relative to main content */
-    .sidebar-toggle {
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        z-index: 1000;
-        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        font-size: 20px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-    }
-    .sidebar-toggle:hover {
-        transform: scale(1.1);
-        background: linear-gradient(135deg, #9333ea, #7c3aed);
+    /* Style the default Streamlit sidebar toggle arrow */
+    button[kind="header"] {
+        background-color: transparent;
+        color: #ff6b6b;
     }
     
-    /* Sidebar animations */
-    [data-testid="stSidebar"] {
-        transition: transform 300ms ease-in-out !important;
+    /* Optional: Style the sidebar */
+    .css-1d391kg {
+        padding-top: 1rem;
     }
     
-    /* When sidebar is hidden */
-    .sidebar-hidden {
-        transform: translateX(-100%) !important;
-    }
-    
-    /* Adjust main content when sidebar is hidden */
-    .sidebar-hidden ~ [data-testid="stAppViewContainer"] .main {
-        margin-left: 0 !important;
-    }
-    
-    /* Button position adjustment when sidebar is hidden */
-    .sidebar-collapsed .sidebar-toggle {
-        left: 20px;
-    }
-    
-    /* Button position adjustment when sidebar is visible */  
-    .sidebar-visible .sidebar-toggle {
-        left: 320px; /* Adjust based on your sidebar width */
+    /* Make the collapse/expand arrow more visible */
+    .css-1kyxreq {
+        background-color: #f0f2f6;
+        border-radius: 5px;
     }
 </style>
-
-<div id="sidebar-controller">
-    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
-        <span id="toggle-icon">☰</span>
-    </button>
-</div>
-
-<script>
-    // Initialize sidebar state
-    let sidebarVisible = true;
-    
-    function toggleSidebar() {
-        // Get the sidebar element
-        const sidebar = parent.document.querySelector('[data-testid="stSidebar"]');
-        const toggleButton = document.querySelector('.sidebar-toggle');
-        const toggleIcon = document.getElementById('toggle-icon');
-        
-        if (!sidebar) {
-            console.error('Sidebar not found');
-            return;
-        }
-        
-        if (sidebarVisible) {
-            // Hide sidebar
-            sidebar.classList.add("sidebar-hidden");
-            document.body.classList.add("sidebar-collapsed");
-            document.body.classList.remove("sidebar-visible");
-            toggleIcon.innerHTML = "☰"; // Hamburger menu icon
-            toggleButton.style.left = "20px";
-        } else {
-            // Show sidebar
-            sidebar.classList.remove("sidebar-hidden");
-            document.body.classList.remove("sidebar-collapsed");
-            document.body.classList.add("sidebar-visible");
-            toggleIcon.innerHTML = "✕"; // Close icon
-            toggleButton.style.left = "320px"; // Adjust based on sidebar width
-        }
-        
-        sidebarVisible = !sidebarVisible;
-    }
-    
-    // Optional: Initialize button position on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        const toggleButton = document.querySelector('.sidebar-toggle');
-        if (toggleButton && sidebarVisible) {
-            toggleButton.style.left = "320px";
-            document.getElementById('toggle-icon').innerHTML = "✕";
-        }
-    });
-</script>
 """, unsafe_allow_html=True)
 
 # Rest of your existing CSS
