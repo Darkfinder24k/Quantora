@@ -446,7 +446,7 @@ def initialize_clients():
         
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
         
         a4f_client = {
             "api_key": a4f_api_key,
