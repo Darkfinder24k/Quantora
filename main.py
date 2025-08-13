@@ -22,7 +22,7 @@ from googleapiclient.discovery import build
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-API_URL = "https://api.a4f.co/v1/chat/completions"
+API_URL = "https://api.a4f.co/v1"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 A4F_BASE_URL = "https://api.a4f.co/v1"
 IMAGE_MODEL = "provider-4/imagen-4"
