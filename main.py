@@ -22,9 +22,9 @@ from googleapiclient.discovery import build
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-API_URL = "https://api.a4f.co/v1"
+API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-A4F_BASE_URL = "https://api.a4f.co/v1"
+A4F_BASE_URL = "https://api.a4f.co/v1/chat/completions"
 IMAGE_MODEL = "provider-4/imagen-4"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
@@ -450,7 +450,7 @@ def initialize_clients():
         
         a4f_client = {
             "api_key": a4f_api_key,
-            "api_url": "https://api.a4f.co/v1"
+            "api_url": "https://api.a4f.co/v1/chat/completions"
         }
         
         return gemini_model, groq_client, a4f_client
