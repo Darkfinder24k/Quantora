@@ -450,7 +450,7 @@ def initialize_clients():
         
         a4f_client = {
             "api_key": a4f_api_key,
-            "api_url": "https://api.a4f.co/v1/chat/completions"
+            "api_url": "https://api.a4f.co/v1"
         }
         
         return gemini_model, groq_client, a4f_client
