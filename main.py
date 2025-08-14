@@ -447,6 +447,18 @@ def initialize_clients():
         gemini_model = genai.GenerativeModel("gemini-pro")
         
         # Initialize Groq with error handling
+        groq_client = None
+        try:
+            groq_client = Groq(api_key=groq_api_key)
+            # Test connection
+            groq_client.chat.completions.create(
+                model="deepseek-r1-distill-llama-70b",
+                messages=[{"role": "user", "content": "test"}],
+                max_tokens=1
+            )
+        except Exception as groq_error:
+            st.error(f"Groq initialization warning: {str(groq_error)}")
+            groq_client = None
         
         # A4F client configuration
         a4f_client = {
