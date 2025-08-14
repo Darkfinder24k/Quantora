@@ -444,7 +444,7 @@ def initialize_clients():
         
         # Initialize Gemini
         genai.configure(api_key=gemini_api_key)
-        gemini_model = genai.GenerativeModel("gemini-pro")
+        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
         
         # Initialize Groq with error handling
         groq_client = None
