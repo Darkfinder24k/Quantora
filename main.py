@@ -36,8 +36,6 @@ st.set_page_config(
 )
 
 # Custom CSS with sidebar toggle
-# Replace your current sidebar toggle CSS/JS with this updated version:
-# Place this in your main content area, NOT in the sidebar
 st.markdown("""
 <style>
     .sidebar-toggle {
@@ -74,7 +72,6 @@ st.markdown("""
         const sidebar = document.querySelector('[data-testid="stSidebar"]');
         const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
         sidebar.setAttribute('aria-expanded', !isExpanded);
-        // Force Streamlit to update the layout
         window.dispatchEvent(new Event('resize'));
     }
 </script>
@@ -419,7 +416,7 @@ if "enhancement_values" not in st.session_state:
         "contrast": 1.0,
         "sharpness": 1.0,
         "color": 1.0,
-        "filter": "None"  # Added filter key to fix the KeyError
+        "filter": "None"
     }
 if "model_version" not in st.session_state:
     st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
@@ -440,17 +437,37 @@ if "view_profile" not in st.session_state:
 @st.cache_resource
 def initialize_clients():
     try:
+        # Updated API keys with proper validation
         gemini_api_key = "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg"
         groq_api_key = "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"
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
         
+        # Initialize Gemini
         genai.configure(api_key=gemini_api_key)
-        groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+        gemini_model = genai.GenerativeModel("gemini-pro")
         
+        # Initialize Groq with error handling
+        groq_client = None
+        try:
+            groq_client = Groq(api_key=groq_api_key)
+            # Test connection
+            groq_client.chat.completions.create(
+                model="mixtral-8x7b-32768",
+                messages=[{"role": "user", "content": "test"}],
+                max_tokens=1
+            )
+        except Exception as groq_error:
+            st.error(f"Groq initialization warning: {str(groq_error)}")
+            groq_client = None
+        
+        # A4F client configuration
         a4f_client = {
             "api_key": a4f_api_key,
-            "api_url": "https://api.a4f.co/v1/chat/completions"
+            "api_url": "https://api.a4f.co/v1/chat/completions",
+            "headers": {
+                "Authorization": f"Bearer {a4f_api_key}",
+                "Content-Type": "application/json"
+            }
         }
         
         return gemini_model, groq_client, a4f_client
@@ -623,8 +640,12 @@ def display_image_enhancement_controls(image, enhancements):
         
         return enhanced_image
 
-# Enhanced A4F Model Call
+# Enhanced A4F Model Call with better error handling
 def call_a4f_model(prompt, model_name, context="", image=None):
+    # Validate model name
+    if not model_name or not isinstance(model_name, str):
+        return "❌ Invalid model name provided"
+    
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
 1. General Answering Approach
@@ -651,7 +672,7 @@ Match Style to User — adapt tone (professional, casual, or mixed).
 Respond in Same Language — or language mix, as used by the user.
 
 4. Completeness
-Answer All Parts of Multi-Part Questions — don’t skip any sub-question.
+Answer All Parts of Multi-Part Questions — don't skip any sub-question.
 
 Avoid Unrelated Tangents — unless they help understanding.
 
@@ -685,7 +706,7 @@ Compare Answer to Prompt — verify alignment.
 
 Ensure No Logical Gaps — reasoning must flow.
 
-Confirm Tone & Style Match — according to topic and user’s request.
+Confirm Tone & Style Match — according to topic and user's request.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -693,30 +714,28 @@ User Query: {prompt}
 
 Provide a comprehensive and helpful response:"""
 
-    headers = {
-        "Authorization": f"Bearer {a4f_client['api_key']}",
-        "Content-Type": "application/json"
-    }
-    
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": prompt}
     ]
     
     if image:
-        buffered = BytesIO()
-        image.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        messages.append({
-            "role": "user",
-            "content": [
-                {
-                    "type": "image_url",
-                    "image_url": f"data:image/png;base64,{img_str}"
-                }
-            ]
-        })
-    
+        try:
+            buffered = BytesIO()
+            image.save(buffered, format="PNG")
+            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            messages.append({
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": f"data:image/png;base64,{img_str}"
+                    }
+                ]
+            })
+        except Exception as e:
+            return f"❌ Error processing image: {str(e)}"
+
     data = {
         "model": model_name,
         "messages": messages,
@@ -730,34 +749,51 @@ Provide a comprehensive and helpful response:"""
     try:
         response = requests.post(
             a4f_client['api_url'],
-            headers=headers,
+            headers=a4f_client['headers'],
             json=data,
             timeout=30
         )
+        
+        # Handle different HTTP status codes
+        if response.status_code == 401:
+            return "❌ Authentication failed. Please check your API key."
+        elif response.status_code == 403:
+            return "❌ Access forbidden. You may not have permission to use this model."
+        elif response.status_code == 404:
+            return f"❌ Model '{model_name}' not found."
+        elif response.status_code == 429:
+            return "❌ Rate limit exceeded. Please wait before making more requests."
+        elif response.status_code >= 500:
+            return "❌ Server error. Please try again later."
+        
         response.raise_for_status()
         
-        content = response.json()["choices"][0]["message"]["content"]
+        content = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+        if not content:
+            return "❌ Empty response from A4F"
+            
         if model_name == "provider-2/r1-1776":
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
             content = content.strip()
 
-        return content if content else "❌ Empty response from A4F"
+        return content
+        
     except requests.exceptions.RequestException as e:
         error_msg = f"❌ A4F API Error ({model_name}): "
         if hasattr(e, 'response') and e.response:
-            if e.response.status_code == 429:
-                error_msg += "Rate limit exceeded. Please try again later."
-            elif e.response.status_code == 400:
-                error_msg += "Bad request. Please check your input."
-            else:
-                error_msg += f"HTTP {e.response.status_code} - {str(e)}"
+            error_msg += f"HTTP {e.response.status_code}"
+            try:
+                error_details = e.response.json().get('error', {}).get('message', str(e))
+                error_msg += f" - {error_details}"
+            except:
+                error_msg += f" - {str(e)}"
         else:
             error_msg += str(e)
         return error_msg
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
-# Enhanced Gemini Core
+# Enhanced Gemini Core with better error handling
 def call_quantora_gemini(prompt, context="", image=None):
     if not gemini_model:
         return "❌ Gemini model not available. Please check API configuration."
@@ -788,7 +824,7 @@ Match Style to User — adapt tone (professional, casual, or mixed).
 Respond in Same Language — or language mix, as used by the user.
 
 4. Completeness
-Answer All Parts of Multi-Part Questions — don’t skip any sub-question.
+Answer All Parts of Multi-Part Questions — don't skip any sub-question.
 
 Avoid Unrelated Tangents — unless they help understanding.
 
@@ -822,7 +858,7 @@ Compare Answer to Prompt — verify alignment.
 
 Ensure No Logical Gaps — reasoning must flow.
 
-Confirm Tone & Style Match — according to topic and user’s request.
+Confirm Tone & Style Match — according to topic and user's request.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -851,14 +887,34 @@ Provide a comprehensive and helpful response:"""
                     top_k=40
                 )
             )
-        return response.text if response.text else "❌ Empty response from Gemini"
+            
+        if response.text:
+            return response.text
+        else:
+            return "❌ Empty response from Gemini"
+            
     except Exception as e:
         return f"❌ Gemini Error: {str(e)}"
 
-# Enhanced Groq Model Calls
+# Enhanced Groq Model Calls with better error handling
 def call_groq_model(prompt, model_name, context=""):
     if not groq_client:
         return f"❌ Groq client not available"
+    
+    # Validate model name
+    valid_groq_models = [
+        "mixtral-8x7b-32768", 
+        "llama2-70b-4096", 
+        "compound-beta", 
+        "qwen-qwq-32b",
+        "meta-llama/llama-4-maverick-17b-128e-instruct",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "deepseek-r1-distill-llama-70b",
+        "gemma2-9b-it"
+    ]
+    
+    if model_name not in valid_groq_models:
+        return f"❌ Invalid Groq model: {model_name}"
     
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
@@ -886,7 +942,7 @@ Match Style to User — adapt tone (professional, casual, or mixed).
 Respond in Same Language — or language mix, as used by the user.
 
 4. Completeness
-Answer All Parts of Multi-Part Questions — don’t skip any sub-question.
+Answer All Parts of Multi-Part Questions — don't skip any sub-question.
 
 Avoid Unrelated Tangents — unless they help understanding.
 
@@ -920,7 +976,7 @@ Compare Answer to Prompt — verify alignment.
 
 Ensure No Logical Gaps — reasoning must flow.
 
-Confirm Tone & Style Match — according to topic and user’s request.
+Confirm Tone & Style Match — according to topic and user's request.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -941,7 +997,7 @@ User Query: {prompt}"""
     except Exception as e:
         return f"❌ {model_name} Error: {str(e)}"
 
-# Quantora Unified AI Model
+# Quantora Unified AI Model with fallback mechanisms
 def call_quantora_unified(prompt, context="", image=None):
     start_time = time.time()
     
@@ -951,7 +1007,7 @@ def call_quantora_unified(prompt, context="", image=None):
             return {
                 "backend": "gemini",
                 "response": response,
-                "success": True,
+                "success": True if not response.startswith("❌") else False,
                 "length": len(response) if response else 0
             }
         except Exception as e:
@@ -968,7 +1024,7 @@ def call_quantora_unified(prompt, context="", image=None):
             return {
                 "backend": f"groq_{model_name}",
                 "response": response,
-                "success": True,
+                "success": True if not response.startswith("❌") else False,
                 "length": len(response) if response else 0
             }
         except Exception as e:
@@ -985,7 +1041,7 @@ def call_quantora_unified(prompt, context="", image=None):
             return {
                 "backend": f"a4f_{model_name}",
                 "response": response,
-                "success": response is not None,
+                "success": response is not None and not response.startswith("❌"),
                 "length": len(response) if response else 0
             }
         except Exception as e:
@@ -1002,6 +1058,7 @@ def call_quantora_unified(prompt, context="", image=None):
         futures = []
         selected_model_version = st.session_state.get("model_version", "Quantora V1 (Most Powerful Model But Slow)")
 
+        # Always include Gemini as primary fallback
         futures.append(executor.submit(call_gemini_backend))
         
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
@@ -1096,7 +1153,15 @@ def call_quantora_unified(prompt, context="", image=None):
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
     
     if not successful_responses:
+        # If all failed, try to get any response that might have content
+        fallback_responses = [r for r in backend_results if r['response'] and len(r['response']) > 10]
+        if fallback_responses:
+            return fallback_responses[0]['response']
         return "❌ No successful responses from backends. Please try again."
+    
+    # If we only have one successful response, return it directly
+    if len(successful_responses) == 1:
+        return successful_responses[0]['response']
     
     mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt. 
 Combine them into one coherent, comprehensive response that maintains the best aspects of each.
@@ -1147,40 +1212,30 @@ def format_response_with_code(response):
     return parts if parts else [('text', response)]
 
 # Image Generation Functions
-
 def generate_image(prompt, style):
     try:
-        # Initialize client
-        client = genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
-
         # Enhanced prompt
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
-
-        # Request both TEXT + IMAGE to avoid 400 error
-        response = client.models.generate_content(
-            model="gemini-2.0-flash-preview-image-generation",
-            contents=enhanced_prompt,
-            config=types.GenerateContentConfig(
-                response_modalities=["TEXT", "IMAGE"]
+        
+        # Generate using Gemini
+        response = gemini_model.generate_content(
+            enhanced_prompt,
+            generation_config=genai.types.GenerationConfig(
+                max_output_tokens=2048,
+                temperature=0.7,
+                top_p=0.9,
+                top_k=40
             )
         )
-
-        # Process response
-        image_found = False
-        for part in response.candidates[0].content.parts:
-            if part.text:
-                st.write(part.text)  # optional caption
-            elif part.inline_data:
-                image = Image.open(BytesIO(part.inline_data.data))
-                st.image(image)
-                image_found = True
-
-        if not image_found:
-            st.error("No image data found in the response.")
-
+        
+        if response.text:
+            return response.text
+        else:
+            return None
+            
     except Exception as e:
         st.error(f"Error generating image: {str(e)}")
-
+        return None
 
 def generate_video(prompt, style):
     headers = {
@@ -2294,7 +2349,7 @@ def quantora_social_media():
                         )
                         quantora_df.at[index, 'quantora_comments'] = quantora_combined_comments
                         quantora_df.to_csv(QUANTORA_POSTS_CSV, index=False)
-                        st.run()
+                        st.rerun()
 
     def is_user_following(follower, followed):
         try:
