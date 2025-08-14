@@ -441,7 +441,7 @@ if "view_profile" not in st.session_state:
 def initialize_clients():
     try:
         gemini_api_key = "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg"
-        groq_api_key = "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE"
+        groq_api_key = "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"
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
         
         genai.configure(api_key=gemini_api_key)
