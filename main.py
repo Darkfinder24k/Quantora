@@ -447,18 +447,6 @@ def initialize_clients():
         gemini_model = genai.GenerativeModel("gemini-pro")
         
         # Initialize Groq with error handling
-        groq_client = None
-        try:
-            groq_client = Groq(api_key=groq_api_key)
-            # Test connection
-            groq_client.chat.completions.create(
-                model="mixtral-8x7b-32768",
-                messages=[{"role": "user", "content": "test"}],
-                max_tokens=1
-            )
-        except Exception as groq_error:
-            st.error(f"Groq initialization warning: {str(groq_error)}")
-            groq_client = None
         
         # A4F client configuration
         a4f_client = {
@@ -902,8 +890,7 @@ def call_groq_model(prompt, model_name, context=""):
         return f"❌ Groq client not available"
     
     # Validate model name
-    valid_groq_models = [
-        "mixtral-8x7b-32768", 
+    valid_groq_models = [ 
         "llama2-70b-4096", 
         "compound-beta", 
         "qwen-qwq-32b",
@@ -1063,7 +1050,7 @@ def call_quantora_unified(prompt, context="", image=None):
         
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
-            groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
+            groq_models = ["llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
