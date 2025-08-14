@@ -2591,7 +2591,7 @@ with st.sidebar:
     st.markdown("### 🚀 Quantora Modes")
     mode = st.radio(
         "Select Mode",
-        ["AI", "Image Generation", "Image Editing", "Quantora News", "Quantora Trade Charts", "Quantora Search Engine", "Quantora Social Media"],
+        ["AI", "Quantora News", "Quantora Trade Charts", "Quantora Search Engine", "Quantora Social Media"],
         index=0,
         key="current_mode"
     )
