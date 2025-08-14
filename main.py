@@ -742,7 +742,7 @@ Provide a comprehensive and helpful response:"""
         "model": model_name,
         "messages": messages,
         "temperature": 0.7,
-        "max_tokens": 1500,
+        "max_tokens": 200,
         "top_p": 0.9,
         "frequency_penalty": 0.1,
         "presence_penalty": 0.1
@@ -875,7 +875,7 @@ Provide a comprehensive and helpful response:"""
             response = gemini_model.generate_content(
                 [system_prompt, image],
                 generation_config=genai.types.GenerationConfig(
-                    max_output_tokens=2048,
+                    max_output_tokens=200,
                     temperature=0.7,
                     top_p=0.9,
                     top_k=40
@@ -885,7 +885,7 @@ Provide a comprehensive and helpful response:"""
             response = gemini_model.generate_content(
                 system_prompt,
                 generation_config=genai.types.GenerationConfig(
-                    max_output_tokens=2048,
+                    max_output_tokens=200,
                     temperature=0.7,
                     top_p=0.9,
                     top_k=40
@@ -995,7 +995,7 @@ User Query: {prompt}"""
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
-            max_tokens=1500,
+            max_tokens=200,
             top_p=0.9
         )
         return completion.choices[0].message.content
@@ -1226,7 +1226,7 @@ def generate_image(prompt, style):
         response = gemini_model.generate_content(
             enhanced_prompt,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=2048,
+                max_output_tokens=200,
                 temperature=0.7,
                 top_p=0.9,
                 top_k=40
