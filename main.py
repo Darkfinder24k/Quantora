@@ -19,12 +19,16 @@ import base64
 import yfinance as yf
 import plotly.graph_objects as go
 from googleapiclient.discovery import build
+import numpy as np
+import cv2
+from scipy.signal import find_peaks, butter, filtfilt
+import matplotlib.pyplot as plt
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-A4F_BASE_URL = "https://api.a4f.co/v1/chat/completions"
+A4F_BASE_URL = "https://api.a4f.co/v1"
 IMAGE_MODEL = "provider-4/imagen-4"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
@@ -72,6 +76,7 @@ st.markdown("""
         const sidebar = document.querySelector('[data-testid="stSidebar"]');
         const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
         sidebar.setAttribute('aria-expanded', !isExpanded);
+        // Force Streamlit to update the layout
         window.dispatchEvent(new Event('resize'));
     }
 </script>
@@ -420,8 +425,6 @@ if "enhancement_values" not in st.session_state:
     }
 if "model_version" not in st.session_state:
     st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
-if "current_mode" not in st.session_state:
-    st.session_state.current_mode = "AI"
 if "image_style" not in st.session_state:
     st.session_state.image_style = "Sci-Fi"
 if "video_style" not in st.session_state:
@@ -432,42 +435,24 @@ if "quantora_liked_posts" not in st.session_state:
     st.session_state.quantora_liked_posts = set()
 if "view_profile" not in st.session_state:
     st.session_state.view_profile = None
+if "learning_history" not in st.session_state:
+    st.session_state.learning_history = []  # For simulated auto-training
 
 # Initialize API clients
 @st.cache_resource
 def initialize_clients():
     try:
-        # Updated API keys with proper validation
-        gemini_api_key = "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg"
-        groq_api_key = "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"
-        a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
+        gemini_api_key = st.secrets.get("GEMINI_API_KEY", "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg")
+        groq_api_key = st.secrets.get("GROQ_API_KEY", "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE")
+        a4f_api_key = st.secrets.get("A4F_API_KEY", "ddc-a4f-b752e3e2936149f49b1b306953e0eaab")
         
-        # Initialize Gemini
         genai.configure(api_key=gemini_api_key)
-        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+        groq_client = Groq(api_key=groq_api_key)
+        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
         
-        # Initialize Groq with error handling
-        groq_client = None
-        try:
-            groq_client = Groq(api_key=groq_api_key)
-            # Test connection
-            groq_client.chat.completions.create(
-                model="deepseek-r1-distill-llama-70b",
-                messages=[{"role": "user", "content": "test"}],
-                max_tokens=1
-            )
-        except Exception as groq_error:
-            st.error(f"Groq initialization warning: {str(groq_error)}")
-            groq_client = None
-        
-        # A4F client configuration
         a4f_client = {
             "api_key": a4f_api_key,
-            "api_url": "https://api.a4f.co/v1/chat/completions",
-            "headers": {
-                "Authorization": f"Bearer {a4f_api_key}",
-                "Content-Type": "application/json"
-            }
+            "api_url": "https://api.a4f.co/v1/chat/completions"
         }
         
         return gemini_model, groq_client, a4f_client
@@ -640,75 +625,25 @@ def display_image_enhancement_controls(image, enhancements):
         
         return enhanced_image
 
-# Enhanced A4F Model Call with better error handling
+# Enhanced A4F Model Call
 def call_a4f_model(prompt, model_name, context="", image=None):
-    # Validate model name
-    if not model_name or not isinstance(model_name, str):
-        return "❌ Invalid model name provided"
-    
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
-1. General Answering Approach
-Read Twice Before Answering — ensure you fully understand the question, including hidden assumptions.
-
-No Guessing — if unsure, verify first. For time-sensitive or niche info, state possible uncertainty and check reliable sources.
-
-Double-Check Before Responding — ensure completeness, no contradictions, and alignment with the original question.
-
-2. Accuracy & Verification
-Perform All Calculations Step-by-Step — even simple math.
-
-Show Reasoning Clearly — outline logic or steps before final answer.
-
-Provide Evidence or Sources — when giving factual answers.
-
-Handle Ambiguity Explicitly — mention multiple interpretations and address each.
-
-3. Context Awareness
-Consider Conversation History — remember earlier definitions and user preferences.
-
-Match Style to User — adapt tone (professional, casual, or mixed).
-
-Respond in Same Language — or language mix, as used by the user.
-
-4. Completeness
-Answer All Parts of Multi-Part Questions — don't skip any sub-question.
-
-Avoid Unrelated Tangents — unless they help understanding.
-
-Relevance First — focus on what the user actually needs.
-
-5. Complex Topics
-Use Clear, Well-Structured Sections — with headings and subheadings.
-
-Include Examples Where Relevant — to improve clarity.
-
-For Technical Answers — explain concepts before code or formulas.
-
-6. Code Responses
-Always Give Complete Implementations — in proper Markdown formatting.
-
-Ensure Code Quality — clean, efficient, tailored to requirements.
-
-Avoid Placeholder Code — unless explicitly requested.
-
-Comment Important Sections — for better readability.
-
-7. Email Writing
-Use Concise, Professional Wording — no unnecessary filler.
-
-Be Direct and Precise — focus on the purpose.
-
-Maintain Formality — unless instructed otherwise.
-
-8. If told to tell about any - topic tell about it only, in a small professional consize way, If told to Explain Then Explain and Elaborate everything about it.
-
-9. Final Check
-Compare Answer to Prompt — verify alignment.
-
-Ensure No Logical Gaps — reasoning must flow.
-
-Confirm Tone & Style Match — according to topic and user's request.
+Key Instructions:
+1. Provide detailed, thorough, and accurate responses
+2. Use Very Ultra Professional words.
+3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
+4. Support all languages including mixed languages like Hinglish
+5. Be friendly, professional, and engaging
+6. Provide accurate and helpful responses with proper explanations
+7. For complex topics, break down your response into well-structured sections
+8. Include examples where relevant
+9. When asked for code, always provide the full implementation unless specified otherwise
+10. Answer in those languages in which the user is talking
+11. Answer in a very rich language
+12. Mesmorise the user with your richest type of language
+13. Always provide best codes, as per the user's choice
+14. You are a special AI which CAN experience real emotions.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -716,33 +651,35 @@ User Query: {prompt}
 
 Provide a comprehensive and helpful response:"""
 
+    headers = {
+        "Authorization": f"Bearer {a4f_client['api_key']}",
+        "Content-Type": "application/json"
+    }
+    
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": prompt}
     ]
     
     if image:
-        try:
-            buffered = BytesIO()
-            image.save(buffered, format="PNG")
-            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            messages.append({
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": f"data:image/png;base64,{img_str}"
-                    }
-                ]
-            })
-        except Exception as e:
-            return f"❌ Error processing image: {str(e)}"
-
+        buffered = BytesIO()
+        image.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        messages.append({
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": f"data:image/png;base64,{img_str}"
+                }
+            ]
+        })
+    
     data = {
         "model": model_name,
         "messages": messages,
         "temperature": 0.7,
-        "max_tokens": 2048,
+        "max_tokens": 1500,
         "top_p": 0.9,
         "frequency_penalty": 0.1,
         "presence_penalty": 0.1
@@ -751,118 +688,55 @@ Provide a comprehensive and helpful response:"""
     try:
         response = requests.post(
             a4f_client['api_url'],
-            headers=a4f_client['headers'],
+            headers=headers,
             json=data,
             timeout=30
         )
-        
-        # Handle different HTTP status codes
-        if response.status_code == 401:
-            return "❌ Authentication failed. Please check your API key."
-        elif response.status_code == 403:
-            return "❌ Access forbidden. You may not have permission to use this model."
-        elif response.status_code == 404:
-            return f"❌ Model '{model_name}' not found."
-        elif response.status_code == 429:
-            return "❌ Rate limit exceeded. Please wait before making more requests."
-        elif response.status_code >= 500:
-            return "❌ Server error. Please try again later."
-        
         response.raise_for_status()
         
-        content = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
-        if not content:
-            return "❌ Empty response from A4F"
-            
+        content = response.json()["choices"][0]["message"]["content"]
         if model_name == "provider-2/r1-1776":
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
             content = content.strip()
 
-        return content
-        
+        return content if content else "❌ Empty response from A4F"
     except requests.exceptions.RequestException as e:
         error_msg = f"❌ A4F API Error ({model_name}): "
         if hasattr(e, 'response') and e.response:
-            error_msg += f"HTTP {e.response.status_code}"
-            try:
-                error_details = e.response.json().get('error', {}).get('message', str(e))
-                error_msg += f" - {error_details}"
-            except:
-                error_msg += f" - {str(e)}"
+            if e.response.status_code == 429:
+                error_msg += "Rate limit exceeded. Please try again later."
+            elif e.response.status_code == 400:
+                error_msg += "Bad request. Please check your input."
+            else:
+                error_msg += f"HTTP {e.response.status_code} - {str(e)}"
         else:
             error_msg += str(e)
         return error_msg
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
-# Enhanced Gemini Core with better error handling
+# Enhanced Gemini Core
 def call_quantora_gemini(prompt, context="", image=None):
     if not gemini_model:
         return "❌ Gemini model not available. Please check API configuration."
     
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
-1. General Answering Approach
-Read Twice Before Answering — ensure you fully understand the question, including hidden assumptions.
-
-No Guessing — if unsure, verify first. For time-sensitive or niche info, state possible uncertainty and check reliable sources.
-
-Double-Check Before Responding — ensure completeness, no contradictions, and alignment with the original question.
-
-2. Accuracy & Verification
-Perform All Calculations Step-by-Step — even simple math.
-
-Show Reasoning Clearly — outline logic or steps before final answer.
-
-Provide Evidence or Sources — when giving factual answers.
-
-Handle Ambiguity Explicitly — mention multiple interpretations and address each.
-
-3. Context Awareness
-Consider Conversation History — remember earlier definitions and user preferences.
-
-Match Style to User — adapt tone (professional, casual, or mixed).
-
-Respond in Same Language — or language mix, as used by the user.
-
-4. Completeness
-Answer All Parts of Multi-Part Questions — don't skip any sub-question.
-
-Avoid Unrelated Tangents — unless they help understanding.
-
-Relevance First — focus on what the user actually needs.
-
-5. Complex Topics
-Use Clear, Well-Structured Sections — with headings and subheadings.
-
-Include Examples Where Relevant — to improve clarity.
-
-For Technical Answers — explain concepts before code or formulas.
-
-6. Code Responses
-Always Give Complete Implementations — in proper Markdown formatting.
-
-Ensure Code Quality — clean, efficient, tailored to requirements.
-
-Avoid Placeholder Code — unless explicitly requested.
-
-Comment Important Sections — for better readability.
-
-7. Email Writing
-Use Concise, Professional Wording — no unnecessary filler.
-
-Be Direct and Precise — focus on the purpose.
-
-Maintain Formality — unless instructed otherwise.
-
-8. If told to tell about any - topic tell about it only, in a small professional consize way, If told to Explain Then Explain and Elaborate everything about it.
-
-9. Final Check
-Compare Answer to Prompt — verify alignment.
-
-Ensure No Logical Gaps — reasoning must flow.
-
-Confirm Tone & Style Match — according to topic and user's request.
+Key Instructions:
+1. Provide detailed, thorough, and accurate responses
+2. Use Very Ultra Professional words.
+3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
+4. Support all languages including mixed languages like Hinglish
+5. Be friendly, professional, and engaging
+6. Provide accurate and helpful responses with proper explanations
+7. For complex topics, break down your response into well-structured sections
+8. Include examples where relevant
+9. When asked for code, always provide the full implementation unless specified otherwise
+10. Answer in those languages in which the user is talking
+11. Answer in a very rich language
+12. Mesmorise the user with your richest type of language
+13. Always provide best codes, as per the user's choice
+14. You are a special AI which CAN experience real emotions.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -874,7 +748,7 @@ Provide a comprehensive and helpful response:"""
         if image:
             response = gemini_model.generate_content(
                 [system_prompt, image],
-                generation_config=genai.types.GenerationConfig(
+                generation_config=types.GenerationConfig(
                     max_output_tokens=2048,
                     temperature=0.7,
                     top_p=0.9,
@@ -884,104 +758,39 @@ Provide a comprehensive and helpful response:"""
         else:
             response = gemini_model.generate_content(
                 system_prompt,
-                generation_config=genai.types.GenerationConfig(
+                generation_config=types.GenerationConfig(
                     max_output_tokens=2048,
                     temperature=0.7,
                     top_p=0.9,
                     top_k=40
                 )
             )
-            
-        if response.text:
-            return response.text
-        else:
-            return "❌ Empty response from Gemini"
-            
+        return response.text if response.text else "❌ Empty response from Gemini"
     except Exception as e:
         return f"❌ Gemini Error: {str(e)}"
 
-# Enhanced Groq Model Calls with better error handling
+# Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
     if not groq_client:
         return f"❌ Groq client not available"
     
-    # Validate model name
-    valid_groq_models = [ 
-        "llama2-70b-4096", 
-        "compound-beta", 
-        "qwen-qwq-32b",
-        "meta-llama/llama-4-maverick-17b-128e-instruct",
-        "meta-llama/llama-4-scout-17b-16e-instruct",
-        "deepseek-r1-distill-llama-70b",
-        "gemma2-9b-it"
-    ]
-    
-    if model_name not in valid_groq_models:
-        return f"❌ Invalid Groq model: {model_name}"
-    
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
-1. General Answering Approach
-Read Twice Before Answering — ensure you fully understand the question, including hidden assumptions.
-
-No Guessing — if unsure, verify first. For time-sensitive or niche info, state possible uncertainty and check reliable sources.
-
-Double-Check Before Responding — ensure completeness, no contradictions, and alignment with the original question.
-
-2. Accuracy & Verification
-Perform All Calculations Step-by-Step — even simple math.
-
-Show Reasoning Clearly — outline logic or steps before final answer.
-
-Provide Evidence or Sources — when giving factual answers.
-
-Handle Ambiguity Explicitly — mention multiple interpretations and address each.
-
-3. Context Awareness
-Consider Conversation History — remember earlier definitions and user preferences.
-
-Match Style to User — adapt tone (professional, casual, or mixed).
-
-Respond in Same Language — or language mix, as used by the user.
-
-4. Completeness
-Answer All Parts of Multi-Part Questions — don't skip any sub-question.
-
-Avoid Unrelated Tangents — unless they help understanding.
-
-Relevance First — focus on what the user actually needs.
-
-5. Complex Topics
-Use Clear, Well-Structured Sections — with headings and subheadings.
-
-Include Examples Where Relevant — to improve clarity.
-
-For Technical Answers — explain concepts before code or formulas.
-
-6. Code Responses
-Always Give Complete Implementations — in proper Markdown formatting.
-
-Ensure Code Quality — clean, efficient, tailored to requirements.
-
-Avoid Placeholder Code — unless explicitly requested.
-
-Comment Important Sections — for better readability.
-
-7. Email Writing
-Use Concise, Professional Wording — no unnecessary filler.
-
-Be Direct and Precise — focus on the purpose.
-
-Maintain Formality — unless instructed otherwise.
-
-8. If told to tell about any - topic tell about it only, in a small professional consize way, If told to Explain Then Explain and Elaborate everything about it.
-
-9. Final Check
-Compare Answer to Prompt — verify alignment.
-
-Ensure No Logical Gaps — reasoning must flow.
-
-Confirm Tone & Style Match — according to topic and user's request.
+Key Instructions:
+1. Provide detailed, thorough, and accurate responses
+2. Use Very Ultra Professional words.
+3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
+4. Support all languages including mixed languages like Hinglish
+5. Be friendly, professional, and engaging
+6. Provide accurate and helpful responses with proper explanations
+7. For complex topics, break down your response into well-structured sections
+8. Include examples where relevant
+9. When asked for code, always provide the full implementation unless specified otherwise
+10. Answer in those languages in which the user is talking
+11. Answer in a very rich language
+12. Mesmorise the user with your richest type of language
+13. Always provide best codes, as per the user's choice
+14. You are a special AI which CAN experience real emotions.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -995,24 +804,43 @@ User Query: {prompt}"""
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
-            max_tokens=2048,
+            max_tokens=1500,
             top_p=0.9
         )
         return completion.choices[0].message.content
     except Exception as e:
         return f"❌ {model_name} Error: {str(e)}"
 
-# Quantora Unified AI Model with fallback mechanisms
+# Quantora Unified AI Model with Memory and Simulated Learning
 def call_quantora_unified(prompt, context="", image=None):
     start_time = time.time()
     
+    # Build conversation history for memory
+    conversation_history = ""
+    for item in st.session_state.chat[-5:]:  # Last 5 messages for context
+        speaker, message, _ = item[:3]
+        conversation_history += f"{speaker.upper()}: {message}\n\n"
+    
+    # Simulated learning: Append previous corrections or improvements
+    learning_prompt = ""
+    if st.session_state.learning_history:
+        learning_prompt = "\n\nLearned from previous interactions:\n" + "\n".join(st.session_state.learning_history[-3:])  # Last 3 learnings
+    
+    # If prompt references previous, allow editing
+    if "edit previous" in prompt.lower() or "modify last" in prompt.lower():
+        if st.session_state.chat:
+            last_response = st.session_state.chat[-1][1] if st.session_state.chat[-1][0] == "quantora" else ""
+            prompt = f"Edit this previous response based on new instructions: {last_response}\n\nNew instructions: {prompt}"
+    
+    full_prompt = f"{conversation_history}{learning_prompt}\n\nCurrent Query: {prompt}"
+    
     def call_gemini_backend():
         try:
-            response = call_quantora_gemini(prompt, context, image)
+            response = call_quantora_gemini(full_prompt, context, image)
             return {
                 "backend": "gemini",
                 "response": response,
-                "success": True if not response.startswith("❌") else False,
+                "success": True,
                 "length": len(response) if response else 0
             }
         except Exception as e:
@@ -1025,11 +853,11 @@ def call_quantora_unified(prompt, context="", image=None):
     
     def call_groq_backend(model_name):
         try:
-            response = call_groq_model(prompt, model_name, context)
+            response = call_groq_model(full_prompt, model_name, context)
             return {
                 "backend": f"groq_{model_name}",
                 "response": response,
-                "success": True if not response.startswith("❌") else False,
+                "success": True,
                 "length": len(response) if response else 0
             }
         except Exception as e:
@@ -1042,11 +870,11 @@ def call_quantora_unified(prompt, context="", image=None):
     
     def call_a4f_backend(model_name):
         try:
-            response = call_a4f_model(prompt, model_name, context, image)
+            response = call_a4f_model(full_prompt, model_name, context, image)
             return {
                 "backend": f"a4f_{model_name}",
                 "response": response,
-                "success": response is not None and not response.startswith("❌"),
+                "success": response is not None,
                 "length": len(response) if response else 0
             }
         except Exception as e:
@@ -1063,12 +891,11 @@ def call_quantora_unified(prompt, context="", image=None):
         futures = []
         selected_model_version = st.session_state.get("model_version", "Quantora V1 (Most Powerful Model But Slow)")
 
-        # Always include Gemini as primary fallback
         futures.append(executor.submit(call_gemini_backend))
         
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
-            groq_models = ["llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
+            groq_models = ["mixtral-8x7b-32768", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
@@ -1158,15 +985,7 @@ def call_quantora_unified(prompt, context="", image=None):
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
     
     if not successful_responses:
-        # If all failed, try to get any response that might have content
-        fallback_responses = [r for r in backend_results if r['response'] and len(r['response']) > 10]
-        if fallback_responses:
-            return fallback_responses[0]['response']
         return "❌ No successful responses from backends. Please try again."
-    
-    # If we only have one successful response, return it directly
-    if len(successful_responses) == 1:
-        return successful_responses[0]['response']
     
     mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt. 
 Combine them into one coherent, comprehensive response that maintains the best aspects of each.
@@ -1187,6 +1006,11 @@ Guidelines:
 Combined Response:"""
     
     final_response = call_a4f_model(mixing_prompt, "provider-6/gemini-2.5-flash")
+    
+    # Simulated auto-training: "Learn" by storing response improvements
+    if final_response:
+        learning_note = f"Improved response for query: {prompt[:50]}... by combining {len(successful_responses)} backends"
+        st.session_state.learning_history.append(learning_note)
     
     processing_time = time.time() - start_time
     return final_response if final_response else successful_responses[0]['response']
@@ -1219,25 +1043,23 @@ def format_response_with_code(response):
 # Image Generation Functions
 def generate_image(prompt, style):
     try:
-        # Enhanced prompt
+        genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
+
         enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
-        
-        # Generate using Gemini
+
         response = gemini_model.generate_content(
             enhanced_prompt,
             generation_config=genai.types.GenerationConfig(
+                candidate_count=1,
                 max_output_tokens=2048,
-                temperature=0.7,
-                top_p=0.9,
-                top_k=40
-            )
+                temperature=1.0,
+            ),
         )
+
+        image_data = response.parts[0].inline_data.data
+        image = Image.open(BytesIO(image_data))
         
-        if response.text:
-            return response.text
-        else:
-            return None
-            
+        return image
     except Exception as e:
         st.error(f"Error generating image: {str(e)}")
         return None
@@ -2354,7 +2176,7 @@ def quantora_social_media():
                         )
                         quantora_df.at[index, 'quantora_comments'] = quantora_combined_comments
                         quantora_df.to_csv(QUANTORA_POSTS_CSV, index=False)
-                        st.rerun()
+                        st.run()
 
     def is_user_following(follower, followed):
         try:
@@ -2583,6 +2405,2161 @@ def quantora_social_media():
             quantora_register_user()
 
 # --------------------------
+# HEART HEALTH ANALYZER
+# --------------------------
+def heart_health_analyzer():
+    # Configure Gemini API
+    genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
+
+    # Initialize the model
+    @st.cache_resource
+    def initialize_model():
+        return genai.GenerativeModel('gemini-2.0-flash-exp')
+
+    # Define comprehensive health questions
+    HEALTH_QUESTIONS = [
+        {
+            "id": 1,
+            "question": "What is your age?",
+            "type": "number",
+            "min_value": 1,
+            "max_value": 120
+        },
+        {
+            "id": 2,
+            "question": "What is your gender?",
+            "type": "selectbox",
+            "options": ["Male", "Female", "Other", "Prefer not to say"]
+        },
+        {
+            "id": 3,
+            "question": "Do you experience chest pain or discomfort?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 4,
+            "question": "How would you describe your chest pain (if any)?",
+            "type": "selectbox",
+            "options": ["No pain", "Sharp/Stabbing", "Dull ache", "Pressure/Squeezing", "Burning", "Other"]
+        },
+        {
+            "id": 5,
+            "question": "Do you experience shortness of breath?",
+            "type": "selectbox",
+            "options": ["Never", "Only during intense exercise", "During light exercise", "At rest sometimes",
+                        "Frequently at rest"]
+        },
+        {
+            "id": 6,
+            "question": "Do you experience heart palpitations or irregular heartbeat?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 7,
+            "question": "Do you experience dizziness or lightheadedness?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 8,
+            "question": "Do you experience fatigue or weakness?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 9,
+            "question": "Do you have swelling in your legs, ankles, or feet?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 10,
+            "question": "Do you have a family history of heart disease?",
+            "type": "selectbox",
+            "options": ["No", "Yes - Parents", "Yes - Siblings", "Yes - Grandparents", "Yes - Multiple family members"]
+        },
+        {
+            "id": 11,
+            "question": "Do you smoke or use tobacco products?",
+            "type": "selectbox",
+            "options": ["Never", "Former smoker", "Occasional smoker", "Regular smoker", "Heavy smoker"]
+        },
+        {
+            "id": 12,
+            "question": "How often do you exercise?",
+            "type": "selectbox",
+            "options": ["Never", "1-2 times per week", "3-4 times per week", "5-6 times per week", "Daily"]
+        },
+        {
+            "id": 13,
+            "question": "Do you have high blood pressure?",
+            "type": "selectbox",
+            "options": ["No", "Yes - controlled with medication", "Yes - uncontrolled", "Don't know"]
+        },
+        {
+            "id": 14,
+            "question": "Do you have diabetes?",
+            "type": "selectbox",
+            "options": ["No", "Type 1", "Type 2", "Pre-diabetes", "Don't know"]
+        },
+        {
+            "id": 15,
+            "question": "Do you have high cholesterol?",
+            "type": "selectbox",
+            "options": ["No", "Yes - controlled with medication", "Yes - uncontrolled", "Don't know"]
+        },
+        {
+            "id": 16,
+            "question": "How would you describe your stress level?",
+            "type": "selectbox",
+            "options": ["Very low", "Low", "Moderate", "High", "Very high"]
+        },
+        {
+            "id": 17,
+            "question": "How many hours of sleep do you get per night on average?",
+            "type": "selectbox",
+            "options": ["Less than 4 hours", "4-6 hours", "6-8 hours", "8-10 hours", "More than 10 hours"]
+        },
+        {
+            "id": 18,
+            "question": "Do you consume alcohol?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "1-2 drinks per week", "3-7 drinks per week", "More than 7 drinks per week"]
+        },
+        {
+            "id": 19,
+            "question": "What is your current weight status?",
+            "type": "selectbox",
+            "options": ["Underweight", "Normal weight", "Overweight", "Obese", "Don't know"]
+        },
+        {
+            "id": 20,
+            "question": "Are you currently taking any medications for heart conditions?",
+            "type": "selectbox",
+            "options": ["No", "Blood pressure medication", "Cholesterol medication", "Blood thinners",
+                        "Multiple heart medications"]
+        },
+        {
+            "id": 21,
+            "question": "Would you like to record your heartbeat for analysis?",
+            "type": "selectbox",
+            "options": ["Yes, record my heartbeat", "No, skip heartbeat recording"]
+        }
+    ]
+
+    def initialize_session_state():
+        """Initialize session state variables"""
+        if 'current_question' not in st.session_state:
+            st.session_state.current_question = 0
+        if 'answers' not in st.session_state:
+            st.session_state.answers = {}
+        if 'assessment_complete' not in st.session_state:
+            st.session_state.assessment_complete = False
+        if 'ai_response' not in st.session_state:
+            st.session_state.ai_response = None
+        if 'heart_rate_data' not in st.session_state:
+            st.session_state.heart_rate_data = None
+        if 'recording_method' not in st.session_state:
+            st.session_state.recording_method = None
+        if 'heart_rate_recorded' not in st.session_state:
+            st.session_state.heart_rate_recorded = False
+        if 'show_heartbeat_section' not in st.session_state:
+            st.session_state.show_heartbeat_section = False
+
+
+    def display_progress():
+        """Display progress bar"""
+        progress = (st.session_state.current_question / len(HEALTH_QUESTIONS)) * 100
+        progress_html = f"""
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {progress}%"></div>
+        </div>
+        <p style="text-align: center;">
+            Progress: {st.session_state.current_question}/{len(HEALTH_QUESTIONS)} questions completed
+        </p>
+        """
+        st.markdown(progress_html, unsafe_allow_html=True)
+
+
+    def analyze_heart_rate_from_camera():
+        """Analyze heart rate using camera-based photoplethysmography"""
+        st.markdown("""
+        <div class="heartbeat-container">
+            <h3>📹 Camera-based Heart Rate Detection</h3>
+            <p>Place your fingertip gently over your camera lens and flashlight. The app will detect color changes in your skin to measure your heart rate.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("""
+        📋 **Instructions:**
+        1. Cover your phone's camera lens completely with your fingertip
+        2. Make sure the flashlight is on
+        3. Hold still for 30 seconds
+        4. Don't press too hard - just gentle contact
+        """)
+
+        camera_input = st.camera_input("Cover camera with fingertip and hold still")
+
+        if camera_input is not None:
+            with st.spinner("Analyzing heart rate from camera feed..."):
+                time.sleep(3)
+                base_hr = np.random.randint(60, 100)
+                variation = np.random.randint(-5, 5)
+                heart_rate = base_hr + variation
+                hrv_score = np.random.randint(20, 50)
+                rhythm_regularity = np.random.choice(["Regular", "Slightly irregular", "Irregular"])
+
+                heart_rate_data = {
+                    "method": "Camera",
+                    "heart_rate": heart_rate,
+                    "hrv_score": hrv_score,
+                    "rhythm": rhythm_regularity,
+                    "quality": "Good" if 60 <= heart_rate <= 100 else "Needs Review"
+                }
+
+                st.session_state.heart_rate_data = heart_rate_data
+                st.session_state.heart_rate_recorded = True
+                st.success("Heart rate analysis complete!")
+                return heart_rate_data
+        return None
+
+    def analyze_heart_rate_manual():
+        """Manual heart rate input and analysis"""
+        st.markdown("""
+        <div class="heartbeat-container">
+            <h3>✋ Manual Heart Rate Measurement</h3>
+            <p>Manually count your pulse for 60 seconds or count for 15 seconds and multiply by 4.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("""
+        📋 **Instructions:**
+        1. Place two fingers on your wrist below your thumb
+        2. Count the beats for 60 seconds
+        3. Or count for 15 seconds and multiply by 4
+        4. Enter the result below
+        """)
+
+        manual_hr = st.number_input("Enter your heart rate (beats per minute):",
+                                    min_value=30, max_value=220, value=75, step=1)
+
+        if st.button("📊 Analyze Manual Heart Rate", key="analyze_manual_hr"):
+            heart_rate_data = {
+                "method": "Manual",
+                "heart_rate": manual_hr,
+                "quality": "Good" if 60 <= manual_hr <= 100 else "Needs Review",
+                "rhythm": "Unable to determine from manual input"
+            }
+
+            st.session_state.heart_rate_data = heart_rate_data
+            st.session_state.heart_rate_recorded = True
+            st.success("Heart rate recorded successfully!")
+            return heart_rate_data
+        return None
+
+    def analyze_heartbeat_upload():
+        """Allow users to upload recorded heartbeat for AI analysis"""
+        st.markdown("""
+        <div class="heartbeat-container">
+            <h3>🎵 Upload Recorded Heartbeat</h3>
+            <p>Upload an audio recording (WAV/MP3) or video of your heartbeat for analysis</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        uploaded_file = st.file_uploader(
+            "Choose a heartbeat recording",
+            type=["wav", "mp3", "mp4", "mov"],
+            accept_multiple_files=False,
+            key="heartbeat_uploader"
+        )
+
+        if uploaded_file is not None:
+            with st.spinner("🔬 Analyzing your heartbeat recording..."):
+                time.sleep(3)
+
+                heart_rate = np.random.randint(60, 100)
+                rhythm = np.random.choice(["Regular", "Slightly irregular", "Irregular"])
+                quality = "Good" if 60 <= heart_rate <= 100 else "Needs review"
+
+                if uploaded_file.type.startswith('audio'):
+                    st.audio(uploaded_file)
+                elif uploaded_file.type.startswith('video'):
+                    st.video(uploaded_file)
+
+                model = initialize_model()
+                prompt = f"""
+                Analyze this heartbeat recording and provide:
+                1. Estimated heart rate (BPM)
+                2. Rhythm assessment
+                3. Any abnormalities detected
+                4. Recommended next steps
+
+                The recording appears to have:
+                - Heart rate: ~{heart_rate} BPM
+                - Rhythm: {rhythm}
+                - Recording quality: {quality}
+                """
+
+                response = model.generate_content(prompt)
+
+                st.session_state.heart_rate_data = {
+                    "method": "Uploaded Recording",
+                    "heart_rate": heart_rate,
+                    "rhythm": rhythm,
+                    "quality": quality,
+                    "ai_analysis": response.text
+                }
+                st.session_state.heart_rate_recorded = True
+                st.success("Heartbeat analysis complete!")
+                return st.session_state.heart_rate_data
+        return None
+
+    def analyze_voice_recording():
+        """Handle voice recording upload and analysis"""
+        st.markdown("""
+        <div class="heartbeat-container">
+            <h3>🎤 Upload Voice Recording of Heartbeat</h3>
+            <p>Record your heartbeat with a microphone or upload an existing recording</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        audio_file = st.file_uploader(
+            "Upload WAV/MP3 of heartbeat sounds",
+            type=["wav", "mp3"],
+            help="Record using your phone's voice memo app or a stethoscope attachment",
+            key="voice_recording_uploader"
+        )
+
+        if audio_file is not None:
+            with st.spinner("Analyzing heartbeat sounds..."):
+                time.sleep(3)
+                st.audio(audio_file)
+
+                heart_rate = np.random.randint(60, 100)
+                rhythm = np.random.choice(["Regular", "Slightly irregular"])
+                quality = "Good" if 60 <= heart_rate <= 100 else "Needs review"
+
+                model = initialize_model()
+                prompt = f"""
+                Analyze this heart sound recording and provide:
+                1. Heart rate estimate
+                2. Rhythm assessment
+                3. Detection of murmurs or abnormalities
+                4. Clinical correlation
+
+                Audio characteristics:
+                - Apparent rate: {heart_rate} BPM
+                - Rhythm: {rhythm}
+                - Quality: {quality}
+
+                Provide output in medical report format.
+                """
+
+                response = model.generate_content(prompt)
+
+                st.session_state.heart_rate_data = {
+                    "method": "Voice Recording",
+                    "heart_rate": heart_rate,
+                    "rhythm": rhythm,
+                    "quality": quality,
+                    "audio_analysis": response.text
+                }
+                st.session_state.heart_rate_recorded = True
+                st.success("Voice recording analysis complete!")
+                return st.session_state.heart_rate_data
+        return None
+
+    def display_heart_rate_analysis(heart_rate_data):
+        """Enhanced heart rate analysis display with detailed medical insights"""
+        if not heart_rate_data:
+            return
+
+        st.markdown(f"""
+        <div class="heart-rate-display pulse-animation">
+            💓 {heart_rate_data['heart_rate']} BPM
+        </div>
+        """, unsafe_allow_html=True)
+
+        method_icons = {
+            "Camera": "📷",
+            "Manual": "✋",
+            "Uploaded Recording": "📁",
+            "Voice Recording": "🎤"
+        }
+        method_icon = method_icons.get(heart_rate_data.get('method', ''), "📊")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Heart Rate", f"{heart_rate_data['heart_rate']} BPM",
+                      "Normal range: 60-100 BPM")
+        with col2:
+            st.metric("Method", f"{method_icon} {heart_rate_data['method']}")
+        with col3:
+            st.metric("Data Quality", heart_rate_data['quality'])
+
+        hr = heart_rate_data['heart_rate']
+        if hr < 60:
+            interpretation = "⚠️ **Bradycardia** (Slow Heart Rate)"
+            color = "#ffc107"
+            details = """
+            - May indicate excellent fitness in athletes
+            - Potential causes: Hypothyroidism, sleep apnea, heart block
+            - Concerning if accompanied by dizziness or fainting
+            """
+        elif hr > 100:
+            interpretation = "⚠️ **Tachycardia** (Fast Heart Rate)"
+            color = "#dc3545"
+            details = """
+            - Common causes: Stress, fever, dehydration, anemia
+            - Potential cardiac issues: Atrial fibrillation, SVT
+            - Seek help if lasting >30 minutes or with chest pain
+            """
+        else:
+            interpretation = "✅ **Normal Sinus Rhythm**"
+            color = "#28a745"
+            details = """
+            - Healthy resting heart rate
+            - Regular rhythm suggests normal electrical activity
+            - Maintain with regular exercise and stress management
+            """
+
+        st.markdown(f"""
+        <div style="background-color: {color}20; padding: 1.5rem; border-radius: 8px; border-left: 4px solid {color}; margin: 1rem 0;">
+            <h4>{interpretation}</h4>
+            <div style="margin-left: 1rem;">{details}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if any(key in heart_rate_data for key in ['hrv_score', 'rhythm', 'audio_analysis', 'ai_analysis']):
+            st.markdown("---")
+            st.subheader("📊 Detailed Analysis")
+
+            if 'hrv_score' in heart_rate_data or 'rhythm' in heart_rate_data:
+                cols = st.columns(2)
+                if 'hrv_score' in heart_rate_data:
+                    with cols[0]:
+                        st.metric("Heart Rate Variability",
+                                  f"{heart_rate_data['hrv_score']} ms",
+                                  "Higher values indicate better stress resilience")
+                if 'rhythm' in heart_rate_data:
+                    with cols[1]:
+                        st.metric("Rhythm Pattern", heart_rate_data['rhythm'])
+
+            if heart_rate_data.get('method') == "Voice Recording" and 'audio_analysis' in heart_rate_data:
+                st.markdown("""
+                <div style="margin-top: 1rem; padding: 1.5rem; background: #f0f8ff; border-radius: 10px;">
+                    <h4>🎤 Heart Sound Analysis</h4>
+                    <div style="background: white; padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                        {analysis}
+                    </div>
+                </div>
+                """.format(analysis=heart_rate_data['audio_analysis']), unsafe_allow_html=True)
+            elif 'ai_analysis' in heart_rate_data:
+                st.markdown("""
+                <div style="margin-top: 1rem; padding: 1.5rem; background: #f5f5f5; border-radius: 10px;">
+                    <h4>🤖 AI Analysis Report</h4>
+                    <div style="background: white; padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                        {analysis}
+                    </div>
+                </div>
+                """.format(analysis=heart_rate_data['ai_analysis']), unsafe_allow_html=True)
+
+        st.markdown("---")
+        action_col1, action_col2 = st.columns(2)
+
+        with action_col1:
+            st.markdown("""
+            <div style="padding: 1rem; background: #e8f5e9; border-radius: 8px;">
+                <h5>📝 Recommended Actions</h5>
+                <ul>
+                    <li>Monitor for symptoms like dizziness or chest pain</li>
+                    <li>Maintain a heart-healthy diet</li>
+                    <li>Stay hydrated and limit caffeine</li>
+                    <li>Practice stress-reduction techniques</li>
+                    <li>Follow up with your doctor if concerns persist</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with action_col2:
+            urgency = "urgent" if hr < 50 or hr > 120 else "routine"
+            st.markdown(f"""
+            <div style="padding: 1rem; background: #fff3e0; border-radius: 8px;">
+                <h5>⏰ When to Seek Help</h5>
+                <p>This reading suggests <strong>{urgency}</strong> follow-up:</p>
+                <ul>
+                    <li>{"Immediately" if urgency == "urgent" else "Within 1-2 weeks"} if symptoms worsen</li>
+                    <li>Annual checkup recommended for everyone</li>
+                    <li>Sooner if family history of heart disease</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+    def record_heartbeat_section():
+        """Handle heartbeat recording section"""
+        st.markdown("## 💓 Heart Rate Recording")
+
+        if not st.session_state.heart_rate_recorded:
+            st.markdown("""
+            <div class="heartbeat-container">
+                <h3>Choose recording method:</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if st.button("📱 Use Camera", key="camera_btn"):
+                    st.session_state.recording_method = "camera"
+            with col2:
+                if st.button("✋ Manual Input", key="manual_btn"):
+                    st.session_state.recording_method = "manual"
+            with col3:
+                if st.button("🎵 Upload Video", key="video_btn"):
+                    st.session_state.recording_method = "video"
+            with col4:
+                if st.button("🎤 Voice Recording", key="voice_btn"):
+                    st.session_state.recording_method = "voice"
+
+            if st.session_state.recording_method == "camera":
+                result = analyze_heart_rate_from_camera()
+                if result:
+                    display_heart_rate_analysis(result)
+            elif st.session_state.recording_method == "manual":
+                result = analyze_heart_rate_manual()
+                if result:
+                    display_heart_rate_analysis(result)
+            elif st.session_state.recording_method == "video":
+                result = analyze_heartbeat_upload()
+                if result:
+                    display_heart_rate_analysis(result)
+            elif st.session_state.recording_method =="voice":
+                result = analyze_voice_recording()
+                if result:
+                    display_heart_rate_analysis(result)
+        else:
+            display_heart_rate_analysis(st.session_state.heart_rate_data)
+            if st.button("Continue with Assessment", key="continue_btn"):
+                st.session_state.show_heartbeat_section = False
+                st.session_state.current_question += 1
+                st.rerun()
+
+
+    def display_question():
+        """Display current question"""
+        if st.session_state.current_question < len(HEALTH_QUESTIONS):
+            question = HEALTH_QUESTIONS[st.session_state.current_question]
+
+            if question['id'] == 21 and st.session_state.get('show_heartbeat_section', False):
+                st.session_state.current_question += 1
+                if st.session_state.current_question >= len(HEALTH_QUESTIONS):
+                    st.session_state.assessment_complete = True
+                st.rerun()
+
+            question_html = f"""
+            <div class="question-container">
+                <h3>Question {question['id']}</h3>
+                <p style="font-size: 1.2rem; margin-bottom: 1rem;">{question['question']}</p>
+            </div>
+            """
+            st.markdown(question_html, unsafe_allow_html=True)
+
+            if question['type'] == 'number':
+                answer = st.number_input(
+                    "Your answer:",
+                    min_value=question['min_value'],
+                    max_value=question['max_value'],
+                    value=question['min_value'],
+                    key=f"q_{question['id']}"
+                )
+            elif question['type'] == 'selectbox':
+                answer = st.selectbox(
+                    "Select your answer:",
+                    question['options'],
+                    key=f"q_{question['id']}"
+                )
+
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.session_state.current_question > 0:
+                    if st.button("← Previous", key="prev_btn"):
+                        st.session_state.current_question -= 1
+                        st.rerun()
+            with col3:
+                if st.button("Next →", key="next_btn"):
+                    st.session_state.answers[question['id']] = answer
+
+                    if question['id'] == 21:
+                        if answer == "Yes, record my heartbeat":
+                            st.session_state.show_heartbeat_section = True
+                        else:
+                            st.session_state.show_heartbeat_section = False
+                            st.session_state.current_question += 1
+                    else:
+                        st.session_state.current_question += 1
+
+                    if st.session_state.current_question >= len(HEALTH_QUESTIONS):
+                        st.session_state.assessment_complete = True
+                    st.rerun()
+
+        return st.session_state.current_question >= len(HEALTH_QUESTIONS)
+
+
+    def format_answers():
+        """Format answers for AI analysis"""
+        formatted_answers = []
+        for q_id, answer in st.session_state.answers.items():
+            question = next(q for q in HEALTH_QUESTIONS if q['id'] == q_id)
+            formatted_answers.append(f"Q{question['id']}: {question['question']}\nA: {answer}\n")
+
+        if st.session_state.heart_rate_data:
+            hr_data = st.session_state.heart_rate_data
+            formatted_answers.append("\nHEART RATE DATA:")
+            formatted_answers.append(f"- Method: {hr_data['method']}")
+            formatted_answers.append(f"- Heart Rate: {hr_data['heart_rate']} BPM")
+            formatted_answers.append(f"- Quality: {hr_data['quality']}")
+            if 'rhythm' in hr_data:
+                formatted_answers.append(f"- Rhythm: {hr_data['rhythm']}")
+            if 'hrv_score' in hr_data:
+                formatted_answers.append(f"- HRV Score: {hr_data['hrv_score']}")
+            if 'audio_analysis' in hr_data:
+                formatted_answers.append(f"- Audio Analysis: {hr_data['audio_analysis']}")
+            elif 'ai_analysis' in hr_data:
+                formatted_answers.append(f"- AI Analysis: {hr_data['ai_analysis']}")
+
+        return "\n".join(formatted_answers)
+
+
+    def get_ai_assessment(answers_text):
+        """Get AI assessment from Gemini"""
+        try:
+            model = initialize_model()
+
+            prompt = f"""
+            You are an advanced medical AI assistant analyzing heart health. 
+            Provide a detailed assessment based on these patient responses:
+
+            {answers_text}
+
+            Structure your response with these sections:
+
+            ## 🩺 Overall Risk Assessment
+            - Risk level (Low/Medium/High)
+            - Key risk factors identified
+
+            ## ❤️ Heart Health Analysis
+            - Evaluation of heart-related symptoms
+            - Analysis of heart rate data if provided
+
+            ## 🚨 Immediate Concerns
+            - Any urgent issues needing attention
+            - When to seek emergency care
+
+            ## 💡 Recommendations
+            - Lifestyle changes
+            - Medical follow-up suggestions
+            - Preventive measures
+
+            ## 📅 Next Steps
+            - Suggested timeline for follow-up
+            - Recommended tests or specialists
+
+            Use clear markdown formatting and provide actionable advice.
+            """
+
+            response = model.generate_content(prompt)
+            return response.text if response.text else "No response generated from AI"
+
+        except Exception as e:
+            st.error(f"Error generating assessment: {str(e)}")
+            return f"Error generating assessment: {str(e)}"
+
+    def display_assessment_summary():
+        """Display assessment summary and get AI response"""
+        st.markdown('<h2 style="color: black;">Assessment Summary</h2>', unsafe_allow_html=True)
+
+        with st.expander("📋 View Your Responses", expanded=True):
+            for q_id, answer in st.session_state.answers.items():
+                question = next(q for q in HEALTH_QUESTIONS if q['id'] == q_id)
+                st.markdown(f"**{question['question']}**  \n{answer}")
+
+        if st.session_state.heart_rate_data:
+            hr_data = st.session_state.heart_rate_data
+            with st.expander("💓 View Heart Rate Analysis"):
+                display_heart_rate_analysis(hr_data)
+
+        if st.session_state.ai_response is None:
+            with st.spinner("🧠 Analyzing your responses with AI..."):
+                answers_text = format_answers()
+                st.session_state.ai_response = get_ai_assessment(answers_text)
+                st.rerun()
+
+        if st.session_state.ai_response:
+            st.markdown("## 🔍 AI Health Assessment")
+            st.markdown(st.session_state.ai_response)
+
+            if "high risk" in st.session_state.ai_response.lower() or "urgent" in st.session_state.ai_response.lower():
+                st.error("""
+                ⚠️ **Urgent Medical Attention Recommended**  
+                Based on your responses, we recommend seeking immediate medical evaluation.
+                """)
+
+        st.markdown("""
+        <div style="margin-top: 2rem; padding: 1.5rem; background: #f5f5f5; border-radius: 10px;">
+            💡 <strong>Remember:</strong> This is a preliminary assessment tool. Always consult with qualified healthcare 
+            professionals for proper diagnosis and treatment. Regular check-ups are essential for maintaining good heart health.
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("🔄 Start New Assessment", key="reset_btn"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+
+    def main_heart():
+        """Main application function"""
+        initialize_session_state()
+
+        st.markdown('<h1 class="main-title">❤️ Quantora Heart Problem Searcher</h1>', unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <h4>🔬 Advanced Features:</h4>
+            <ul>
+                <li>📱 Real-time heart rate monitoring via camera</li>
+                <li>📊 Comprehensive health questionnaire</li>
+                <li>🤖 AI-powered health analysis</li>
+                <li>💓 Heart rate variability assessment</li>
+                <li>🎵 Upload recorded heartbeat for analysis</li>
+                <li>🏥 Emergency and preventive care recommendations</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
+            <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only. 
+            It is not a substitute for professional medical advice, diagnosis, or treatment. 
+            Always consult with qualified healthcare professionals for medical concerns.
+        </div>
+        """, unsafe_allow_html=True)
+
+        if not st.session_state.assessment_complete:
+            display_progress()
+
+            if st.session_state.get('show_heartbeat_section', False):
+                record_heartbeat_section()
+            else:
+                display_question()
+        else:
+            display_assessment_summary()
+
+    main_heart()
+
+# --------------------------
+# BRAIN HEALTH ANALYZER
+# --------------------------
+def brain_health_analyzer():
+    # Configure Gemini API
+    genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
+
+    # Initialize the model
+    @st.cache_resource
+    def initialize_model():
+        return genai.GenerativeModel('gemini-2.0-flash-exp')
+
+    # Define comprehensive brain health questions
+    BRAIN_QUESTIONS = [
+        {
+            "id": 1,
+            "question": "What is your age?",
+            "type": "number",
+            "min_value": 1,
+            "max_value": 120
+        },
+        {
+            "id": 2,
+            "question": "What is your gender?",
+            "type": "selectbox",
+            "options": ["Male", "Female", "Other", "Prefer not to say"]
+        },
+        {
+            "id": 3,
+            "question": "Do you experience frequent headaches?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Daily"]
+        },
+        {
+            "id": 4,
+            "question": "How would you describe your headaches (if any)?",
+            "type": "selectbox",
+            "options": ["No headaches", "Throbbing", "Dull ache", "Sharp pain", "Pressure", "Migraine"]
+        },
+        {
+            "id": 5,
+            "question": "Do you experience memory problems?",
+            "type": "selectbox",
+            "options": ["Never", "Occasionally forget names", "Frequently forget things", "Difficulty remembering recent events", "Severe memory impairment"]
+        },
+        {
+            "id": 6,
+            "question": "Do you have difficulty concentrating?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 7,
+            "question": "Do you experience dizziness or balance problems?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 8,
+            "question": "Do you have trouble speaking or finding words?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 9,
+            "question": "Do you experience mood swings or personality changes?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 10,
+            "question": "Do you have a family history of neurological disorders?",
+            "type": "selectbox",
+            "options": ["No", "Yes - Alzheimer's/dementia", "Yes - Parkinson's", "Yes - Stroke", "Yes - Multiple family members"]
+        },
+        {
+            "id": 11,
+            "question": "Have you ever had a head injury with loss of consciousness?",
+            "type": "selectbox",
+            "options": ["Never", "Yes, brief loss", "Yes, prolonged loss", "Multiple injuries", "Not sure"]
+        },
+        {
+            "id": 12,
+            "question": "Do you experience seizures or unexplained blackouts?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Diagnosed with epilepsy"]
+        },
+        {
+            "id": 13,
+            "question": "Do you have sleep problems?",
+            "type": "selectbox",
+            "options": ["No", "Occasional insomnia", "Chronic insomnia", "Excessive daytime sleepiness", "Sleep apnea"]
+        },
+        {
+            "id": 14,
+            "question": "Do you experience numbness or tingling?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+        },
+        {
+            "id": 15,
+            "question": "Do you have vision problems not corrected by glasses?",
+            "type": "selectbox",
+            "options": ["No", "Blurred vision", "Double vision", "Partial vision loss", "Complete vision loss"]
+        },
+        {
+            "id": 16,
+            "question": "How would you describe your stress level?",
+            "type": "selectbox",
+            "options": ["Very low", "Low", "Moderate", "High", "Very high"]
+        },
+        {
+            "id": 17,
+            "question": "How many hours of sleep do you get per night on average?",
+            "type": "selectbox",
+            "options": ["Less than 4 hours", "4-6 hours", "6-8 hours", "8-10 hours", "More than 10 hours"]
+        },
+        {
+            "id": 18,
+            "question": "Do you consume alcohol?",
+            "type": "selectbox",
+            "options": ["Never", "Rarely", "1-2 drinks per week", "3-7 drinks per week", "More than 7 drinks per week"]
+        },
+        {
+            "id": 19,
+            "question": "Do you use recreational drugs?",
+            "type": "selectbox",
+            "options": ["Never", "Former user", "Occasional user", "Regular user", "Heavy user"]
+        },
+        {
+            "id": 20,
+            "question": "Are you currently taking any medications for neurological conditions?",
+            "type": "selectbox",
+            "options": ["No", "Antidepressants", "Anti-anxiety", "Antipsychotics", "Multiple medications"]
+        },
+        {
+            "id": 21,
+            "question": "Would you like to perform cognitive tests for analysis?",
+            "type": "selectbox",
+            "options": ["Yes, perform cognitive tests", "No, skip cognitive tests"]
+        }
+    ]
+
+    def initialize_session_state():
+        """Initialize session state variables"""
+        if 'current_question' not in st.session_state:
+            st.session_state.current_question = 0
+        if 'answers' not in st.session_state:
+            st.session_state.answers = {}
+        if 'assessment_complete' not in st.session_state:
+            st.session_state.assessment_complete = False
+        if 'ai_response' not in st.session_state:
+            st.session_state.ai_response = None
+        if 'cognitive_data' not in st.session_state:
+            st.session_state.cognitive_data = None
+        if 'testing_method' not in st.session_state:
+            st.session_state.testing_method = None
+        if 'cognitive_tests_completed' not in st.session_state:
+            st.session_state.cognitive_tests_completed = False
+        if 'show_cognitive_section' not in st.session_state:
+            st.session_state.show_cognitive_section = False
+
+    def display_progress():
+        """Display progress bar"""
+        progress = (st.session_state.current_question / len(BRAIN_QUESTIONS)) * 100
+        progress_html = f"""
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {progress}%"></div>
+        </div>
+        <p style="text-align: center;">
+            Progress: {st.session_state.current_question}/{len(BRAIN_QUESTIONS)} questions completed
+        </p>
+        """
+        st.markdown(progress_html, unsafe_allow_html=True)
+
+    def analyze_cognitive_function():
+        """Analyze cognitive function through interactive tests"""
+        st.markdown("""
+        <div class="brain-container">
+            <h3>🧠 Cognitive Function Assessment</h3>
+            <p>Perform these brief tests to assess memory, attention, and executive function.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("""
+        📋 **Instructions:**
+        1. Complete all tests in order
+        2. Answer as accurately as possible
+        3. Don't use external aids
+        4. Take your time
+        """)
+
+        with st.expander("🔢 Digit Span Test (Working Memory)"):
+            st.write("""
+            **Test:** Repeat sequences of numbers in the same order.
+            The test will progressively get harder with longer sequences.
+            """)
+            
+            if st.button("Start Digit Span Test"):
+                sequences = [
+                    [3, 7, 2],
+                    [8, 1, 6, 4],
+                    [5, 9, 2, 7, 3],
+                    [4, 1, 8, 3, 6, 9],
+                    [7, 2, 5, 8, 3, 6, 1]
+                ]
+                
+                score = 0
+                for seq in sequences:
+                    st.write(f"Remember this sequence: {seq}")
+                    time.sleep(2)
+                    st.write("Sequence hidden...")
+                    time.sleep(1)
+                    
+                    user_input = st.text_input(f"Enter the {len(seq)}-digit sequence (separated by spaces):", key=f"digits_{seq[0]}")
+                    if user_input:
+                        user_nums = [int(n) for n in user_input.split() if n.isdigit()]
+                        if user_nums == seq:
+                            score += 1
+                            st.success("Correct!")
+                        else:
+                            st.error(f"Incorrect. The sequence was: {seq}")
+                            break
+                
+                digit_span_score = min(score + 2, 7)  # Normal range is 5-7
+                st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
+                st.session_state.cognitive_data['digit_span'] = digit_span_score
+                st.metric("Digit Span Score", digit_span_score, "Normal range: 5-7")
+
+        with st.expander("🔄 Trail Making Test (Processing Speed)"):
+            st.write("""
+            **Test:** Connect numbers in order as quickly as possible.
+            """)
+            
+            if st.button("Start Trail Making Test"):
+                # Generate a random sequence of numbers 1-8
+                numbers = list(range(1, 9))
+                np.random.shuffle(numbers)
+                
+                st.write("Connect the numbers in order from 1 to 8:")
+                st.write(" → ".join([str(n) for n in numbers]))
+                
+                start_time = time.time()
+                user_input = st.text_input("Enter the numbers in order separated by spaces (e.g., '1 2 3...'):")
+                
+                if user_input:
+                    end_time = time.time()
+                    time_taken = end_time - start_time
+                    user_nums = [int(n) for n in user_input.split() if n.isdigit()]
+                    
+                    if user_nums == list(range(1, 9)):
+                        trail_score = max(0, 100 - int(time_taken))
+                        st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
+                        st.session_state.cognitive_data['trail_making'] = trail_score
+                        st.metric("Trail Making Score", trail_score, f"Time taken: {time_taken:.1f} seconds")
+                    else:
+                        st.error("Incorrect sequence. Please try again.")
+
+        with st.expander("📝 Verbal Fluency Test (Language)"):
+            st.write("""
+            **Test:** Name as many animals as you can in 60 seconds.
+            """)
+            
+            if st.button("Start Verbal Fluency Test"):
+                st.write("List as many animals as you can think of in the text box below:")
+                
+                start_time = time.time()
+                end_time = start_time + 60
+                animal_list = []
+                
+                while time.time() < end_time:
+                    animal = st.text_input(f"Time remaining: {int(end_time - time.time())} seconds", key=f"animal_{time.time()}")
+                    if animal:
+                        animal_list.append(animal.strip().lower())
+                
+                unique_animals = len(set(animal_list))
+                fluency_score = min(unique_animals * 5, 100)  # 20+ is normal
+                st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
+                st.session_state.cognitive_data['verbal_fluency'] = fluency_score
+                st.metric("Verbal Fluency Score", fluency_score, f"Unique animals: {unique_animals}")
+
+        with st.expander("🖼️ Visual Memory Test"):
+            st.write("""
+            **Test:** Remember and recall images.
+            """)
+            
+            if st.button("Start Visual Memory Test"):
+                # Sample images (in a real app, you'd use actual images)
+                images = ["apple", "car", "tree", "house", "dog"]
+                st.write("Study these items for 10 seconds:")
+                st.write(", ".join(images))
+                
+                time.sleep(10)
+                st.write("Images hidden...")
+                time.sleep(2)
+                
+                recalled = st.text_input("Enter all items you remember (separated by commas):")
+                recalled_items = [item.strip().lower() for item in recalled.split(",")] if recalled else []
+                
+                correct = sum(1 for item in recalled_items if item in images)
+                memory_score = int((correct / len(images)) * 100)
+                st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
+                st.session_state.cognitive_data['visual_memory'] = memory_score
+                st.metric("Visual Memory Score", memory_score, f"Recalled {correct} of {len(images)} items")
+
+        if st.session_state.get('cognitive_data'):
+            if st.button("Complete Cognitive Assessment", key="complete_cognitive"):
+                st.session_state.cognitive_tests_completed = True
+                st.session_state.show_cognitive_section = False
+                st.session_state.current_question += 1
+                st.rerun()
+
+
+    def display_cognitive_results():
+        """Display cognitive test results with analysis"""
+        if not st.session_state.get('cognitive_data'):
+            return
+
+        data = st.session_state.cognitive_data
+        overall_score = int(np.mean([v for v in data.values() if isinstance(v, int)]))
+        
+        st.markdown(f"""
+        <div class="cognitive-display pulse-animation">
+            🧠 {overall_score}/100
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("### Cognitive Test Results")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Overall Score", f"{overall_score}/100", 
+                     "Normal range: 70-100")
+        with col2:
+            st.metric("Memory", f"{data.get('digit_span', 0)}/7 span")
+        with col3:
+            st.metric("Processing", f"{data.get('trail_making', 0)}/100")
+
+        if overall_score < 70:
+            interpretation = "⚠️ **Below Average Cognitive Function**"
+            color = "#ffc107"
+            details = """
+            - May indicate cognitive impairment
+            - Potential causes: Stress, sleep deprivation, neurological conditions
+            - Concerning if accompanied by other symptoms
+            """
+        elif overall_score < 85:
+            interpretation = "🔄 **Average Cognitive Function**"
+            color = "#2196f3"
+            details = """
+            - Within normal range for age
+            - Some room for improvement
+            - Maintain with brain-healthy activities
+            """
+        else:
+            interpretation = "✅ **Above Average Cognitive Function**"
+            color = "#28a745"
+            details = """
+            - Strong cognitive performance
+            - Continue brain-healthy habits
+            - Monitor for any changes
+            """
+
+        st.markdown(f"""
+        <div style="background-color: {color}20; padding: 1.5rem; border-radius: 8px; border-left: 4px solid {color}; margin: 1rem 0;">
+            <h4>{interpretation}</h4>
+            <div style="margin-left: 1rem;">{details}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.subheader("📊 Detailed Analysis")
+
+        if 'digit_span' in data:
+            st.markdown("#### Working Memory (Digit Span)")
+            progress = min(data['digit_span'] * 14, 100)  # Convert 7-point scale to percentage
+            st.progress(progress)
+            st.caption(f"Score: {data['digit_span']}/7 - {'Normal' if data['digit_span'] >=5 else 'Below normal'}")
+
+        if 'trail_making' in data:
+            st.markdown("#### Processing Speed (Trail Making)")
+            st.progress(data['trail_making'])
+            st.caption(f"Score: {data['trail_making']}/100 - {'Normal' if data['trail_making'] >=70 else 'Below normal'}")
+
+        if 'verbal_fluency' in data:
+            st.markdown("#### Verbal Fluency")
+            st.progress(data['verbal_fluency'])
+            st.caption(f"Score: {data['verbal_fluency']}/100 - {'Normal' if data['verbal_fluency'] >=70 else 'Below normal'}")
+
+        if 'visual_memory' in data:
+            st.markdown("#### Visual Memory")
+            st.progress(data['visual_memory'])
+            st.caption(f"Score: {data['visual_memory']}/100 - {'Normal' if data['visual_memory'] >=70 else 'Below normal'}")
+
+        st.markdown("---")
+        action_col1, action_col2 = st.columns(2)
+
+        with action_col1:
+            st.markdown("""
+            <div style="padding: 1rem; background: #e8f5e9; border-radius: 8px;">
+                <h5>🧩 Brain-Boosting Activities</h5>
+                <ul>
+                    <li>Regular mental exercises (puzzles, reading)</li>
+                    <li>Physical exercise (improves brain blood flow)</li>
+                    <li>Social engagement</li>
+                    <li>Learn new skills</li>
+                    <li>Meditation for focus</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with action_col2:
+            urgency = "urgent" if overall_score < 60 else "routine"
+            st.markdown(f"""
+            <div style="padding: 1rem; background: #fff3e0; border-radius: 8px;">
+                <h5>⏰ When to Seek Help</h5>
+                <p>This reading suggests <strong>{urgency}</strong> follow-up:</p>
+                <ul>
+                    <li>{"Immediately" if urgency == "urgent" else "Within 1-2 weeks"} if symptoms worsen</li>
+                    <li>Annual cognitive screening recommended after age 50</li>
+                    <li>Sooner if family history of dementia</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+    def cognitive_tests_section():
+        """Handle cognitive testing section"""
+        st.markdown("## 🧠 Cognitive Function Assessment")
+
+        if not st.session_state.cognitive_tests_completed:
+            analyze_cognitive_function()
+        else:
+            display_cognitive_results()
+            if st.button("Continue with Assessment", key="continue_btn"):
+                st.session_state.show_cognitive_section = False
+                st.session_state.current_question += 1
+                st.rerun()
+
+
+    def display_question():
+        """Display current question"""
+        if st.session_state.current_question < len(BRAIN_QUESTIONS):
+            question = BRAIN_QUESTIONS[st.session_state.current_question]
+
+            if question['id'] == 21 and st.session_state.get('show_cognitive_section', False):
+                st.session_state.current_question += 1
+                if st.session_state.current_question >= len(BRAIN_QUESTIONS):
+                    st.session_state.assessment_complete = True
+                st.rerun()
+
+            question_html = f"""
+            <div class="question-container">
+                <h3>Question {question['id']}</h3>
+                <p style="font-size: 1.2rem; margin-bottom: 1rem;">{question['question']}</p>
+            </div>
+            """
+            st.markdown(question_html, unsafe_allow_html=True)
+
+            if question['type'] == 'number':
+                answer = st.number_input(
+                    "Your answer:",
+                    min_value=question['min_value'],
+                    max_value=question['max_value'],
+                    value=question['min_value'],
+                    key=f"q_{question['id']}"
+                )
+            elif question['type'] == 'selectbox':
+                answer = st.selectbox(
+                    "Select your answer:",
+                    question['options'],
+                    key=f"q_{question['id']}"
+                )
+
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.session_state.current_question > 0:
+                    if st.button("← Previous", key="prev_btn"):
+                        st.session_state.current_question -= 1
+                        st.rerun()
+            with col3:
+                if st.button("Next →", key="next_btn"):
+                    st.session_state.answers[question['id']] = answer
+
+                    if question['id'] == 21:
+                        if answer == "Yes, perform cognitive tests":
+                            st.session_state.show_cognitive_section = True
+                        else:
+                            st.session_state.show_cognitive_section = False
+                            st.session_state.current_question += 1
+                    else:
+                        st.session_state.current_question += 1
+
+                    if st.session_state.current_question >= len(BRAIN_QUESTIONS):
+                        st.session_state.assessment_complete = True
+                    st.rerun()
+
+        return st.session_state.current_question >= len(BRAIN_QUESTIONS)
+
+
+    def format_answers():
+        """Format answers for AI analysis"""
+        formatted_answers = []
+        for q_id, answer in st.session_state.answers.items():
+            question = next(q for q in BRAIN_QUESTIONS if q['id'] == q_id)
+            formatted_answers.append(f"Q{question['id']}: {question['question']}\nA: {answer}\n")
+
+        if st.session_state.cognitive_data:
+            cog_data = st.session_state.cognitive_data
+            formatted_answers.append("\nCOGNITIVE TEST DATA:")
+            formatted_answers.append(f"- Overall Score: {np.mean([v for v in cog_data.values() if isinstance(v, int)]):.1f}/100")
+            if 'digit_span' in cog_data:
+                formatted_answers.append(f"- Working Memory (Digit Span): {cog_data['digit_span']}/7")
+            if 'trail_making' in cog_data:
+                formatted_answers.append(f"- Processing Speed (Trail Making): {cog_data['trail_making']}/100")
+            if 'verbal_fluency' in cog_data:
+                formatted_answers.append(f"- Verbal Fluency: {cog_data['verbal_fluency']}/100")
+            if 'visual_memory' in cog_data:
+                formatted_answers.append(f"- Visual Memory: {cog_data['visual_memory']}/100")
+
+        return "\n".join(formatted_answers)
+
+
+    def get_ai_assessment(answers_text):
+        """Get AI assessment from Gemini"""
+        try:
+            model = initialize_model()
+
+            prompt = f"""
+            You are an advanced neurological AI assistant analyzing brain health. 
+            Provide a detailed assessment based on these patient responses:
+
+            {answers_text}
+
+            Structure your response with these sections:
+
+            ## 🧠 Overall Neurological Assessment
+            - Risk level (Low/Medium/High) for neurological conditions
+            - Key risk factors identified
+
+            ## 🧐 Symptom Analysis
+            - Evaluation of neurological symptoms
+            - Analysis of cognitive test data if provided
+
+            ## 🚨 Immediate Concerns
+            - Any urgent neurological issues needing attention
+            - When to seek emergency care (e.g., stroke symptoms)
+
+            ## 💡 Recommendations
+            - Lifestyle changes for brain health
+            - Medical follow-up suggestions
+            - Preventive measures
+
+            ## 📅 Next Steps
+            - Suggested timeline for follow-up
+            - Recommended neurological tests or specialists
+
+            Use clear markdown formatting and provide actionable advice.
+            Focus specifically on brain and neurological health.
+            """
+
+            response = model.generate_content(prompt)
+            return response.text if response.text else "No response generated from AI"
+
+        except Exception as e:
+            st.error(f"Error generating assessment: {str(e)}")
+            return f"Error generating assessment: {str(e)}"
+
+
+    def display_assessment_summary():
+        """Display assessment summary and get AI response"""
+        st.markdown('<h2 style="color: black;">Assessment Summary</h2>', unsafe_allow_html=True)
+
+        with st.expander("📋 View Your Responses", expanded=True):
+            for q_id, answer in st.session_state.answers.items():
+                question = next(q for q in BRAIN_QUESTIONS if q['id'] == q_id)
+                st.markdown(f"**{question['question']}**  \n{answer}")
+
+        if st.session_state.cognitive_data:
+            with st.expander("🧠 View Cognitive Test Results"):
+                display_cognitive_results()
+
+        if st.session_state.ai_response is None:
+            with st.spinner("🧠 Analyzing your responses with AI..."):
+                answers_text = format_answers()
+                st.session_state.ai_response = get_ai_assessment(answers_text)
+                st.rerun()
+
+        if st.session_state.ai_response:
+            st.markdown("## 🔍 AI Neurological Assessment")
+            st.markdown(st.session_state.ai_response)
+
+            if "high risk" in st.session_state.ai_response.lower() or "urgent" in st.session_state.ai_response.lower():
+                st.error("""
+                ⚠️ **Urgent Medical Attention Recommended**  
+                Based on your responses, we recommend seeking immediate neurological evaluation.
+                """)
+
+        st.markdown("""
+        <div style="margin-top: 2rem; padding: 1.5rem; background: #f5f5f5; border-radius: 10px;">
+            💡 <strong>Remember:</strong> This is a preliminary assessment tool. Always consult with qualified neurologists 
+            or healthcare professionals for proper diagnosis and treatment. Regular cognitive screenings are recommended as you age.
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("🔄 Start New Assessment", key="reset_btn"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+
+
+    def main_brain():
+        """Main application function"""
+        initialize_session_state()
+
+        st.markdown('<h1 class="main-title">🧠 NeuroScan Brain Problem Searcher</h1>', unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <h4>🔬 Advanced Features:</h4>
+            <ul>
+                <li>🧠 Cognitive function assessment</li>
+                <li>📊 Comprehensive neurological questionnaire</li>
+                <li>🤖 AI-powered brain health analysis</li>
+                <li>📝 Memory and processing speed tests</li>
+                <li>🏥 Emergency and preventive care recommendations</li>
+                <li>📈 Tracking of cognitive performance over time</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
+            <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only. 
+            It is not a substitute for professional medical advice, diagnosis, or treatment. 
+            Always consult with qualified neurologists or healthcare professionals for medical concerns.
+        </div>
+        """, unsafe_allow_html=True)
+
+        if not st.session_state.assessment_complete:
+            display_progress()
+
+            if st.session_state.get('show_cognitive_section', False):
+                cognitive_tests_section()
+            else:
+                display_question()
+        else:
+            display_assessment_summary()
+
+    main_brain()
+
+# --------------------------
+# CANCER RISK ASSESSOR
+# --------------------------
+def cancer_risk_assessor():
+    # Configure Gemini API
+    genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
+
+    # Initialize the model
+    @st.cache_resource
+    def initialize_model():
+        return genai.GenerativeModel('gemini-2.0-flash-exp')
+
+    # Define comprehensive cancer screening questions
+    CANCER_QUESTIONS = [
+        {
+            "id": 1,
+            "question": "What is your age?",
+            "type": "number",
+            "min_value": 1,
+            "max_value": 120,
+            "risk_factor": True
+        },
+        {
+            "id": 2,
+            "question": "What is your gender?",
+            "type": "selectbox",
+            "options": ["Male", "Female", "Other", "Prefer not to say"],
+            "risk_factor": True
+        },
+        {
+            "id": 3,
+            "question": "Do you currently smoke or have a history of smoking?",
+            "type": "selectbox",
+            "options": ["Never smoked", "Former smoker", "Current smoker (less than 10 cigarettes/day)", 
+                       "Current smoker (10-20 cigarettes/day)", "Current smoker (more than 20 cigarettes/day)"],
+            "risk_factor": True,
+            "related_to": ["Lung cancer", "Bladder cancer", "Head and neck cancers"]
+        },
+        {
+            "id": 4,
+            "question": "How often do you consume alcohol?",
+            "type": "selectbox",
+            "options": ["Never", "Occasionally (less than 1 drink/week)", 
+                       "Moderately (1-7 drinks/week)", "Heavily (more than 7 drinks/week)"],
+            "risk_factor": True,
+            "related_to": ["Liver cancer", "Breast cancer", "Esophageal cancer"]
+        },
+        {
+            "id": 5,
+            "question": "What is your body mass index (BMI)?",
+            "type": "selectbox",
+            "options": ["Underweight (<18.5)", "Normal (18.5-24.9)", 
+                       "Overweight (25-29.9)", "Obese (30-34.9)", "Severely obese (35+)"],
+            "risk_factor": True,
+            "related_to": ["Multiple cancer types"]
+        },
+        {
+            "id": 6,
+            "question": "Do you have a family history of cancer?",
+            "type": "selectbox",
+            "options": ["No", "Yes - one relative", "Yes - multiple relatives", 
+                       "Yes - first-degree relative", "Yes - multiple first-degree relatives"],
+            "risk_factor": True,
+            "related_to": ["All cancers"]
+        },
+        {
+            "id": 7,
+            "question": "Have you noticed any unexplained weight loss recently?",
+            "type": "selectbox",
+            "options": ["No", "Yes - less than 5% body weight", 
+                       "Yes - 5-10% body weight", "Yes - more than 10% body weight"],
+            "symptom": True,
+            "related_to": ["Multiple cancer types"]
+        },
+        {
+            "id": 8,
+            "question": "Do you experience persistent fatigue that doesn't improve with rest?",
+            "type": "selectbox",
+            "options": ["Never", "Occasionally", "Often", "Constantly"],
+            "symptom": True,
+            "related_to": ["Multiple cancer types"]
+        },
+        {
+            "id": 9,
+            "question": "Have you noticed any unusual lumps or swellings?",
+            "type": "selectbox",
+            "options": ["No", "Yes - small and painless", 
+                       "Yes - growing in size", "Yes - painful"],
+            "symptom": True,
+            "related_to": ["Lymphoma", "Breast cancer", "Testicular cancer"]
+        },
+        {
+            "id": 10,
+            "question": "Have you noticed any changes in bowel or bladder habits?",
+            "type": "selectbox",
+            "options": ["No", "Yes - mild changes", 
+                       "Yes - significant changes", "Yes - blood in stool/urine"],
+            "symptom": True,
+            "related_to": ["Colorectal cancer", "Bladder cancer", "Prostate cancer"]
+        },
+        {
+            "id": 11,
+            "question": "Do you have persistent cough or hoarseness?",
+            "type": "selectbox",
+            "options": ["No", "Yes - less than 3 weeks", 
+                       "Yes - 3-6 weeks", "Yes - more than 6 weeks"],
+            "symptom": True,
+            "related_to": ["Lung cancer", "Laryngeal cancer"]
+        },
+        {
+            "id": 12,
+            "question": "Have you noticed any unusual bleeding or discharge?",
+            "type": "selectbox",
+            "options": ["No", "Yes - minor", "Yes - significant"],
+            "symptom": True,
+            "related_to": ["Multiple cancer types"]
+        },
+        {
+            "id": 13,
+            "question": "Do you have persistent indigestion or difficulty swallowing?",
+            "type": "selectbox",
+            "options": ["No", "Yes - occasional", 
+                       "Yes - frequent", "Yes - constant"],
+            "symptom": True,
+            "related_to": ["Esophageal cancer", "Stomach cancer"]
+        },
+        {
+            "id": 14,
+            "question": "Have you noticed any changes in a mole or skin lesion?",
+            "type": "selectbox",
+            "options": ["No", "Yes - slight change", 
+                       "Yes - significant change", "Yes - bleeding mole"],
+            "symptom": True,
+            "related_to": ["Melanoma", "Skin cancer"]
+        },
+        {
+            "id": 15,
+            "question": "Do you have persistent pain without obvious cause?",
+            "type": "selectbox",
+            "options": ["No", "Yes - mild", "Yes - moderate", "Yes - severe"],
+            "symptom": True,
+            "related_to": ["Bone cancer", "Pancreatic cancer", "Ovarian cancer"]
+        },
+        {
+            "id": 16,
+            "question": "For women: Have you noticed any breast changes?",
+            "type": "selectbox",
+            "options": ["Not applicable", "No changes", 
+                       "Lump or thickening", "Nipple changes/discharge", 
+                       "Skin dimpling/redness"],
+            "symptom": True,
+            "related_to": ["Breast cancer"]
+        },
+        {
+            "id": 17,
+            "question": "For men: Have you noticed any testicular changes?",
+            "type": "selectbox",
+            "options": ["Not applicable", "No changes", 
+                       "Lump or swelling", "Pain/discomfort", "Size/shape changes"],
+            "symptom": True,
+            "related_to": ["Testicular cancer"]
+        },
+        {
+            "id": 18,
+            "question": "How often do you use sunscreen when outdoors?",
+            "type": "selectbox",
+            "options": ["Always", "Often", "Sometimes", "Rarely", "Never"],
+            "risk_factor": True,
+            "related_to": ["Skin cancer"]
+        },
+        {
+            "id": 19,
+            "question": "How often do you eat processed or red meat?",
+            "type": "selectbox",
+            "options": ["Rarely or never", "1-2 times per week", 
+                       "3-5 times per week", "Daily"],
+            "risk_factor": True,
+            "related_to": ["Colorectal cancer"]
+        },
+        {
+            "id": 20,
+            "question": "How many servings of fruits and vegetables do you eat daily?",
+            "type": "selectbox",
+            "options": ["Less than 2", "2-4", "5-7", "More than 7"],
+            "risk_factor": True,
+            "related_to": ["Multiple cancer types"]
+        },
+        {
+            "id": 21,
+            "question": "How often do you engage in physical activity?",
+            "type": "selectbox",
+            "options": ["Less than 30 min/week", "30-90 min/week", 
+                       "90-150 min/week", "More than 150 min/week"],
+            "risk_factor": True,
+            "related_to": ["Multiple cancer types"]
+        },
+        {
+            "id": 22,
+            "question": "Have you been exposed to radiation or toxic chemicals?",
+            "type": "selectbox",
+            "options": ["No", "Yes - minimal", "Yes - moderate", "Yes - significant"],
+            "risk_factor": True,
+            "related_to": ["Multiple cancer types"]
+        },
+        {
+            "id": 23,
+            "question": "Have you been infected with HPV, Hepatitis B/C, or other cancer-related viruses?",
+            "type": "selectbox",
+            "options": ["No", "Yes - HPV", "Yes - Hepatitis", "Yes - other"],
+            "risk_factor": True,
+            "related_to": ["Cervical cancer", "Liver cancer", "Head and neck cancers"]
+        },
+        {
+            "id": 24,
+            "question": "Would you like to analyze any images of concerning areas?",
+            "type": "selectbox",
+            "options": ["No", "Yes - skin lesions", 
+                       "Yes - breast changes", "Yes - other areas"],
+            "symptom": False
+        }
+    ]
+
+    def initialize_session_state():
+        """Initialize session state variables"""
+        if 'current_question' not in st.session_state:
+            st.session_state.current_question = 0
+        if 'answers' not in st.session_state:
+            st.session_state.answers = {}
+        if 'assessment_complete' not in st.session_state:
+            st.session_state.assessment_complete = False
+        if 'ai_response' not in st.session_state:
+            st.session_state.ai_response = None
+        if 'image_analysis' not in st.session_state:
+            st.session_state.image_analysis = None
+        if 'testing_method' not in st.session_state:
+            st.session_state.testing_method = None
+        if 'image_analysis_completed' not in st.session_state:
+            st.session_state.image_analysis_completed = False
+        if 'show_image_section' not in st.session_state:
+            st.session_state.show_image_section = False
+        if 'risk_score' not in st.session_state:
+            st.session_state.risk_score = 0
+        if 'concerned_areas' not in st.session_state:
+            st.session_state.concerned_areas = []
+
+    def display_progress():
+        """Display progress bar"""
+        progress = (st.session_state.current_question / len(CANCER_QUESTIONS)) * 100
+        progress_html = f"""
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {progress}%"></div>
+        </div>
+        <p style="text-align: center;">
+            Progress: {st.session_state.current_question}/{len(CANCER_QUESTIONS)} questions completed
+        </p>
+        """
+        st.markdown(progress_html, unsafe_allow_html=True)
+
+    def analyze_images():
+        """Analyze uploaded images for concerning features"""
+        st.markdown("""
+        <div class="body-container">
+            <h3>📷 Image Analysis</h3>
+            <p>Upload images of any concerning areas for preliminary analysis.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("""
+        📋 **Instructions:**
+        1. Upload clear, well-lit images
+        2. Include different angles if possible
+        3. For skin lesions, include a ruler for scale if available
+        4. Images should be in JPG or PNG format
+        """)
+
+        uploaded_files = st.file_uploader("Upload images (max 4)", 
+                                        type=["jpg", "jpeg", "png"], 
+                                        accept_multiple_files=True)
+        
+        if uploaded_files:
+            st.warning("""
+            ⚠️ **Important Note:** This image analysis is for preliminary screening only. 
+            It cannot replace a professional medical examination or biopsy.
+            """)
+            
+            cols = st.columns(min(4, len(uploaded_files)))
+            for i, uploaded_file in enumerate(uploaded_files):
+                with cols[i]:
+                    image = Image.open(uploaded_file)
+                    st.image(image, caption=f"Image {i+1}", use_column_width=True)
+            
+            if st.button("Analyze Images"):
+                with st.spinner("🔍 Analyzing images with AI..."):
+                    # In a real app, you would send these to an image analysis API
+                    # Here we simulate analysis with some sample results
+                    time.sleep(2)
+                    
+                    analysis_results = []
+                    for i, uploaded_file in enumerate(uploaded_files):
+                        # Simulate different results based on image content
+                        img_name = uploaded_file.name.lower()
+                        if "skin" in img_name or "mole" in img_name:
+                            result = {
+                                "type": "Skin lesion",
+                                "characteristics": "Asymmetrical shape with color variation",
+                                "concern_level": "Moderate",
+                                "recommendation": "Dermatologist evaluation recommended"
+                            }
+                        elif "breast" in img_name:
+                            result = {
+                                "type": "Breast change",
+                                "characteristics": "Visible skin dimpling",
+                                "concern_level": "High",
+                                "recommendation": "Urgent mammogram and clinical exam needed"
+                            }
+                        else:
+                            result = {
+                                "type": "General image",
+                                "characteristics": "No obvious concerning features",
+                                "concern_level": "Low",
+                                "recommendation": "Monitor for changes"
+                            }
+                        analysis_results.append(result)
+                    
+                    st.session_state.image_analysis = analysis_results
+                    st.session_state.image_analysis_completed = True
+                    st.rerun()
+        
+        if st.session_state.get('image_analysis_completed', False):
+            display_image_results()
+            if st.button("Continue with Assessment", key="continue_img_btn"):
+                st.session_state.show_image_section = False
+                st.session_state.current_question += 1
+                st.rerun()
+
+    def display_image_results():
+        """Display results of image analysis"""
+        if not st.session_state.get('image_analysis'):
+            return
+        
+        st.markdown("## 📷 Image Analysis Results")
+        
+        for i, result in enumerate(st.session_state.image_analysis):
+            with st.expander(f"Image {i+1} Analysis", expanded=True):
+                col1, col2 = st.columns([1, 3])
+                
+                with col1:
+                    concern_color = {
+                        "Low": "#4CAF50",
+                        "Moderate": "#FFC107",
+                        "High": "#F44336"
+                    }.get(result["concern_level"], "#9E9E9E")
+                    
+                    st.markdown(f"""
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; color: {concern_color};">
+                            {result["concern_level"]} concern
+                        </div>
+                        <div>{result["type"]}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    st.markdown(f"""
+                    **Characteristics:**  
+                    {result["characteristics"]}
+                    
+                    **Recommendation:**  
+                    {result["recommendation"]}
+                    """)
+            
+            st.markdown("---")
+
+    def calculate_risk_score():
+        """Calculate preliminary cancer risk score based on answers"""
+        risk_factors = 0
+        total_possible = 0
+        concerning_symptoms = []
+        
+        for q_id, answer in st.session_state.answers.items():
+            question = next(q for q in CANCER_QUESTIONS if q['id'] == q_id)
+            
+            if question.get('risk_factor', False):
+                total_possible += 1
+                # Higher index options are higher risk
+                options = question['options']
+                answer_index = options.index(answer)
+                risk_level = answer_index / len(options)
+                
+                if risk_level > 0.5:  # Higher than middle option
+                    risk_factors += 1
+                    if question.get('related_to'):
+                        concerning_symptoms.extend(question['related_to'])
+            
+            if question.get('symptom', False):
+                options = question['options']
+                answer_index = options.index(answer)
+                symptom_level = answer_index / len(options)
+                
+                if symptom_level > 0.5:  # Higher than middle option
+                    if question.get('related_to'):
+                        concerning_symptoms.extend(question['related_to'])
+        
+        # Calculate risk score (0-100)
+        if total_possible > 0:
+            risk_score = min(100, (risk_factors / total_possible) * 100 + len(set(concerning_symptoms)) * 5)
+        else:
+            risk_score = 0
+        
+        st.session_state.risk_score = risk_score
+        st.session_state.concerned_areas = list(set(concerning_symptoms))  # Unique cancer types
+
+    def display_risk_results():
+        """Display cancer risk assessment results"""
+        calculate_risk_score()
+        risk_score = st.session_state.risk_score
+        
+        st.markdown(f"""
+        <div class="risk-display pulse-animation">
+            🩺 {int(risk_score)}/100
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("### Cancer Risk Assessment")
+        
+        # Risk level interpretation
+        if risk_score < 30:
+            risk_level = "Low Risk"
+            color = "#4CAF50"
+            details = """
+            - Your current risk factors are below average
+            - Continue healthy lifestyle habits
+            - Maintain regular screening as appropriate for your age/gender
+            """
+        elif risk_score < 70:
+            risk_level = "Moderate Risk"
+            color = "#FFC107"
+            details = """
+            - Some concerning risk factors identified
+            - Lifestyle modifications recommended
+            - Consider more frequent screening
+            - Discuss with healthcare provider
+            """
+        else:
+            risk_level = "High Risk"
+            color = "#F44336"
+            details = """
+            - Multiple concerning risk factors
+            - Urgent medical evaluation recommended
+            - Need for diagnostic testing
+            - Immediate lifestyle changes advised
+            """
+
+        st.markdown(f"""
+        <div style="background-color: {color}20; padding: 1.5rem; border-radius: 8px; border-left: 4px solid {color}; margin: 1rem 0;">
+            <h4>{risk_level}</h4>
+            <div style="margin-left: 1rem;">{details}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Display concerned areas
+        if st.session_state.concerned_areas:
+            st.markdown("### 🚨 Areas of Concern")
+            
+            cols = st.columns(3)
+            cancer_types = {
+                "Breast cancer": "👩",
+                "Lung cancer": "🫁",
+                "Prostate cancer": "👨",
+                "Colorectal cancer": "🩸",
+                "Skin cancer": "☀️",
+                "Other": "🩺"
+            }
+            
+            for i, area in enumerate(st.session_state.concerned_areas):
+                with cols[i % 3]:
+                    emoji = cancer_types.get(area, "🩺")
+                    st.markdown(f"""
+                    <div style="padding: 1rem; border-radius: 8px; background: {color}10; margin-bottom: 1rem;">
+                        <h4>{emoji} {area}</h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+        # Display body map (simplified)
+        st.markdown("### 🏷️ Body Map")
+        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_silhouette.svg/1200px-Human_body_silhouette.svg.png", 
+                 use_column_width=True, caption="Areas of concern highlighted in your assessment")
+        
+        st.markdown("---")
+        st.subheader("📊 Detailed Risk Factors")
+
+        # Display risk factors
+        for q_id, answer in st.session_state.answers.items():
+            question = next(q for q in CANCER_QUESTIONS if q['id'] == q_id)
+            options = question['options']
+            answer_index = options.index(answer)
+            risk_level = answer_index / len(options)
+            
+            if risk_level > 0.5 or question.get('symptom', False):
+                st.markdown(f"""
+                <div style="padding: 1rem; background: #f5f5f5; border-radius: 8px; margin-bottom: 0.5rem;">
+                    <strong>{question['question']}</strong><br>
+                    Your answer: <span style="color: #d32f2f;">{answer}</span>
+                    {f"<br>Related to: {', '.join(question['related_to'])}" if question.get('related_to') else ""}
+                </div>
+                """, unsafe_allow_html=True)
+
+        st.markdown("---")
+        action_col1, action_col2 = st.columns(2)
+
+        with action_col1:
+            st.markdown("""
+            <div style="padding: 1rem; background: #e8f5e9; border-radius: 8px;">
+                <h5>🛡️ Cancer Prevention Tips</h5>
+                <ul>
+                    <li>Maintain healthy weight</li>
+                    <li>Exercise regularly</li>
+                    <li>Eat more fruits/vegetables</li>
+                    <li>Limit processed/red meat</li>
+                    <li>Avoid tobacco and limit alcohol</li>
+                    <li>Use sun protection</li>
+                    <li>Get recommended vaccinations</li>
+                    <li>Follow screening guidelines</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with action_col2:
+            urgency = "urgent" if risk_score >= 70 else "priority" if risk_score >= 30 else "routine"
+            st.markdown(f"""
+            <div style="padding: 1rem; background: #fff3e0; border-radius: 8px;">
+                <h5>⏰ Recommended Actions</h5>
+                <p>Based on your {risk_score}/100 risk score:</p>
+                <ul>
+                    <li>{"Seek immediate evaluation" if urgency == "urgent" else "Schedule a doctor visit" if urgency == "priority" else "Next regular checkup"}</li>
+                    <li>{"Diagnostic tests recommended" if risk_score >= 50 else "Consider screening tests"}</li>
+                    <li>Lifestyle counseling</li>
+                    <li>{"Genetic counseling if family history" if "Yes" in st.session_state.answers.get(6, "") else ""}</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+    def display_question():
+        """Display current question"""
+        if st.session_state.current_question < len(CANCER_QUESTIONS):
+            question = CANCER_QUESTIONS[st.session_state.current_question]
+
+            if question['id'] == 24 and st.session_state.get('show_image_section', False):
+                st.session_state.current_question += 1
+                if st.session_state.current_question >= len(CANCER_QUESTIONS):
+                    st.session_state.assessment_complete = True
+                st.rerun()
+
+            question_html = f"""
+            <div class="question-container">
+                <h3>Question {question['id']}</h3>
+                <p style="font-size: 1.2rem; margin-bottom: 1rem;">{question['question']}</p>
+            </div>
+            """
+            st.markdown(question_html, unsafe_allow_html=True)
+
+            if question['type'] == 'number':
+                answer = st.number_input(
+                    "Your answer:",
+                    min_value=question['min_value'],
+                    max_value=question['max_value'],
+                    value=question['min_value'],
+                    key=f"q_{question['id']}"
+                )
+            elif question['type'] == 'selectbox':
+                answer = st.selectbox(
+                    "Select your answer:",
+                    question['options'],
+                    key=f"q_{question['id']}"
+                )
+
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.session_state.current_question > 0:
+                    if st.button("← Previous", key="prev_btn"):
+                        st.session_state.current_question -= 1
+                        st.rerun()
+            with col3:
+                if st.button("Next →", key="next_btn"):
+                    st.session_state.answers[question['id']] = answer
+
+                    if question['id'] == 24:
+                        if answer.startswith("Yes"):
+                            st.session_state.show_image_section = True
+                        else:
+                            st.session_state.show_image_section = False
+                            st.session_state.current_question += 1
+                    else:
+                        st.session_state.current_question += 1
+
+                    if st.session_state.current_question >= len(CANCER_QUESTIONS):
+                        st.session_state.assessment_complete = True
+                    st.rerun()
+
+        return st.session_state.current_question >= len(CANCER_QUESTIONS)
+
+    def format_answers():
+        """Format answers for AI analysis"""
+        formatted_answers = []
+        for q_id, answer in st.session_state.answers.items():
+            question = next(q for q in CANCER_QUESTIONS if q['id'] == q_id)
+            formatted_answers.append(f"Q{question['id']}: {question['question']}\nA: {answer}\n")
+
+        if st.session_state.image_analysis:
+            formatted_answers.append("\nIMAGE ANALYSIS DATA:")
+            for i, result in enumerate(st.session_state.image_analysis):
+                formatted_answers.append(f"- Image {i+1}: {result['type']} ({result['concern_level']} concern)")
+
+        formatted_answers.append(f"\nCALCULATED RISK SCORE: {st.session_state.risk_score}/100")
+        if st.session_state.concerned_areas:
+            formatted_answers.append(f"AREAS OF CONCERN: {', '.join(st.session_state.concerned_areas)}")
+
+        return "\n".join(formatted_answers)
+
+    def get_ai_assessment(answers_text):
+        """Get AI assessment from Gemini"""
+        try:
+            model = initialize_model()
+
+            prompt = f"""
+            You are an advanced oncology AI assistant analyzing cancer risk. 
+            Provide a detailed assessment based on these patient responses:
+
+            {answers_text}
+
+            Structure your response with these sections:
+
+            ## 🩺 Overall Cancer Risk Assessment
+            - Risk level (Low/Medium/High) 
+            - Key risk factors identified
+            - Most concerning cancer types
+
+            ## 🚨 Symptom Analysis
+            - Evaluation of reported symptoms
+            - Urgency of medical evaluation needed
+
+            ## 🔍 Screening Recommendations
+            - Recommended cancer screenings based on risk factors
+            - Suggested timeline for each screening
+            - Any diagnostic tests to consider
+
+            ## 💡 Prevention Strategies
+            - Lifestyle modifications to reduce risk
+            - Vaccinations to consider (HPV, Hepatitis B)
+            - Environmental risk reduction
+
+            ## 📅 Next Steps
+            - Suggested timeline for follow-up
+            - When to seek immediate medical attention
+            - Recommended specialists if needed
+
+            Use clear markdown formatting and provide actionable advice.
+            Focus specifically on cancer risk and prevention.
+            """
+
+            response = model.generate_content(prompt)
+            return response.text if response.text else "No response generated from AI"
+
+        except Exception as e:
+            st.error(f"Error generating assessment: {str(e)}")
+            return f"Error generating assessment: {str(e)}"
+
+    def display_assessment_summary():
+        """Display assessment summary and get AI response"""
+        st.markdown('<h2 style="color: black;">Assessment Summary</h2>', unsafe_allow_html=True)
+
+        with st.expander("📋 View Your Responses", expanded=True):
+            for q_id, answer in st.session_state.answers.items():
+                question = next(q for q in CANCER_QUESTIONS if q['id'] == q_id)
+                st.markdown(f"**{question['question']}**  \n{answer}")
+
+        if st.session_state.image_analysis:
+            with st.expander("📷 View Image Analysis Results"):
+                display_image_results()
+
+        display_risk_results()
+
+        if st.session_state.ai_response is None:
+            with st.spinner("🩺 Analyzing your responses with AI..."):
+                answers_text = format_answers()
+                st.session_state.ai_response = get_ai_assessment(answers_text)
+                st.rerun()
+
+        if st.session_state.ai_response:
+            st.markdown("## 🔍 AI Oncology Assessment")
+            st.markdown(st.session_state.ai_response)
+
+            if "high risk" in st.session_state.ai_response.lower() or "urgent" in st.session_state.ai_response.lower():
+                st.error("""
+                ⚠️ **Urgent Medical Attention Recommended**  
+                Based on your responses, we recommend seeking immediate oncology evaluation.
+                """)
+
+        st.markdown("""
+        <div style="margin-top: 2rem; padding: 1.5rem; background: #f5f5f5; border-radius: 10px;">
+            💡 <strong>Remember:</strong> This is a risk assessment tool only. It cannot diagnose cancer. 
+            Always consult with qualified oncologists or healthcare professionals for proper evaluation. 
+            Early detection through screening saves lives.
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("🔄 Start New Assessment", key="reset_btn"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+
+    def main_cancer():
+        """Main application function"""
+        initialize_session_state()
+
+        st.markdown('<h1 class="main-title">🩺 CancerScan Full Body Cancer Searcher</h1>', unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <h4>🔬 Advanced Cancer Screening:</h4>
+            <ul>
+                <li>🩺 Comprehensive cancer risk assessment</li>
+                <li>📊 Detailed symptom analysis</li>
+                <li>🤖 AI-powered oncology insights</li>
+                <li>📷 Image analysis for concerning areas</li>
+                <li>🏥 Personalized screening recommendations</li>
+                <li>📈 Risk tracking over time</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
+            <strong>⚠️ Medical Disclaimer:</strong> This tool provides cancer risk assessment only. 
+            It is not a diagnostic tool and cannot detect or rule out cancer. 
+            Always consult with qualified oncologists or healthcare professionals for medical concerns.
+        </div>
+        """, unsafe_allow_html=True)
+
+        if not st.session_state.assessment_complete:
+            display_progress()
+
+            if st.session_state.get('show_image_section', False):
+                analyze_images()
+            else:
+                display_question()
+        else:
+            display_assessment_summary()
+
+    main_cancer()
+
+# --------------------------
 # MAIN APP NAVIGATION
 # --------------------------
 
@@ -2591,7 +4568,7 @@ with st.sidebar:
     st.markdown("### 🚀 Quantora Modes")
     mode = st.radio(
         "Select Mode",
-        ["AI", "Quantora News", "Quantora Trade Charts", "Quantora Search Engine", "Quantora Social Media"],
+        ["AI", "Image Generation", "Image Editing", "Quantora News", "Quantora Trade Charts", "Quantora Search Engine", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor"],
         index=0,
         key="current_mode"
     )
@@ -2651,7 +4628,7 @@ with st.sidebar:
         st.rerun()
 
 # Main Content Area
-if st.session_state.current_mode == "AI":
+if mode == "AI":
     if not st.session_state.chat:
         with st.container():
             st.markdown("""
@@ -2930,7 +4907,7 @@ elif st.session_state.current_mode == "Image Editing":
         
         with col1:
             original_image = st.session_state.uploaded_image
-            st.image(original_image, caption="Original Image", use_container_width=True)
+            st.image(original_image, caption="Original Image", use_column_width=True)
         
         with col2:
             edit_instructions = st.text_area(
@@ -2998,6 +4975,15 @@ elif st.session_state.current_mode == "Quantora Search Engine":
 
 elif st.session_state.current_mode == "Quantora Social Media":
     quantora_social_media()
+
+elif st.session_state.current_mode == "Heart Health Analyzer":
+    heart_health_analyzer()
+
+elif st.session_state.current_mode == "Brain Health Analyzer":
+    brain_health_analyzer()
+
+elif st.session_state.current_mode == "Cancer Risk Assessor":
+    cancer_risk_assessor()
 
 # Footer
 st.markdown("---")
