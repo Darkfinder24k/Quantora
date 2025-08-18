@@ -2816,4 +2816,4 @@ st.markdown(
     "Powered by Google's Gemini, Groq Models, A4F Models | "
     f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     "</div>", 
-    unsafe_allow_html=True
+    unsafe_allow_html=True)
