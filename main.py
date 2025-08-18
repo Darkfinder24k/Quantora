@@ -43,40 +43,73 @@ st.set_page_config(
 # Enhanced Premium CSS
 st.markdown("""
 <style>
+/* Define CSS variables for theme consistency */
 :root {
-    --primary: #0a1322; /* Deep navy for a premium feel */
-    --secondary: #1c2526; /* Dark slate for backgrounds */
-    --accent: #4f46e5; /* Vibrant indigo for highlights */
-    --accent-light: #7f9cf5; /* Lighter indigo for hover states */
-    --text-primary: #f8fafc; /* Clean white for text */
-    --text-secondary: #94a3b8; /* Muted gray for secondary text */
-    --background: #0f172a; /* Dark background inspired by ChatGPT */
-    --surface: #1e293b; /* Slightly lighter surface for cards */
-    --border: #334155; /* Subtle border color */
-    --success: #34d399; /* Green for success states */
-    --warning: #f59e0b; /* Amber for warnings */
-    --error: #ef4444; /* Red for errors */
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --primary-bg: #0d1321; /* Deep cosmic navy */
+    --secondary-bg: #19212e; /* Dark slate for surfaces */
+    --accent: #5850ec; /* Vibrant purple for highlights */
+    --accent-hover: #7b74f4; /* Lighter purple for hover states */
+    --text-primary: #f5f7fa; /* Clean white for text */
+    --text-secondary: #a0aec0; /* Muted gray for secondary text */
+    --border-color: #2d3748; /* Subtle border */
+    --success: #38a169; /* Green for success */
+    --warning: #d97706; /* Amber for warnings */
+    --error: #e53e3e; /* Red for errors */
+    --font-primary: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Fira Code', monospace;
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Reset default styles and set base styles */
 body, .stApp {
-    background: var(--background);
+    background: var(--primary-bg);
     color: var(--text-primary);
-    font-family: var(--font-sans);
+    font-family: var(--font-primary);
     font-size: 16px;
-    line-height: 1.6;
+    line-height: 1.5;
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
 }
 
+/* Sidebar styling */
 .stSidebar {
-    background: var(--secondary);
-    border-right: 1px solid var(--border);
-    padding: 1rem;
+    background: var(--secondary-bg);
+    border-right: 1px solid var(--border-color);
+    padding: 1.5rem;
+    width: 280px;
 }
 
-.chat-container {
-    max-width: 1080px;
+.stSidebar .sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sidebar-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+}
+
+.sidebar-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.sidebar-link:hover {
+    background: var(--accent);
+    color: var(--text-primary);
+}
+
+/* Main content container */
+.main-container {
+    max-width: 1200px;
     margin: 0 auto;
     padding: 2rem 1rem;
     min-height: 100vh;
@@ -84,52 +117,71 @@ body, .stApp {
     flex-direction: column;
 }
 
-.welcome-container {
+/* Hero/welcome section */
+.hero-section {
     text-align: center;
-    padding: 3rem 2rem;
-    background: linear-gradient(135deg, var(--secondary), var(--background));
-    border-radius: 12px;
+    padding: 4rem 2rem;
+    background: linear-gradient(145deg, var(--secondary-bg), var(--primary-bg));
+    border-radius: 16px;
     margin: 2rem 0;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    animation: fadeIn 1s ease-in-out;
+    box-shadow: var(--shadow-md);
+    animation: fadeIn 1.2s ease-in-out;
 }
 
-.welcome-title {
-    font-size: 2.75rem;
+.hero-title {
+    font-size: 3rem;
     font-weight: 700;
-    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    background: linear-gradient(90deg, var(--accent), var(--accent-hover));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 1rem;
-    letter-spacing: -0.025em;
 }
 
-.welcome-subtitle {
+.hero-subtitle {
     font-size: 1.25rem;
     color: var(--text-secondary);
-    max-width: 600px;
+    max-width: 700px;
     margin: 0 auto 2rem;
+}
+
+.hero-cta {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--text-primary);
+    padding: 0.75rem 2rem;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.hero-cta:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+}
+
+/* Feature showcase */
+.feature-section {
+    padding: 3rem 0;
 }
 
 .feature-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    margin: 2rem 0;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
 }
 
 .feature-card {
-    background: var(--surface);
+    background: var(--secondary-bg);
     padding: 2rem;
     border-radius: 12px;
-    border: 1px solid var(--border);
-    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    border: 1px solid var(--border-color);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .feature-card:hover {
     transform: translateY(-6px);
-    border-color: var(--accent);
-    box-shadow: 0 8px 16px rgba(79, 70, 229, 0.2);
+    box-shadow: var(--shadow-md);
 }
 
 .feature-icon {
@@ -142,97 +194,206 @@ body, .stApp {
     font-size: 1.5rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 0.5rem;
+}
+
+.feature-description {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+/* Chat interface */
+.chat-section {
+    flex: 1;
+    padding: 2rem 0;
 }
 
 .chat-message {
     padding: 1.5rem;
     border-radius: 12px;
     margin-bottom: 1.5rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    transition: all 0.2s ease;
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    animation: slideIn 0.5s ease;
 }
 
 .user-message {
-    background: linear-gradient(135deg, var(--accent-light), var(--accent));
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
     color: var(--text-primary);
+}
+
+.ai-message {
+    background: var(--secondary-bg);
 }
 
 .message-header {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 0.75rem;
-    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
     color: var(--text-secondary);
+}
+
+.message-content {
+    font-size: 1rem;
+    line-height: 1.6;
 }
 
 .message-time {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
     margin-left: auto;
+    font-size: 0.75rem;
 }
 
-.input-container {
+/* Input area */
+.input-section {
     position: sticky;
     bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--background);
+    background: var(--primary-bg);
     padding: 1.5rem;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--border-color);
     z-index: 1000;
 }
 
 .stTextArea textarea {
-    background: var(--surface) !important;
+    background: var(--secondary-bg) !important;
     color: var(--text-primary) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 10px !important;
-    padding: 0.75rem !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
     font-size: 1rem !important;
     resize: none !important;
+    transition: border-color 0.3s ease;
+}
+
+.stTextArea textarea:focus {
+    border-color: var(--accent) !important;
+    outline: none !important;
 }
 
 .stButton button {
     background: var(--accent);
     color: var(--text-primary);
     border: none;
-    border-radius: 10px;
-    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    padding: 0.75rem 2rem;
     font-weight: 600;
-    transition: background 0.3s ease;
+    font-size: 1rem;
+    transition: background 0.3s ease, transform 0.2s ease;
 }
 
 .stButton button:hover {
-    background: var(--accent-light);
-    box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+    background: var(--accent-hover);
+    transform: translateY(-2px);
 }
 
+/* Animations */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Hide Streamlit default elements */
 #MainMenu, footer, header, .stDeployButton, [data-testid="stToolbar"], [data-testid="stDecoration"] {
     visibility: hidden;
 }
 
-@media (max-width: 768px) {
-    .welcome-title {
-        font-size: 2rem;
+/* Accessibility */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+    .main-container {
+        padding: 1.5rem;
     }
-    .chat-container {
-        padding: 1rem;
+    .hero-title {
+        font-size: 2.5rem;
     }
     .feature-grid {
         grid-template-columns: 1fr;
     }
 }
+
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 2rem 1rem;
+    }
+    .hero-title {
+        font-size: 2rem;
+    }
+    .hero-subtitle {
+        font-size: 1rem;
+    }
+    .stSidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
+# Sample Streamlit app content
+st.markdown("""
+<div class="main-container">
+    <div class="hero-section">
+        <h1 class="hero-title">Welcome to Ultimate AI</h1>
+        <p class="hero-subtitle">Experience the future of intelligence with our cutting-edge AI platform, designed to empower and inspire.</p>
+        <a href="#" class="hero-cta">Get Started</a>
+    </div>
+    <div class="feature-section">
+        <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">Why Choose Us?</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🚀</div>
+                <h3 class="feature-title">Lightning Fast</h3>
+                <p class="feature-description">Get instant responses with our high-performance AI engine.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <h3 class="feature-title">Intelligent Insights</h3>
+                <p class="feature-description">Unlock deep insights with advanced natural language processing.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 class="feature-title">Secure & Private</h3>
+                <p class="feature-description">Your data is protected with state-of-the-art encryption.</p>
+            </div>
+        </div>
+    </div>
+    <div class="chat-section">
+        <div class="chat-message ai-message">
+            <div class="message-header">
+                <span>AI Assistant</span>
+                <span class="message-time">Just now</span>
+            </div>
+            <div class="message-content">Hello! How can I assist you today?</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Input section
+with st.container():
+    user_input = st.text_area("Your Message", placeholder="Type your message here...", height=100)
+    if st.button("Send"):
+        st.markdown(f"""
+        <div class="chat-message user-message">
+            <div class="message-header">
+                <span>You</span>
+                <span class="message-time">{datetime.datetime.now().strftime('%H:%M')}</span>
+            </div>
+            <div class="message-content">{user_input}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
 # Initialize session state variables
 if "chat" not in st.session_state:
     st.session_state.chat = []
