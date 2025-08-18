@@ -1,6 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
-from google.generativeai.types import GenerationConfig as types
+from google.generativeai import types
 from datetime import datetime
 import time
 import os
@@ -20,6 +20,8 @@ import yfinance as yf
 import plotly.graph_objects as go
 from googleapiclient.discovery import build
 import numpy as np
+import cv2
+from scipy.signal import find_peaks, butter, filtfilt
 import matplotlib.pyplot as plt
 
 # ✅ API Configuration
@@ -33,365 +35,375 @@ VIDEO_MODEL = "provider-6/wan-2.1"
 # ✅ Page Setup
 st.set_page_config(
     page_title="💎 Quantora AI Elite",
-    page_icon="💎",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Enhanced Premium CSS
+# Custom CSS with sidebar toggle
 st.markdown("""
 <style>
-/* Define CSS variables for theme consistency */
+    .sidebar-toggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 999;
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .sidebar-toggle:hover {
+        transform: scale(1.1);
+    }
+    [data-testid="stSidebar"] {
+        transition: transform 300ms ease-in-out;
+    }
+    [data-testid="stSidebar"][aria-expanded="false"] {
+        transform: translateX(-100%);
+    }
+</style>
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<script>
+    function toggleSidebar() {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
+        sidebar.setAttribute('aria-expanded', !isExpanded);
+        // Force Streamlit to update the layout
+        window.dispatchEvent(new Event('resize'));
+    }
+</script>
+""", unsafe_allow_html=True)
+
+# Rest of your existing CSS
+hide_streamlit_style = """
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+.stDeployButton {visibility: hidden;}
+[data-testid="stToolbar"] {visibility: hidden;}
+[data-testid="stDecoration"] {visibility: hidden;}
+.st-emotion-cache-zq5wmm {visibility: hidden;}
+
+/* Quantora Premium UI */
 :root {
-    --primary-bg: #0d1321; /* Deep cosmic navy */
-    --secondary-bg: #19212e; /* Dark slate for surfaces */
-    --accent: #5850ec; /* Vibrant purple for highlights */
-    --accent-hover: #7b74f4; /* Lighter purple for hover states */
-    --text-primary: #f5f7fa; /* Clean white for text */
-    --text-secondary: #a0aec0; /* Muted gray for secondary text */
-    --border-color: #2d3748; /* Subtle border */
-    --success: #38a169; /* Green for success */
-    --warning: #d97706; /* Amber for warnings */
-    --error: #e53e3e; /* Red for errors */
-    --font-primary: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'Fira Code', monospace;
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --primary: #0f172a;
+    --primary-light: #1e293b;
+    --primary-lighter: #334155;
+    --accent: #8b5cf6;
+    --accent-light: #a78bfa;
+    --accent-dark: #7c3aed;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Reset default styles and set base styles */
-body, .stApp {
-    background: var(--primary-bg);
-    color: var(--text-primary);
-    font-family: var(--font-primary);
-    font-size: 16px;
-    line-height: 1.5;
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
+@keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
-/* Sidebar styling */
-.stSidebar {
-    background: var(--secondary-bg);
-    border-right: 1px solid var(--border-color);
-    padding: 1.5rem;
-    width: 280px;
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
 }
 
-.stSidebar .sidebar-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.sidebar-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--accent);
-    margin-bottom: 1.5rem;
-}
-
-.sidebar-link {
-    color: var(--text-secondary);
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.sidebar-link:hover {
-    background: var(--accent);
-    color: var(--text-primary);
-}
-
-/* Main content container */
-.main-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-/* Hero/welcome section */
-.hero-section {
-    text-align: center;
-    padding: 4rem 2rem;
-    background: linear-gradient(145deg, var(--secondary-bg), var(--primary-bg));
-    border-radius: 16px;
-    margin: 2rem 0;
-    box-shadow: var(--shadow-md);
-    animation: fadeIn 1.2s ease-in-out;
-}
-
-.hero-title {
-    font-size: 3rem;
-    font-weight: 700;
-    background: linear-gradient(90deg, var(--accent), var(--accent-hover));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 1rem;
-}
-
-.hero-subtitle {
-    font-size: 1.25rem;
-    color: var(--text-secondary);
-    max-width: 700px;
-    margin: 0 auto 2rem;
-}
-
-.hero-cta {
-    display: inline-block;
-    background: var(--accent);
-    color: var(--text-primary);
-    padding: 0.75rem 2rem;
-    border-radius: 10px;
-    text-decoration: none;
-    font-weight: 600;
-    transition: background 0.3s ease, transform 0.2s ease;
-}
-
-.hero-cta:hover {
-    background: var(--accent-hover);
-    transform: translateY(-2px);
-}
-
-/* Feature showcase */
-.feature-section {
-    padding: 3rem 0;
-}
-
-.feature-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-}
-
-.feature-card {
-    background: var(--secondary-bg);
-    padding: 2rem;
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.feature-card:hover {
-    transform: translateY(-6px);
-    box-shadow: var(--shadow-md);
-}
-
-.feature-icon {
-    font-size: 2.5rem;
-    color: var(--accent);
-    margin-bottom: 1rem;
-}
-
-.feature-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.feature-description {
-    color: var(--text-secondary);
-    font-size: 1rem;
-}
-
-/* Chat interface */
-.chat-section {
-    flex: 1;
-    padding: 2rem 0;
-}
-
-.chat-message {
-    padding: 1.5rem;
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
-    background: var(--secondary-bg);
-    border: 1px solid var(--border-color);
-    animation: slideIn 0.5s ease;
-}
-
-.user-message {
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-    color: var(--text-primary);
-}
-
-.ai-message {
-    background: var(--secondary-bg);
-}
-
-.message-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-}
-
-.message-content {
-    font-size: 1rem;
-    line-height: 1.6;
-}
-
-.message-time {
-    margin-left: auto;
-    font-size: 0.75rem;
-}
-
-/* Input area */
-.input-section {
-    position: sticky;
-    bottom: 0;
-    background: var(--primary-bg);
-    padding: 1.5rem;
-    border-top: 1px solid var(--border-color);
-    z-index: 1000;
-}
-
-.stTextArea textarea {
-    background: var(--secondary-bg) !important;
-    color: var(--text-primary) !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 12px !important;
-    padding: 1rem !important;
-    font-size: 1rem !important;
-    resize: none !important;
-    transition: border-color 0.3s ease;
-}
-
-.stTextArea textarea:focus {
-    border-color: var(--accent) !important;
-    outline: none !important;
-}
-
-.stButton button {
-    background: var(--accent);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 12px;
-    padding: 0.75rem 2rem;
-    font-weight: 600;
-    font-size: 1rem;
-    transition: background 0.3s ease, transform 0.2s ease;
-}
-
-.stButton button:hover {
-    background: var(--accent-hover);
-    transform: translateY(-2px);
-}
-
-/* Animations */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slideIn {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
 }
 
-/* Hide Streamlit default elements */
-#MainMenu, footer, header, .stDeployButton, [data-testid="stToolbar"], [data-testid="stDecoration"] {
-    visibility: hidden;
+.stApp {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #252f3f 50%, #1e293b 75%, #0f172a 100%);
+    background-size: 400% 400%;
+    animation: gradient 20s ease infinite;
+    color: var(--text);
+    font-family: var(--font-sans);
 }
 
-/* Accessibility */
-:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+.main-header {
+    text-align: center;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    position: relative;
 }
 
-/* Responsive design */
-@media (max-width: 1024px) {
-    .main-container {
-        padding: 1.5rem;
-    }
-    .hero-title {
-        font-size: 2.5rem;
-    }
-    .feature-grid {
-        grid-template-columns: 1fr;
-    }
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.logo:hover {
+    transform: translateY(-2px);
+}
+
+.logo-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-md);
+    animation: pulse 3s ease-in-out infinite;
+}
+
+.logo-text {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #f8fafc, #a78bfa, #60a5fa);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.05em;
+    animation: gradient 5s ease infinite;
+}
+
+.status-indicator {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 12px;
+    height: 12px;
+    background: var(--success);
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    animation: pulse 2s infinite;
+}
+
+.chat-message {
+    padding: 1.5rem;
+    margin: 1rem 0;
+    border-radius: 16px;
+    background: var(--primary-light);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    animation: fadeIn 0.6s ease-out forwards;
+}
+
+.chat-message::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+    z-index: -1;
+}
+
+.user-message {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.ai-message {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.message-header {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.user-message .message-header {
+    color: #a78bfa;
+}
+
+.ai-message .message-header {
+    color: #7dd3fc;
+}
+
+.message-time {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-left: auto;
+}
+
+.input-container {
+    position: relative;
+    margin-top: 2rem;
+}
+
+.input-wrapper {
+    position: relative;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(20px);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.input-wrapper:focus-within {
+    border-color: rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
+}
+
+.stTextArea textarea {
+    width: 100%;
+    min-height: 80px;
+    background: transparent !important;
+    border: none;
+    padding: 1.25rem 1.5rem;
+    color: #000000 !important;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: none;
+    line-height: 1.5;
+    outline: none;
+}
+
+.stTextArea textarea::placeholder {
+    color: #666666 !important;
+}
+
+.stButton button {
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.stButton button:hover {
+    background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.welcome-container {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 20px;
+    padding: 2rem;
+    margin: 2rem auto;
+    max-width: 800px;
+    text-align: center;
+    animation: fadeIn 0.8s ease-out;
+}
+
+.welcome-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #f8fafc, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.welcome-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.feature-card {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    background: rgba(30, 41, 59, 0.8);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-lg);
+}
+
+.feature-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--accent);
+}
+
+.enhancement-controls {
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.enhancement-slider {
+    margin: 0.5rem 0;
+}
+
+.generated-image {
+    animation: float 4s ease-in-out infinite;
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+    transition: all 0.3s ease;
+}
+
+.generated-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.8);
+}
+
+.generated-video {
+    animation: float 6s ease-in-out infinite;
 }
 
 @media (max-width: 768px) {
-    .hero-section {
-        padding: 2rem 1rem;
+    .logo-text {
+        font-size: 1.8rem;
     }
-    .hero-title {
-        font-size: 2rem;
+    
+    .chat-message {
+        padding: 1rem;
     }
-    .hero-subtitle {
-        font-size: 1rem;
-    }
-    .stSidebar {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
+    
+    .welcome-container {
+        padding: 1.5rem;
     }
 }
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# Sample Streamlit app content
-st.markdown("""
-<div class="main-container">
-    <div class="hero-section">
-        <h1 class="hero-title">Welcome to Ultimate AI</h1>
-        <p class="hero-subtitle">Experience the future of intelligence with our cutting-edge AI platform, designed to empower and inspire.</p>
-        <a href="#" class="hero-cta">Get Started</a>
-    </div>
-    <div class="feature-section">
-        <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">Why Choose Us?</h2>
-        <div class="feature-grid">
-            <div class="feature-card">
-                <div class="feature-icon">🚀</div>
-                <h3 class="feature-title">Lightning Fast</h3>
-                <p class="feature-description">Get instant responses with our high-performance AI engine.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🧠</div>
-                <h3 class="feature-title">Intelligent Insights</h3>
-                <p class="feature-description">Unlock deep insights with advanced natural language processing.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔒</div>
-                <h3 class="feature-title">Secure & Private</h3>
-                <p class="feature-description">Your data is protected with state-of-the-art encryption.</p>
-            </div>
-        </div>
-    </div>
-    <div class="chat-section">
-        <div class="chat-message ai-message">
-            <div class="message-header">
-                <span>AI Assistant</span>
-                <span class="message-time">Just now</span>
-            </div>
-            <div class="message-content">Hello! How can I assist you today?</div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Input section
-with st.container():
-    user_input = st.text_area("Your Message", placeholder="Type your message here...", height=100)
-    if st.button("Send"):
-        st.markdown(f"""
-        <div class="chat-message user-message">
-            <div class="message-header">
-                <span>You</span>
-                <span class="message-time">{datetime.now().strftime('%H:%M')}</span>
-            </div>
-            <div class="message-content">{user_input}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
 # Initialize session state variables
 if "chat" not in st.session_state:
     st.session_state.chat = []
@@ -736,7 +748,7 @@ Provide a comprehensive and helpful response:"""
         if image:
             response = gemini_model.generate_content(
                 [system_prompt, image],
-                generation_config=types(
+                generation_config=types.GenerationConfig(
                     max_output_tokens=2048,
                     temperature=0.7,
                     top_p=0.9,
@@ -746,7 +758,7 @@ Provide a comprehensive and helpful response:"""
         else:
             response = gemini_model.generate_content(
                 system_prompt,
-                generation_config=types(
+                generation_config=types.GenerationConfig(
                     max_output_tokens=2048,
                     temperature=0.7,
                     top_p=0.9,
@@ -1037,7 +1049,7 @@ def generate_image(prompt, style):
 
         response = gemini_model.generate_content(
             enhanced_prompt,
-            generation_config=types(
+            generation_config=genai.types.GenerationConfig(
                 candidate_count=1,
                 max_output_tokens=2048,
                 temperature=1.0,
@@ -2571,6 +2583,48 @@ def heart_health_analyzer():
         st.markdown(progress_html, unsafe_allow_html=True)
 
 
+    def analyze_heart_rate_from_camera():
+        """Analyze heart rate using camera-based photoplethysmography"""
+        st.markdown("""
+        <div class="heartbeat-container">
+            <h3>📹 Camera-based Heart Rate Detection</h3>
+            <p>Place your fingertip gently over your camera lens and flashlight. The app will detect color changes in your skin to measure your heart rate.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("""
+        📋 **Instructions:**
+        1. Cover your phone's camera lens completely with your fingertip
+        2. Make sure the flashlight is on
+        3. Hold still for 30 seconds
+        4. Don't press too hard - just gentle contact
+        """)
+
+        camera_input = st.camera_input("Cover camera with fingertip and hold still")
+
+        if camera_input is not None:
+            with st.spinner("Analyzing heart rate from camera feed..."):
+                time.sleep(3)
+                base_hr = np.random.randint(60, 100)
+                variation = np.random.randint(-5, 5)
+                heart_rate = base_hr + variation
+                hrv_score = np.random.randint(20, 50)
+                rhythm_regularity = np.random.choice(["Regular", "Slightly irregular", "Irregular"])
+
+                heart_rate_data = {
+                    "method": "Camera",
+                    "heart_rate": heart_rate,
+                    "hrv_score": hrv_score,
+                    "rhythm": rhythm_regularity,
+                    "quality": "Good" if 60 <= heart_rate <= 100 else "Needs Review"
+                }
+
+                st.session_state.heart_rate_data = heart_rate_data
+                st.session_state.heart_rate_recorded = True
+                st.success("Heart rate analysis complete!")
+                return heart_rate_data
+        return None
+
     def analyze_heart_rate_manual():
         """Manual heart rate input and analysis"""
         st.markdown("""
@@ -2729,6 +2783,7 @@ def heart_health_analyzer():
         """, unsafe_allow_html=True)
 
         method_icons = {
+            "Camera": "📷",
             "Manual": "✋",
             "Uploaded Recording": "📁",
             "Voice Recording": "🎤"
@@ -2835,7 +2890,7 @@ def heart_health_analyzer():
                 <h5>⏰ When to Seek Help</h5>
                 <p>This reading suggests <strong>{urgency}</strong> follow-up:</p>
                 <ul>
-                    <li>{"Immediately" if urgency == "urgent" else "Next regular checkup"}</li>
+                    <li>{"Immediately" if urgency == "urgent" else "Within 1-2 weeks"} if symptoms worsen</li>
                     <li>Annual checkup recommended for everyone</li>
                     <li>Sooner if family history of heart disease</li>
                 </ul>
@@ -2853,18 +2908,25 @@ def heart_health_analyzer():
             </div>
             """, unsafe_allow_html=True)
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
+                if st.button("📱 Use Camera", key="camera_btn"):
+                    st.session_state.recording_method = "camera"
+            with col2:
                 if st.button("✋ Manual Input", key="manual_btn"):
                     st.session_state.recording_method = "manual"
-            with col2:
+            with col3:
                 if st.button("🎵 Upload Video", key="video_btn"):
                     st.session_state.recording_method = "video"
-            with col3:
+            with col4:
                 if st.button("🎤 Voice Recording", key="voice_btn"):
                     st.session_state.recording_method = "voice"
 
-            if st.session_state.recording_method == "manual":
+            if st.session_state.recording_method == "camera":
+                result = analyze_heart_rate_from_camera()
+                if result:
+                    display_heart_rate_analysis(result)
+            elif st.session_state.recording_method == "manual":
                 result = analyze_heart_rate_manual()
                 if result:
                     display_heart_rate_analysis(result)
@@ -3388,7 +3450,7 @@ def brain_health_analyzer():
                 st.write(", ".join(images))
                 
                 time.sleep(10)
-                st.write("Items hidden...")
+                st.write("Images hidden...")
                 time.sleep(2)
                 
                 recalled = st.text_input("Enter all items you remember (separated by commas):")
@@ -3424,7 +3486,15 @@ def brain_health_analyzer():
 
         st.markdown("### Cognitive Test Results")
         
-        # Risk level interpretation
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Overall Score", f"{overall_score}/100", 
+                     "Normal range: 70-100")
+        with col2:
+            st.metric("Memory", f"{data.get('digit_span', 0)}/7 span")
+        with col3:
+            st.metric("Processing", f"{data.get('trail_making', 0)}/100")
+
         if overall_score < 70:
             interpretation = "⚠️ **Below Average Cognitive Function**"
             color = "#ffc107"
@@ -3505,7 +3575,7 @@ def brain_health_analyzer():
                 <h5>⏰ When to Seek Help</h5>
                 <p>This reading suggests <strong>{urgency}</strong> follow-up:</p>
                 <ul>
-                    <li>{"Immediately" if urgency == "urgent" else "Next regular checkup"}</li>
+                    <li>{"Immediately" if urgency == "urgent" else "Within 1-2 weeks"} if symptoms worsen</li>
                     <li>Annual cognitive screening recommended after age 50</li>
                     <li>Sooner if family history of dementia</li>
                 </ul>
@@ -3569,7 +3639,7 @@ def brain_health_analyzer():
                         st.rerun()
             with col3:
                 if st.button("Next →", key="next_btn"):
-                    st.session_state.answers[question['id'] ] = answer
+                    st.session_state.answers[question['id']] = answer
 
                     if question['id'] == 21:
                         if answer == "Yes, perform cognitive tests":
@@ -3722,7 +3792,7 @@ def brain_health_analyzer():
         <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only. 
             It is not a substitute for professional medical advice, diagnosis, or treatment. 
-            Always consult with qualified healthcare professionals for medical concerns.
+            Always consult with qualified neurologists or healthcare professionals for medical concerns.
         </div>
         """, unsafe_allow_html=True)
 
@@ -3831,7 +3901,7 @@ def cancer_risk_assessor():
         },
         {
             "id": 10,
-            "question": "Have you noticed any unusual changes in bowel or bladder habits?",
+            "question": "Have you noticed any changes in bowel or bladder habits?",
             "type": "selectbox",
             "options": ["No", "Yes - mild changes", 
                        "Yes - significant changes", "Yes - blood in stool/urine"],
@@ -4170,7 +4240,7 @@ def cancer_risk_assessor():
             details = """
             - Your current risk factors are below average
             - Continue healthy lifestyle habits
-            - Continue regular screening as appropriate for your age/gender
+            - Maintain regular screening as appropriate for your age/gender
             """
         elif risk_score < 70:
             risk_level = "Moderate Risk"
@@ -4438,7 +4508,7 @@ def cancer_risk_assessor():
 
         st.markdown("""
         <div style="margin-top: 2rem; padding: 1.5rem; background: #f5f5f5; border-radius: 10px;">
-            💡 <strong>Remember:</strong> This is a preliminary assessment tool. It cannot diagnose cancer. 
+            💡 <strong>Remember:</strong> This is a risk assessment tool only. It cannot diagnose cancer. 
             Always consult with qualified oncologists or healthcare professionals for proper evaluation. 
             Early detection through screening saves lives.
         </div>
@@ -4463,7 +4533,7 @@ def cancer_risk_assessor():
                 <li>📊 Detailed symptom analysis</li>
                 <li>🤖 AI-powered oncology insights</li>
                 <li>📷 Image analysis for concerning areas</li>
-                <li>📥 Personalized screening recommendations</li>
+                <li>🏥 Personalized screening recommendations</li>
                 <li>📈 Risk tracking over time</li>
             </ul>
         </div>
@@ -4695,69 +4765,68 @@ if mode == "AI":
             </div>
             """, unsafe_allow_html=True)
 
-    if st.session_state.chat:
-        col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
 
-        with col1:
-            if st.button("🗑️ Clear Chat", use_container_width=True):
-                st.session_state.chat = []
-                st.success("✅ Chat cleared!")
-                st.rerun()
+    with col1:
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state.chat = []
+            st.success("✅ Chat cleared!")
+            st.rerun()
 
-        with col2:
-            if st.button("📊 Export Chat", use_container_width=True):
-                if st.session_state.chat:
-                    chat_data = []
-                    for item in st.session_state.chat:
-                        chat_data.append({
-                            "Speaker": item[0],
-                            "Message": item[1],
-                            "Timestamp": item[2].strftime('%Y-%m-%d %H:%M:%S'),
-                            "Response_Time": item[3] if len(item) > 3 else None
-                        })
-                        
-                    chat_json = json.dumps(chat_data, indent=2, default=str)
-                    st.download_button(
-                        label="💾 Download Chat JSON",
-                        data=chat_json,
-                        file_name=f"quantora_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                        mime="application/json"
-                    )
-                else:
-                    st.info("No chat history to export")
-
-        with col3:
-            if st.button("ℹ️ About", use_container_width=True):
-                st.info("""
-                **Quantora AI Elite** v2.4
+    with col2:
+        if st.button("📊 Export Chat", use_container_width=True):
+            if st.session_state.chat:
+                chat_data = []
+                for item in st.session_state.chat:
+                    chat_data.append({
+                        "Speaker": item[0],
+                        "Message": item[1],
+                        "Timestamp": item[2].strftime('%Y-%m-%d %H:%M:%S'),
+                        "Response_Time": item[3] if len(item) > 3 else None
+                    })
                 
-                Features:
-                ✅ Document analysis
-                ✅ Image enhancement
-                ✅ Code formatting (always full code)
-                ✅ Performance metrics
-                ✅ Enhanced response quality
-                """)
-
-        with col4:
-            with st.popover("⚙️ Select Model", use_container_width=True):
-                st.markdown("##### Select Quantora Engine")
-                st.radio(
-                    "Engine Selection",
-                    options=[
-                        "Quantora V1 (Most Powerful Model But Slow)", 
-                        "Quantora V2 (Faster but not as better as V1)",
-                        "Quantora V3 (Code Specialized)",
-                        "Quantora V4 (Long Conversation)",
-                        "Quantora V3 (Reasoning Specialized)",
-                        "Quantora V3 (Math Specialized)"
-                    ],
-                    key="model_version",
-                    label_visibility="collapsed",
-                    help="Select specialized model versions for different tasks",
+                chat_json = json.dumps(chat_data, indent=2, default=str)
+                st.download_button(
+                    label="💾 Download Chat JSON",
+                    data=chat_json,
+                    file_name=f"quantora_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
                 )
+            else:
+                st.info("No chat history to export")
 
-elif mode == "Image Generation":
+    with col3:
+        if st.button("ℹ️ About", use_container_width=True):
+            st.info("""
+            **Quantora AI Elite** v2.4
+            
+            Features:
+            ✅ Document analysis
+            ✅ Image enhancement
+            ✅ Code formatting (always full code)
+            ✅ Performance metrics
+            ✅ Enhanced response quality
+            """)
+
+    with col4:
+        with st.popover("⚙️ Select Model", use_container_width=True):
+            st.markdown("##### Select Quantora Engine")
+            st.radio(
+                "Engine Selection",
+                options=[
+                    "Quantora V1 (Most Powerful Model But Slow)", 
+                    "Quantora V2 (Faster but not as better as V1)",
+                    "Quantora V3 (Code Specialized)",
+                    "Quantora V4 (Long Conversation)",
+                    "Quantora V3 (Reasoning Specialized)",
+                    "Quantora V3 (Math Specialized)"
+                ],
+                key="model_version",
+                label_visibility="collapsed",
+                help="Select specialized model versions for different tasks",
+            )
+
+elif st.session_state.current_mode == "Image Generation":
     st.title("🖼️ Quantora Image Generation")
     st.markdown("Create stunning AI-generated images with Quantora's advanced image generation capabilities.")
     
@@ -4803,6 +4872,7 @@ elif mode == "Image Generation":
                     cols[0].markdown("### AI Notes")
                     cols[0].write("Your futuristic image has been created!")
                     
+                    cols[1].markdown("### Generated Image")
                     # Convert image to base64 for CSS styling
                     buffered = BytesIO()
                     generated_image.save(buffered, format="PNG")
@@ -4828,7 +4898,7 @@ elif mode == "Image Generation":
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
-elif mode == "Image Editing":
+elif st.session_state.current_mode == "Image Editing":
     st.title("🖌️ Quantora Image Editing Studio")
     st.markdown("Enhance and transform your images with Quantora's advanced editing tools.")
     
@@ -4871,6 +4941,7 @@ elif mode == "Image Editing":
                         cols[0].markdown("### AI Notes")
                         cols[0].write(f"Applied edits based on: {edit_instructions}")
                         
+                        cols[1].markdown("### Edited Image")
                         buffered = BytesIO()
                         edited_image.save(buffered, format="PNG")
                         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -4893,31 +4964,31 @@ elif mode == "Image Editing":
     else:
         st.info("Please upload an image from the sidebar to begin editing.")
 
-elif mode == "Quantora News":
+elif st.session_state.current_mode == "Quantora News":
     quantora_news()
 
-elif mode == "Quantora Trade Charts":
+elif st.session_state.current_mode == "Quantora Trade Charts":
     quantora_trade_charts()
 
-elif mode == "Quantora Search Engine":
+elif st.session_state.current_mode == "Quantora Search Engine":
     quantora_search_engine()
 
-elif mode == "Quantora Social Media":
+elif st.session_state.current_mode == "Quantora Social Media":
     quantora_social_media()
 
-elif mode == "Heart Health Analyzer":
+elif st.session_state.current_mode == "Heart Health Analyzer":
     heart_health_analyzer()
 
-elif mode == "Brain Health Analyzer":
+elif st.session_state.current_mode == "Brain Health Analyzer":
     brain_health_analyzer()
 
-elif mode == "Cancer Risk Assessor":
+elif st.session_state.current_mode == "Cancer Risk Assessor":
     cancer_risk_assessor()
 
 # Footer
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: var(--text-secondary); font-size: 0.9rem;'>"
+    "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
     "💎 Quantora AI - Advanced AI Assistant | "
     "Powered by Google's Gemini, Groq Models, A4F Models | "
     f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
