@@ -949,7 +949,6 @@ def call_quantora_unified(prompt, context="", image=None):
             st.toast("🧮 Using Quantora V3 Math Engine...", icon="🧮")
             math_models = [
                 "provider-3/qwen-2.5-72b",
-                "",
                 "provider-6/minimax-m1-40k"
             ]
             for model in math_models:
