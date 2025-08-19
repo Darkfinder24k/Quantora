@@ -926,7 +926,7 @@ def call_quantora_unified(prompt, context="", image=None):
         elif selected_model_version == "Quantora V4 (Long Conversation)":
             st.toast("🗣️ Using Quantora V4 Conversation Engine...", icon="🗣️")
             conversation_models = [
-                "provider-6/gemini-2.5-flash",
+                "",
                 "provider-6/minimax-m1-40k",
                 "provider-1/claude-opus-4",
                 "provider-1/sonar-deep-research"
@@ -949,7 +949,7 @@ def call_quantora_unified(prompt, context="", image=None):
             st.toast("🧮 Using Quantora V3 Math Engine...", icon="🧮")
             math_models = [
                 "provider-3/qwen-2.5-72b",
-                "provider-6/gemini-2.5-flash",
+                "",
                 "provider-6/minimax-m1-40k"
             ]
             for model in math_models:
@@ -985,7 +985,7 @@ Guidelines:
 
 Combined Response:"""
     
-    final_response = call_a4f_model(mixing_prompt, "provider-6/gemini-2.5-flash")
+    final_response = call_a4f_model(mixing_prompt, "")
     
     processing_time = time.time() - start_time
     return final_response if final_response else successful_responses[0]['response']
