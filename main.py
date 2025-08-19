@@ -1002,7 +1002,7 @@ Guidelines:
 
 Combined Response:"""
     
-    final_response = call_a4f_model(mixing_prompt, "provider-6/minimax-m1-40k")
+    final_response = call_a4f_model(mixing_prompt, "provider-3/deepseek-v3")
     
     # Simulated auto-training: "Learn" by storing response improvements
     if final_response:
