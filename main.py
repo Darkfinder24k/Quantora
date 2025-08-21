@@ -36,7 +36,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS with sidebar toggle
+# Custom CSS with sidebar toggle and moving stars background
 st.markdown("""
 <style>
     .sidebar-toggle {
@@ -66,23 +66,40 @@ st.markdown("""
     [data-testid="stSidebar"][aria-expanded="false"] {
         transform: translateX(-100%);
     }
-</style>
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<script>
-    function toggleSidebar() {
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
-        sidebar.setAttribute('aria-expanded', !isExpanded);
-        // Force Streamlit to update the layout
-        window.dispatchEvent(new Event('resize'));
+    
+    /* Moving stars/space background */
+    body {
+        background-color: #000;
+        overflow: hidden;
     }
-</script>
-""", unsafe_allow_html=True)
+    .stars {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent url('https://i.imgur.com/2c9yBe1.gif') repeat top center;
+        z-index: -1;
+        animation: moveStars 200s linear infinite;
+    }
+    @keyframes moveStars {
+        from { background-position: 0 0; }
+        to { background-position: -10000px 5000px; }
+    }
 
-# Rest of your existing CSS
-hide_streamlit_style = """
-<style>
-#MainMenu {visibility: hidden;}
+    /* Fixed input at bottom */
+    .input-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+    }
+
+    /* Rest of the CSS remains the same */
+    #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
 .stDeployButton {visibility: hidden;}
@@ -398,8 +415,18 @@ header {visibility: hidden;}
     }
 }
 </style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<script>
+    function toggleSidebar() {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
+        sidebar.setAttribute('aria-expanded', !isExpanded);
+        // Force Streamlit to update the layout
+        window.dispatchEvent(new Event('resize'));
+    }
+</script>
+<div class="stars"></div>
+""", unsafe_allow_html=True)
 
 # Initialize session state variables
 if "chat" not in st.session_state:
@@ -434,6 +461,8 @@ if "view_profile" not in st.session_state:
     st.session_state.view_profile = None
 if "learning_history" not in st.session_state:
     st.session_state.learning_history = []  # For simulated auto-training
+if "iq_test_score" not in st.session_state:
+    st.session_state.iq_test_score = None
 
 # Initialize API clients
 @st.cache_resource
@@ -458,6 +487,51 @@ def initialize_clients():
         return None, None, None
 
 gemini_model, groq_client, a4f_client = initialize_clients()
+
+# Add speech recognition using A4F Whisper
+def transcribe_audio(audio_file):
+    try:
+        headers = {
+            "Authorization": f"Bearer {A4F_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": "provider-2/whisper-1",
+            "file": base64.b64encode(audio_file.getvalue()).decode("utf-8")
+        }
+        
+        response = requests.post(
+            "https://api.a4f.co/v1/audio/transcriptions",
+            headers=headers,
+            json=data
+        )
+        
+        if response.status_code == 200:
+            return response.json().get("text", "")
+        else:
+            st.error(f"Transcription error: {response.text}")
+            return ""
+    except Exception as e:
+        st.error(f"Transcription failed: {str(e)}")
+        return ""
+
+# IQ Tester in Sidebar
+with st.sidebar:
+    st.markdown("### 🧠 IQ Tester")
+    if st.button("Start IQ Test"):
+        questions = [
+            {"q": "What number comes next: 1, 1, 2, 3, 5, 8, ?", "a": "13"},
+            {"q": "If APPLE is coded as ZKKOV, how is BANANA coded?", "a": "YZMZMZ"},
+            {"q": "A bat and a ball cost $1.10. The bat costs $1 more than the ball. How much is the ball?", "a": "0.05"}
+        ]
+        score = 0
+        for i, q in enumerate(questions):
+            answer = st.text_input(q["q"], key=f"iq_{i}")
+            if answer.lower() == q["a"].lower():
+                score += 1
+        st.session_state.iq_test_score = score * 33  # Simplified scoring
+        st.write(f"Your IQ Score: {st.session_state.iq_test_score}")
 
 # Document Analysis Functions
 def extract_pdf_content(file):
@@ -622,7 +696,7 @@ def display_image_enhancement_controls(image, enhancements):
         
         return enhanced_image
 
-# Enhanced A4F Model Call
+# Enhanced A4F Model Call with fallback
 def call_a4f_model(prompt, model_name, context="", image=None):
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
@@ -708,7 +782,8 @@ Provide a comprehensive and helpful response:"""
                 error_msg += f"HTTP {e.response.status_code} - {str(e)}"
         else:
             error_msg += str(e)
-        return error_msg
+        # Fallback to Groq
+        return call_groq_model(prompt, "mixtral-8x7b-32768", context)
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
@@ -3401,7 +3476,7 @@ def brain_health_analyzer():
                 st.write(", ".join(images))
                 
                 time.sleep(10)
-                st.write("Images hidden...")
+                st.write("Items hidden...")
                 time.sleep(2)
                 
                 recalled = st.text_input("Enter all items you remember (separated by commas):")
