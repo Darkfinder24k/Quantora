@@ -783,7 +783,7 @@ Provide a comprehensive and helpful response:"""
         else:
             error_msg += str(e)
         # Fallback to Groq
-        return call_groq_model(prompt, "provider-6/gpt-4.1", context)
+        return call_groq_model(prompt, "provider-2/glm-4.5-air", context)
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
@@ -967,7 +967,7 @@ def call_quantora_unified(prompt, context="", image=None):
         
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
-            groq_models = ["provider-6/gpt-4.1", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
+            groq_models = ["provider-2/glm-4.5-air", "llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
