@@ -468,7 +468,7 @@ if "iq_test_score" not in st.session_state:
 @st.cache_resource
 def initialize_clients():
     try:
-        gemini_api_key = "AIzaSyAbXv94hwzhbrxhBYq-zS58LkhKZQ6cjMg"
+        gemini_api_key = "AIzaSyA5UgP1dzFQgfA_UDjmeU-I3Gt_yFfQOpA"
         groq_api_key = "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE"
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
         
