@@ -996,9 +996,9 @@ def call_quantora_unified(prompt, context="", image=None):
         elif selected_model_version == "Quantora V2 (Faster but not as better as V1)":
             st.toast("⚡ Using Quantora V2 Engine...", icon="⚡")
             a4f_v2_models = [
-                "provider-3/claude-3.5-haiku",
-                "provider-1/claude-sonnet-4",
-                "provider-1/claude-opus-4"
+                "provider-6/gemini-2.5-flash",
+                "provider-6/deepseek-v3-0324-turbo",
+                "provider-1/gemini-2.0-flash-lite-001"
             ]
             for model in a4f_v2_models:
                 futures.append(executor.submit(call_a4f_backend, model))
