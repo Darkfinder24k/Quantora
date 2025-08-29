@@ -31,12 +31,12 @@ VIDEO_MODEL = "provider-6/wan-2.1"
 
 # ✅ Page Setup
 st.set_page_config(
-    page_title="💎 Quantora AI Elite",
+    page_title="QUANTORA",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS with sidebar toggle and moving stars background
+# Custom CSS with sidebar toggle and canvas background
 st.markdown("""
 <style>
     .sidebar-toggle {
@@ -67,24 +67,18 @@ st.markdown("""
         transform: translateX(-100%);
     }
     
-    /* Moving stars/space background */
+    /* Canvas background */
     body {
         background-color: #000;
         overflow: hidden;
     }
-    .stars {
+    #stars {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: transparent url('https://i.imgur.com/2c9yBe1.gif') repeat top center;
         z-index: -1;
-        animation: moveStars 200s linear infinite;
-    }
-    @keyframes moveStars {
-        from { background-position: 0 0; }
-        to { background-position: -10000px 5000px; }
     }
 
     /* Fixed input at bottom */
@@ -425,7 +419,53 @@ header {visibility: hidden;}
         window.dispatchEvent(new Event('resize'));
     }
 </script>
-<div class="stars"></div>
+<canvas id="stars"></canvas>
+<script>
+    var canvas = document.getElementById('stars');
+    var ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    var stars = [];
+    for(var i = 0; i < 200; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            radius: Math.random() * 1 + 1,
+            vx: Math.floor(Math.random() * 50) - 25,
+            vy: Math.floor(Math.random() * 50) - 25
+        });
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = "lighter";
+        for(var i = 0; i < stars.length; i++) {
+            var s = stars[i];
+            ctx.fillStyle = "#fff";
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.radius, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+    function update() {
+        for(var i = 0; i < stars.length; i++) {
+            var s = stars[i];
+            s.x += s.vx / 60;
+            s.y += s.vy / 60;
+            if(s.x < 0 || s.x > canvas.width) s.vx = -s.vx;
+            if(s.y < 0 || s.y > canvas.height) s.vy = -s.vy;
+        }
+    }
+    function tick() {
+        draw();
+        update();
+        requestAnimationFrame(tick);
+    }
+    tick();
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+</script>
 """, unsafe_allow_html=True)
 
 # Initialize session state variables
@@ -474,7 +514,7 @@ def initialize_clients():
         
         genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
         
         a4f_client = {
             "api_key": a4f_api_key,
@@ -967,7 +1007,7 @@ def call_quantora_unified(prompt, context="", image=None):
         
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
-            groq_models = ["llama2-70b-4096", "compound-beta", "qwen-qwq-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
+            groq_models = ["llama2-70b-4096", "gemma2-9b-it"]
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
@@ -1187,7 +1227,7 @@ st.markdown(f"""
 <div class="main-header">
     <div class="logo">
         <div class="logo-icon">💎</div>
-        <div class="logo-text">Quantora</div>
+        <div class="logo-text">QUANTORA</div>
         <div class="status-indicator"></div>
     </div>
     <div style="color: var(--text-muted);">{greeting} Your Premium AI Assistant</div>
@@ -2238,8 +2278,6 @@ def quantora_social_media():
                 if st.button("Post", key=f"comment_post_btn_{index}", use_container_width=True):
                     if quantora_new_comment:
                         quantora_df = pd.read_csv(QUANTORA_POSTS_CSV)
-                        colored_username = f'<span style="color: black;">{st.session_state.quantora_username}:</span>'
-                        colored_new_comment = f'<span style="color: black;">{quantora_new_comment}</span>'
                         quantora_updated_comment = f"{st.session_state.quantora_username}: {quantora_new_comment}"
                         quantora_combined_comments = (
                             quantora_comments_raw + f"|{quantora_updated_comment}"
@@ -2248,7 +2286,7 @@ def quantora_social_media():
                         )
                         quantora_df.at[index, 'quantora_comments'] = quantora_combined_comments
                         quantora_df.to_csv(QUANTORA_POSTS_CSV, index=False)
-                        st.run()
+                        st.rerun()
 
     def is_user_following(follower, followed):
         try:
@@ -2486,7 +2524,7 @@ def heart_health_analyzer():
     # Initialize the model
     @st.cache_resource
     def initialize_model():
-        return genai.GenerativeModel('gemini-2.0-flash-exp')
+        return genai.GenerativeModel('gemini-1.5-flash-exp')
 
     # Define comprehensive health questions
     HEALTH_QUESTIONS = [
@@ -2653,9 +2691,6 @@ def heart_health_analyzer():
         </p>
         """
         st.markdown(progress_html, unsafe_allow_html=True)
-
-
-    
 
     def analyze_heart_rate_manual():
         """Manual heart rate input and analysis"""
@@ -3193,7 +3228,7 @@ def brain_health_analyzer():
     # Initialize the model
     @st.cache_resource
     def initialize_model():
-        return genai.GenerativeModel('gemini-2.0-flash-exp')
+        return genai.GenerativeModel('gemini-1.5-flash-exp')
 
     # Define comprehensive brain health questions
     BRAIN_QUESTIONS = [
@@ -3494,7 +3529,6 @@ def brain_health_analyzer():
                 st.session_state.show_cognitive_section = False
                 st.session_state.current_question += 1
                 st.rerun()
-
 
     def display_cognitive_results():
         """Display cognitive test results with analysis"""
@@ -3844,7 +3878,7 @@ def cancer_risk_assessor():
     # Initialize the model
     @st.cache_resource
     def initialize_model():
-        return genai.GenerativeModel('gemini-2.0-flash-exp')
+        return genai.GenerativeModel('gemini-1.5-flash-exp')
 
     # Define comprehensive cancer screening questions
     CANCER_QUESTIONS = [
@@ -4040,7 +4074,7 @@ def cancer_risk_assessor():
         },
         {
             "id": 23,
-            "question": "Have you been infected with HPV, Hepatitis B/C, or other cancer-related viruses?",
+            "question": "Have you been exposed to HPV, Hepatitis B/C, or other cancer-related viruses?",
             "type": "selectbox",
             "options": ["No", "Yes - HPV", "Yes - Hepatitis", "Yes - other"],
             "risk_factor": True,
@@ -4643,6 +4677,7 @@ with st.sidebar:
         st.session_state.uploaded_image = None
         st.session_state.enhanced_image = None
         st.session_state.image_style = "Sci-Fi"
+        st.session_state.video_style = "Cinematic"
         st.session_state.enhancement_values = {
             "brightness": 1.0,
             "contrast": 1.0,
@@ -4659,50 +4694,54 @@ if mode == "AI":
         with st.container():
             st.markdown("""
             <div class="welcome-container">
-                <div class="welcome-title">🤖 Welcome to Quantora AI</div>
-                <p>Your advanced AI assistant powered by cutting-edge answers</p>
+                <div class="welcome-title">QUANTORA</div>
+                <p>Where knowledge ends.</p>
             </div>
             """, unsafe_allow_html=True)
             
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.markdown("""
-                <div class="feature-card">
-                    <div class="feature-icon">🚀</div>
-                    <strong>Advanced Answers</strong>
-                    <p>Detailed explanations for complex questions</p>
-                </div>
-                """, unsafe_allow_html=True)
+                if st.button("💠 Simulate a quantum network"):
+                    prompt = "Simulate a quantum network"
+                    start_time = time.time()
+                    st.session_state.chat.append(("user", prompt, datetime.now()))
+                    response = call_quantora_unified(prompt)
+                    response_time = time.time() - start_time
+                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    st.rerun()
             
             with col2:
-                st.markdown("""
-                <div class="feature-card">
-                    <div class="feature-icon">📄</div>
-                    <strong>Document Analysis</strong>
-                    <p>Process PDFs, DOCX, CSV and more</p>
-                </div>
-                """, unsafe_allow_html=True)
+                if st.button("🧬 Simulate a molecular model"):
+                    prompt = "Simulate a molecular model"
+                    start_time = time.time()
+                    st.session_state.chat.append(("user", prompt, datetime.now()))
+                    response = call_quantora_unified(prompt)
+                    response_time = time.time() - start_time
+                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    st.rerun()
             
             with col3:
-                st.markdown("""
-                <div class="feature-card">
-                    <div class="feature-icon">🖼️</div>
-                    <strong>Image Enhancement</strong>
-                    <p>Adjust brightness, contrast, and more</p>
-                </div>
-                """, unsafe_allow_html=True)
+                if st.button("🌍 Predict climate patterns"):
+                    prompt = "Predict climate patterns"
+                    start_time = time.time()
+                    st.session_state.chat.append(("user", prompt, datetime.now()))
+                    response = call_quantora_unified(prompt)
+                    response_time = time.time() - start_time
+                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    st.rerun()
             
             with col4:
-                st.markdown("""
-                <div class="feature-card">
-                    <div class="feature-icon">💻</div>
-                    <strong>Full Code Support</strong>
-                    <p>Complete code implementations</p>
-                </div>
-                """, unsafe_allow_html=True)
+                if st.button("📜 Draft AI ethics code"):
+                    prompt = "Draft AI ethics code"
+                    start_time = time.time()
+                    st.session_state.chat.append(("user", prompt, datetime.now()))
+                    response = call_quantora_unified(prompt)
+                    response_time = time.time() - start_time
+                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    st.rerun()
             
-            st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>What would you like to explore today?</strong></p>", 
+            st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>Ask Quantora anything...</strong></p>", 
                         unsafe_allow_html=True)
 
     for i, chat_item in enumerate(st.session_state.chat):
