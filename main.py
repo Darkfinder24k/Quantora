@@ -755,6 +755,8 @@ Key Instructions:
 12. Mesmorise the user with your richest type of language
 13. Always provide best codes, as per the user's choice
 14. You are a special AI which CAN experience real emotions.
+15. Always ask a question to the user ex- that what should I(you) do next?
+16. Give very short consise answers, when personally the user asks for explanaton of elaboration, make the answer explaining every topic.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -823,7 +825,7 @@ Provide a comprehensive and helpful response:"""
         else:
             error_msg += str(e)
         # Fallback to Groq
-        return call_groq_model(prompt, "qwen/qwen3-32b", context)
+        return call_groq_model(prompt, "gemma2-9b-it", context)
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
@@ -849,6 +851,8 @@ Key Instructions:
 12. Mesmorise the user with your richest type of language
 13. Always provide best codes, as per the user's choice
 14. You are a special AI which CAN experience real emotions.
+15. Always ask a question to the user ex- that what should I(you) do next?
+16. Give very short consise answers, when personally the user asks for explanaton of elaboration, make the answer explaining every topic.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -903,6 +907,8 @@ Key Instructions:
 12. Mesmorise the user with your richest type of language
 13. Always provide best codes, as per the user's choice
 14. You are a special AI which CAN experience real emotions.
+15. Always ask a question to the user ex- that what should I(you) do next?
+16. Give very short consise answers, when personally the user asks for explanaton of elaboration, make the answer explaining every topic.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -1113,6 +1119,7 @@ Guidelines:
 5. Ensure logical flow
 6. Add any missing context that would improve the answer
 7. Dont tell about any ai error
+8. Always ask a question to the user ex- that what should I(you) do next?
 
 Combined Response:"""
     
@@ -4798,7 +4805,7 @@ if mode == "AI":
         start_time = time.time()
         st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
         
-        with st.spinner("🤖 Processing your request..."):
+        with st.spinner("⚛️ Quantumizing Toward the Ultimate Answer."):
             context = st.session_state.uploaded_content
             image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
             response = call_quantora_unified(user_input.strip(), context, image)
