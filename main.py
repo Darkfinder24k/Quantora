@@ -36,436 +36,94 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS with sidebar toggle and canvas background
 st.markdown("""
 <style>
-    .sidebar-toggle {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 999;
-        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        font-size: 20px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .sidebar-toggle:hover {
-        transform: scale(1.1);
-    }
-    [data-testid="stSidebar"] {
-        transition: transform 300ms ease-in-out;
-    }
-    [data-testid="stSidebar"][aria-expanded="false"] {
-        transform: translateX(-100%);
-    }
-    
-    /* Canvas background */
-    body {
-        background-color: #000;
-        overflow: hidden;
-    }
-    #stars {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -1;
-    }
-
-    /* Fixed input at bottom */
-    .input-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding: 1rem;
-        background: rgba(0, 0, 0, 0.8);
-        z-index: 1000;
-    }
-
-    /* Rest of the CSS remains the same */
-    #MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-.stDeployButton {visibility: hidden;}
-[data-testid="stToolbar"] {visibility: hidden;}
-[data-testid="stDecoration"] {visibility: hidden;}
-.st-emotion-cache-zq5wmm {visibility: hidden;}
-
-/* Quantora Premium UI */
-:root {
-    --primary: #0f172a;
-    --primary-light: #1e293b;
-    --primary-lighter: #334155;
-    --accent: #8b5cf6;
-    --accent-light: #a78bfa;
-    --accent-dark: #7c3aed;
-    --text: #f8fafc;
-    --text-muted: #94a3b8;
-    --text-dim: #64748b;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --error: #ef4444;
-    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-@keyframes gradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.05); opacity: 0.8; }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
-}
-
-.stApp {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #252f3f 50%, #1e293b 75%, #0f172a 100%);
-    background-size: 400% 400%;
-    animation: gradient 20s ease infinite;
-    color: var(--text);
-    font-family: var(--font-sans);
-}
-
-.main-header {
-    text-align: center;
-    padding: 2rem 0;
-    margin-bottom: 2rem;
-    position: relative;
-}
-
-.logo {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    justify-content: center;
-    margin-bottom: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.logo:hover {
-    transform: translateY(-2px);
-}
-
-.logo-icon {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-light));
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-md);
-    animation: pulse 3s ease-in-out infinite;
-}
-
-.logo-text {
-    font-size: 2.5rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #f8fafc, #a78bfa, #60a5fa);
-    background-size: 200% 200%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: 0.05em;
-    animation: gradient 5s ease infinite;
-}
-
-.status-indicator {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    width: 12px;
-    height: 12px;
-    background: var(--success);
-    border-radius: 50%;
-    border: 2px solid var(--primary);
-    animation: pulse 2s infinite;
-}
-
-.chat-message {
-    padding: 1.5rem;
-    margin: 1rem 0;
-    border-radius: 16px;
-    background: var(--primary-light);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: var(--shadow-md);
-    position: relative;
-    overflow: hidden;
-    backdrop-filter: blur(10px);
-    animation: fadeIn 0.6s ease-out forwards;
-}
-
-.chat-message::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
-    z-index: -1;
-}
-
-.user-message {
-    background: rgba(139, 92, 246, 0.15);
-    border-color: rgba(139, 92, 246, 0.3);
-}
-
-.ai-message {
-    background: rgba(59, 130, 246, 0.15);
-    border-color: rgba(59, 130, 246, 0.3);
-}
-
-.message-header {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.user-message .message-header {
-    color: #a78bfa;
-}
-
-.ai-message .message-header {
-    color: #7dd3fc;
-}
-
-.message-time {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    margin-left: auto;
-}
-
-.input-container {
-    position: relative;
-    margin-top: 2rem;
-}
-
-.input-wrapper {
-    position: relative;
-    border-radius: 20px;
-    background: rgba(255, 255, 255, 0.9) !important;
-    backdrop-filter: blur(20px);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-    overflow: hidden;
-}
-
-.input-wrapper:focus-within {
-    border-color: rgba(139, 92, 246, 0.5);
-    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
-}
-
-.stTextArea textarea {
-    width: 100%;
-    min-height: 80px;
-    background: transparent !important;
-    border: none;
-    padding: 1.25rem 1.5rem;
-    color: #000000 !important;
-    font-size: 0.95rem;
-    font-family: inherit;
-    resize: none;
-    line-height: 1.5;
-    outline: none;
-}
-
-.stTextArea textarea::placeholder {
-    color: #666666 !important;
-}
-
-.stButton button {
-    background: linear-gradient(135deg, var(--accent), var(--accent-light));
-    color: white;
-    border: none;
-    border-radius: 12px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: var(--shadow-sm);
-}
-
-.stButton button:hover {
-    background: linear-gradient(135deg, var(--accent-dark), var(--accent));
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.welcome-container {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    border-radius: 20px;
-    padding: 2rem;
-    margin: 2rem auto;
-    max-width: 800px;
-    text-align: center;
-    animation: fadeIn 0.8s ease-out;
-}
-
-.welcome-title {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    background: linear-gradient(135deg, #f8fafc, #a78bfa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.welcome-features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin: 2rem 0;
-}
-
-.feature-card {
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 1.5rem;
-    transition: all 0.3s ease;
-}
-
-.feature-card:hover {
-    transform: translateY(-5px);
-    background: rgba(30, 41, 59, 0.8);
-    border-color: var(--accent);
-    box-shadow: var(--shadow-lg);
-}
-
-.feature-icon {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-    color: var(--accent);
-}
-
-.enhancement-controls {
-    background: rgba(30, 41, 59, 0.8);
-    border-radius: 12px;
-    padding: 1rem;
-    margin: 1rem 0;
-}
-
-.enhancement-slider {
-    margin: 0.5rem 0;
-}
-
-.generated-image {
-    animation: float 4s ease-in-out infinite;
-    border: 2px solid var(--accent);
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
-    transition: all 0.3s ease;
-}
-
-.generated-image:hover {
-    transform: scale(1.02);
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.8);
-}
-
-.generated-video {
-    animation: float 6s ease-in-out infinite;
-}
-
-@media (max-width: 768px) {
-    .logo-text {
-        font-size: 1.8rem;
-    }
-    
-    .chat-message {
-        padding: 1rem;
-    }
-    
-    .welcome-container {
-        padding: 1.5rem;
-    }
-}
-</style>
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<script>
-    function toggleSidebar() {
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
-        sidebar.setAttribute('aria-expanded', !isExpanded);
-        // Force Streamlit to update the layout
-        window.dispatchEvent(new Event('resize'));
-    }
-</script>
-<canvas id="stars"></canvas>
-<script>
-    var canvas = document.getElementById('stars');
-    var ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    var stars = [];
-    for(var i = 0; i < 200; i++) {
-        stars.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            radius: Math.random() * 1 + 1,
-            vx: Math.floor(Math.random() * 50) - 25,
-            vy: Math.floor(Math.random() * 50) - 25
-        });
-    }
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.globalCompositeOperation = "lighter";
-        for(var i = 0; i < stars.length; i++) {
-            var s = stars[i];
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, s.radius, 0, 2 * Math.PI);
-            ctx.fill();
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a2e url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8AAsAQCwYcQAhQAAADtL7lRAAAAAElFTkSuQmCC') repeat;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
         }
-    }
-    function update() {
-        for(var i = 0; i < stars.length; i++) {
-            var s = stars[i];
-            s.x += s.vx / 60;
-            s.y += s.vy / 60;
-            if(s.x < 0 || s.x > canvas.width) s.vx = -s.vx;
-            if(s.y < 0 || s.y > canvas.height) s.vy = -s.vy;
+        .container {
+            position: relative;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
-    }
-    function tick() {
-        draw();
-        update();
-        requestAnimationFrame(tick);
-    }
-    tick();
-    window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    });
-</script>
+        h1 {
+            font-size: 6em;
+            margin: 0;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        p {
+            font-size: 1.2em;
+            margin: 10px 0;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+        }
+        .search-bar {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 20px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            width: 70%;
+            max-width: 600px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        .search-bar input {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.1em;
+            width: 100%;
+            outline: none;
+        }
+        .search-bar input::placeholder {
+            color: #ccc;
+        }
+        .search-bar .icons {
+            display: flex;
+            gap: 10px;
+        }
+        .search-bar .icons div {
+            cursor: pointer;
+            padding: 5px;
+        }
+        .buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .button {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: scale(1.05);
+        }
+        .button img {
+            width: 20px;
+            height: 20px;
+            filter: invert(1);
+        }
+        .mic {
+            margin-left: 10px;
+            cursor: pointer;
+        }
+    </style>
 """, unsafe_allow_html=True)
 
 # Initialize session state variables
@@ -2048,7 +1706,7 @@ def quantora_search_engine():
                 
                 with cols[i % 4]:
                     try:
-                        st.image(image_url, caption=title[:50] + "..." if len(title) > 50 else title)
+                        st.image(image_url, caption=f"{title[:50] + '...' if len(title) > 50 else title}")
                     except:
                         st.info("Image unavailable")
             
@@ -2823,7 +2481,7 @@ def heart_health_analyzer():
                 4. Clinical correlation
 
                 Audio characteristics:
-                - Apparent rate: {heart_rate} BPM
+                - Heart rate: {heart_rate} BPM
                 - Rhythm: {rhythm}
                 - Quality: {quality}
 
@@ -2880,9 +2538,6 @@ def heart_health_analyzer():
             - Potential causes: Hypothyroidism, sleep apnea, heart block
             - Concerning if accompanied by dizziness or fainting
             """
-        elif hr > 100:
-            interpretation = "⚠️ **Tachycardia** (Fast Heart Rate)"
-            color = "#dc3545"
             details = """
             - Common causes: Stress, fever, dehydration, anemia
             - Potential cardiac issues: Atrial fibrillation, SVT
@@ -3207,6 +2862,7 @@ def heart_health_analyzer():
         st.markdown("""
         <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only. 
+            It is not a substitute for professional medical advice, diagnosis, or treatment. 
             It is not a substitute for professional medical advice, diagnosis, or treatment. 
             Always consult with qualified healthcare professionals for medical concerns.
         </div>
@@ -4359,7 +4015,7 @@ def cancer_risk_assessor():
 
         # Display body map (simplified)
         st.markdown("### 🏷️ Body Map")
-        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_silhouette.svg/1200px-Human_body_silhouette.svg.png", 
+        st.image("https://upload.wikimedia.org/wikipedia/commons/3/3e/Human_body_silhouette.svg", 
                  use_column_width=True, caption="Areas of concern highlighted in your assessment")
         
         st.markdown("---")
@@ -4697,58 +4353,27 @@ with st.sidebar:
 # Main Content Area
 if mode == "AI":
     if not st.session_state.chat:
-        with st.container():
-            st.markdown("""
-            <div class="welcome-container">
-                <div class="welcome-title">QUANTORA</div>
-                <p>Where knowledge ends.</p>
+        st.markdown("""
+<div class="container">
+        <h1>QUANTORA</h1>
+        <p>Where knowledge ends.</p>
+        <div class="search-bar">
+            <input type="text" placeholder="Ask Quantora anything...">
+            <div class="icons">
+                <div>🔍</div>
+                <div>😊</div>
+                <div>🎙️</div>
             </div>
-            """, unsafe_allow_html=True)
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                if st.button("💠 Simulate a quantum network"):
-                    prompt = "Simulate a quantum network"
-                    start_time = time.time()
-                    st.session_state.chat.append(("user", prompt, datetime.now()))
-                    response = call_quantora_unified(prompt)
-                    response_time = time.time() - start_time
-                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
-                    st.rerun()
-            
-            with col2:
-                if st.button("🧬 Simulate a molecular model"):
-                    prompt = "Simulate a molecular model"
-                    start_time = time.time()
-                    st.session_state.chat.append(("user", prompt, datetime.now()))
-                    response = call_quantora_unified(prompt)
-                    response_time = time.time() - start_time
-                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
-                    st.rerun()
-            
-            with col3:
-                if st.button("🌍 Predict climate patterns"):
-                    prompt = "Predict climate patterns"
-                    start_time = time.time()
-                    st.session_state.chat.append(("user", prompt, datetime.now()))
-                    response = call_quantora_unified(prompt)
-                    response_time = time.time() - start_time
-                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
-                    st.rerun()
-            
-            with col4:
-                if st.button("📜 Draft AI ethics code"):
-                    prompt = "Draft AI ethics code"
-                    start_time = time.time()
-                    st.session_state.chat.append(("user", prompt, datetime.now()))
-                    response = call_quantora_unified(prompt)
-                    response_time = time.time() - start_time
-                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
-                    st.rerun()
-            
-            st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>Ask Quantora anything...</strong></p>", 
-                        unsafe_allow_html=True)
+        </div>
+        <div class="buttons">
+            <div class="button"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjAuMTczbpP/AAAADUlEQVR42mNkYGD4zwABQAEAhbbJ/0wAAAAAElFTkSuQmCC" alt="Quantum"> Simulate a quantum network</div>
+            <div class="button"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjAuMTczbpP/AAAADUlEQVR42mNkYGD4zwABQAEAhbbJ/0wAAAAAElFTkSuQmCC" alt="Molecular"> Simulate a molecular model</div>
+            <div class="button"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjAuMTczbpP/AAAADUlEQVR42mNkYGD4zwABQAEAhbbJ/0wAAAAAElFTkSuQmCC" alt="Climate"> Predict climate patterns</div>
+            <div class="button"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjAuMTczbpP/AAAADUlEQVR42mNkYGD4zwABQAEAhbbJ/0wAAAAAElFTkSuQmCC" alt="Code"> Draft AI ethics code</div>
+        </div>
+        <div class="mic">🎙️</div>
+    </div>
+""", unsafe_allow_html=True)
 
     for i, chat_item in enumerate(st.session_state.chat):
         if len(chat_item) >= 3:
