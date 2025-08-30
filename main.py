@@ -1037,8 +1037,6 @@ def call_quantora_unified(prompt, context="", image=None):
             st.toast("⚡ Using Quantora V2 Engine...", icon="⚡")
             a4f_v2_models = [
                 "provider-6/gemini-2.5-flash",
-                "provider-6/deepseek-v3-0324-turbo",
-                "provider-1/gemini-2.0-flash-lite-001"
             ]
             for model in a4f_v2_models:
                 futures.append(executor.submit(call_a4f_backend, model))
