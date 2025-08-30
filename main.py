@@ -1112,6 +1112,7 @@ Guidelines:
 4. Keep code blocks intact
 5. Ensure logical flow
 6. Add any missing context that would improve the answer
+7. Dont tell about any ai error
 
 Combined Response:"""
     
