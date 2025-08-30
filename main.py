@@ -74,16 +74,10 @@ st.markdown("""
             max-width: 600px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         }
-        .search-bar input {
-            background: none;
-            border: none;
-            color: #fff;
+        .placeholder {
+            color: #ccc;
             font-size: 1.1em;
             width: 100%;
-            outline: none;
-        }
-        .search-bar input::placeholder {
-            color: #ccc;
         }
         .search-bar .icons {
             display: flex;
@@ -728,8 +722,8 @@ def call_quantora_unified(prompt, context="", image=None):
             for model in conversation_models:
                 futures.append(executor.submit(call_a4f_backend, model))
                 
-        elif selected_model_version == "Quantora V3 (Reasoning Specialized)":
-            st.toast("🧠 Using Quantora V3 Reasoning Engine...", icon="🧠")
+        elif selected_model_version == "Quantora V5 (Reasoning Specialized)":
+            st.toast("🧠 Using Quantora V5 Reasoning Engine...", icon="🧠")
             reasoning_models = [
                 "provider-1/sonar-reasoning",
                 "provider-6/r1-1776",
@@ -739,8 +733,8 @@ def call_quantora_unified(prompt, context="", image=None):
             for model in reasoning_models:
                 futures.append(executor.submit(call_a4f_backend, model))
                 
-        elif selected_model_version == "Quantora V3 (Math Specialized)":
-            st.toast("🧮 Using Quantora V3 Math Engine...", icon="🧮")
+        elif selected_model_version == "Quantora V6 (Math Specialized)":
+            st.toast("🧮 Using Quantora V6 Math Engine...", icon="🧮")
             math_models = [
                 "provider-3/qwen-2.5-72b",
                 "provider-6/gemini-2.5-flash",
@@ -2538,6 +2532,9 @@ def heart_health_analyzer():
             - Potential causes: Hypothyroidism, sleep apnea, heart block
             - Concerning if accompanied by dizziness or fainting
             """
+        elif hr > 100:
+            interpretation = "⚠️ **Tachycardia** (Fast Heart Rate)"
+            color = "#ffc107"
             details = """
             - Common causes: Stress, fever, dehydration, anemia
             - Potential cardiac issues: Atrial fibrillation, SVT
@@ -3091,6 +3088,7 @@ def brain_health_analyzer():
                 for seq in sequences:
                     st.write(f"Remember this sequence: {seq}")
                     time.sleep(2)
+                    st.write("Sequence hidden...")
                     st.write("Sequence hidden...")
                     time.sleep(1)
                     
@@ -3812,7 +3810,7 @@ def cancer_risk_assessor():
         if uploaded_files:
             st.warning("""
             ⚠️ **Important Note:** This image analysis is for preliminary screening only. 
-            It cannot replace a professional medical examination or biopsy.
+            It cannot replace a professional professional medical examination or biopsy.
             """)
             
             cols = st.columns(min(4, len(uploaded_files)))
@@ -3823,7 +3821,7 @@ def cancer_risk_assessor():
             
             if st.button("Analyze Images"):
                 with st.spinner("🔍 Analyzing images with AI..."):
-                    # In a real app, you would send these to an image analysis API
+                    # In a real app, you'd send these to an image analysis API
                     # Here we simulate analysis with some sample results
                     time.sleep(2)
                     
@@ -4358,7 +4356,7 @@ if mode == "AI":
         <h1>QUANTORA</h1>
         <p>Where knowledge ends.</p>
         <div class="search-bar">
-            <input type="text" placeholder="Ask Quantora anything...">
+            <span class="placeholder">Ask Quantora anything...</span>
             <div class="icons">
                 <div>🔍</div>
                 <div>😊</div>
@@ -4374,6 +4372,28 @@ if mode == "AI":
         <div class="mic">🎙️</div>
     </div>
 """, unsafe_allow_html=True)
+
+        # Add example buttons as functional
+        example_prompts = [
+            "Simulate a quantum network",
+            "Simulate a molecular model",
+            "Predict climate patterns",
+            "Draft AI ethics code"
+        ]
+        cols = st.columns(2)
+        for i, prompt in enumerate(example_prompts):
+            with cols[i % 2]:
+                if st.button(prompt):
+                    user_input = prompt
+                    start_time = time.time()
+                    st.session_state.chat.append(("user", user_input, datetime.now()))
+                    context = st.session_state.uploaded_content
+                    image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
+                    response = call_quantora_unified(user_input, context, image)
+                    response_time = time.time() - start_time
+                    st.session_state.last_response_time = response_time
+                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    st.rerun()
 
     for i, chat_item in enumerate(st.session_state.chat):
         if len(chat_item) >= 3:
@@ -4425,6 +4445,15 @@ if mode == "AI":
     with col2:
         st.write("")
         send_button = st.button("💬 Send", use_container_width=True, type="primary")
+
+    # Add voice input
+    audio_file = st.file_uploader("Or upload voice message", type=["wav", "mp3"], key="voice_uploader")
+
+    if audio_file:
+        transcribed = transcribe_audio(audio_file)
+        if transcribed:
+            user_input = transcribed
+            st.info(f"Transcribed: {transcribed}")
 
     if send_button and user_input.strip():
         start_time = time.time()
@@ -4514,8 +4543,8 @@ if mode == "AI":
                     "Quantora V2 (Faster but not as better as V1)",
                     "Quantora V3 (Code Specialized)",
                     "Quantora V4 (Long Conversation)",
-                    "Quantora V3 (Reasoning Specialized)",
-                    "Quantora V3 (Math Specialized)"
+                    "Quantora V5 (Reasoning Specialized)",
+                    "Quantora V6 (Math Specialized)"
                 ],
                 key="model_version",
                 label_visibility="collapsed",
