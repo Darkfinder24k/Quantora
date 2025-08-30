@@ -4806,6 +4806,8 @@ if mode == "AI":
         st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
         
         with st.spinner("⚛️ Quantumizing Through Timeless Refinement Toward the Ultimate Answer."):
+            time.sleep('2')
+            st.spinner("⚛️ Quantumizing For Some More Time to Refine The Ultimate Answer...")
             context = st.session_state.uploaded_content
             image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
             response = call_quantora_unified(user_input.strip(), context, image)
