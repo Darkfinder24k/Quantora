@@ -1032,7 +1032,8 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-1/sonar-deep-research",
                 "provider-1/sonar-reasoning-pro",
                 "provider-2/llama-4-maverick",
-                "provider-3/qwen-2.5-72b"
+                "provider-3/qwen-2.5-72b",
+                "provider-3/gpt-5-nano"
             ]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
@@ -1043,6 +1044,7 @@ def call_quantora_unified(prompt, context="", image=None):
             st.toast("⚡ Using Quantora V2 Engine...", icon="⚡")
             a4f_v2_models = [
                 "provider-2/gemini-2.5-flash-lite",
+                "provider-1/deepseek-v3.1"
             ]
             for model in a4f_v2_models:
                 futures.append(executor.submit(call_a4f_backend, model))
@@ -1123,7 +1125,7 @@ Guidelines:
 
 Combined Response:"""
     
-    final_response = call_a4f_model(mixing_prompt, "provider-3/deepseek-v3")
+    final_response = call_a4f_model(mixing_prompt, "provider-3/gpt-4o-mini")
     
     # Simulated auto-training: "Learn" by storing response improvements
     if final_response:
