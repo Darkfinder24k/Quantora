@@ -1013,7 +1013,7 @@ def call_quantora_unified(prompt, context="", image=None):
         
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
-            groq_models = ["llama2-70b-4096", "qwen/qwen3-32b"]
+            groq_models = []
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
