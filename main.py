@@ -1033,7 +1033,8 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-1/sonar-reasoning-pro",
                 "provider-2/llama-4-maverick",
                 "provider-3/qwen-2.5-72b",
-                "provider-3/gpt-5-nano"
+                "provider-3/gpt-5-nano",
+                "provider-1/deepseek-v3.1"
             ]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
