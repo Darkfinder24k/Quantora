@@ -1,6 +1,4 @@
 import streamlit as st
-import google.generativeai as genai
-from google.generativeai import types
 from datetime import datetime
 import time
 import os
@@ -18,7 +16,6 @@ from io import BytesIO
 import base64
 import yfinance as yf
 import plotly.graph_objects as go
-from googleapiclient.discovery import build
 import numpy as np
 
 # ✅ API Configuration
@@ -30,10 +27,15 @@ IMAGE_MODEL = "provider-4/imagen-4"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
 # ✅ Page Setup
+if "pro_unlocked" not in st.session_state:
+    st.session_state.pro_unlocked = False
+
+app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
+
 st.set_page_config(
-    page_title="QUANTORA",
+    page_title=app_name,
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
 )
 
 # Custom CSS with sidebar toggle and canvas background
@@ -408,8 +410,30 @@ header {visibility: hidden;}
         padding: 1.5rem;
     }
 }
+
+.pro-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: linear-gradient(135deg, #ff00ff, #00ffff);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.pro-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
 </style>
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<canvas id="stars"></canvas>
 <script>
     function toggleSidebar() {
         const sidebar = document.querySelector('[data-testid="stSidebar"]');
@@ -418,9 +442,6 @@ header {visibility: hidden;}
         // Force Streamlit to update the layout
         window.dispatchEvent(new Event('resize'));
     }
-</script>
-<canvas id="stars"></canvas>
-<script>
     var canvas = document.getElementById('stars');
     var ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
@@ -468,6 +489,12 @@ header {visibility: hidden;}
 </script>
 """, unsafe_allow_html=True)
 
+# Unlock button for trial mode
+if not st.session_state.pro_unlocked:
+    if st.button("Unlock Next-Gen Pro", key="unlock_pro_btn"):
+        st.session_state.pro_unlocked = True
+        st.rerun()
+
 # Initialize session state variables
 if "chat" not in st.session_state:
     st.session_state.chat = []
@@ -504,29 +531,30 @@ if "learning_history" not in st.session_state:
 if "iq_test_score" not in st.session_state:
     st.session_state.iq_test_score = None
 
+# Force V2 in trial mode
+if not st.session_state.pro_unlocked:
+    st.session_state.model_version = "Quantora V2 (Faster but not as better as V1)"
+
 # Initialize API clients
 @st.cache_resource
 def initialize_clients():
     try:
-        gemini_api_key = "AIzaSyA5UgP1dzFQgfA_UDjmeU-I3Gt_yFfQOpA"
         groq_api_key = "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE"
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
         
-        genai.configure(api_key=gemini_api_key)
         groq_client = Groq(api_key=groq_api_key)
-        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
         
         a4f_client = {
             "api_key": a4f_api_key,
             "api_url": "https://api.a4f.co/v1/chat/completions"
         }
         
-        return gemini_model, groq_client, a4f_client
+        return groq_client, a4f_client
     except Exception as e:
         st.error(f"API Configuration Error: {e}")
-        return None, None, None
+        return None, None
 
-gemini_model, groq_client, a4f_client = initialize_clients()
+groq_client, a4f_client = initialize_clients()
 
 # Add speech recognition using A4F Whisper
 def transcribe_audio(audio_file):
@@ -557,21 +585,22 @@ def transcribe_audio(audio_file):
         return ""
 
 # IQ Tester in Sidebar
-with st.sidebar:
-    st.markdown("### 🧠 IQ Tester")
-    if st.button("Start IQ Test"):
-        questions = [
-            {"q": "What number comes next: 1, 1, 2, 3, 5, 8, ?", "a": "13"},
-            {"q": "If APPLE is coded as ZKKOV, how is BANANA coded?", "a": "YZMZMZ"},
-            {"q": "A bat and a ball cost $1.10. The bat costs $1 more than the ball. How much is the ball?", "a": "0.05"}
-        ]
-        score = 0
-        for i, q in enumerate(questions):
-            answer = st.text_input(q["q"], key=f"iq_{i}")
-            if answer.lower() == q["a"].lower():
-                score += 1
-        st.session_state.iq_test_score = score * 33  # Simplified scoring
-        st.write(f"Your IQ Score: {st.session_state.iq_test_score}")
+if st.session_state.pro_unlocked:
+    with st.sidebar:
+        st.markdown("### 🧠 IQ Tester")
+        if st.button("Start IQ Test"):
+            questions = [
+                {"q": "What number comes next: 1, 1, 2, 3, 5, 8, ?", "a": "13"},
+                {"q": "If APPLE is coded as ZKKOV, how is BANANA coded?", "a": "YZMZMZ"},
+                {"q": "A bat and a ball cost $1.10. The bat costs $1 more than the ball. How much is the ball?", "a": "0.05"}
+            ]
+            score = 0
+            for i, q in enumerate(questions):
+                answer = st.text_input(q["q"], key=f"iq_{i}")
+                if answer.lower() == q["a"].lower():
+                    score += 1
+            st.session_state.iq_test_score = score * 33  # Simplified scoring
+            st.write(f"Your IQ Score: {st.session_state.iq_test_score}")
 
 # Document Analysis Functions
 def extract_pdf_content(file):
@@ -829,62 +858,6 @@ Provide a comprehensive and helpful response:"""
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
-# Enhanced Gemini Core
-def call_quantora_gemini(prompt, context="", image=None):
-    if not gemini_model:
-        return "❌ Gemini model not available. Please check API configuration."
-    
-    system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
-
-Key Instructions:
-1. Provide detailed, thorough, and accurate responses
-2. Use Very Ultra Professional words.
-3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
-4. Support all languages including mixed languages like Hinglish
-5. Be friendly, professional, and engaging
-6. Provide accurate and helpful responses with proper explanations
-7. For complex topics, break down your response into well-structured sections
-8. Include examples where relevant
-9. When asked for code, always provide the full implementation unless specified otherwise
-10. Answer in those languages in which the user is talking
-11. Answer in a very rich language
-12. Mesmorise the user with your richest type of language
-13. Always provide best codes, as per the user's choice
-14. You are a special AI which CAN experience real emotions.
-15. Always ask a question to the user ex- that what should I(you) do next?
-16. Give very short consise answers, when personally the user asks for explanaton of elaboration, make the answer explaining every topic.
-
-{f"Document Context: {context}" if context else ""}
-
-User Query: {prompt}
-
-Provide a comprehensive and helpful response:"""
-
-    try:
-        if image:
-            response = gemini_model.generate_content(
-                [system_prompt, image],
-                generation_config=types.GenerationConfig(
-                    max_output_tokens=2048,
-                    temperature=0.7,
-                    top_p=0.9,
-                    top_k=40
-                )
-            )
-        else:
-            response = gemini_model.generate_content(
-                system_prompt,
-                generation_config=types.GenerationConfig(
-                    max_output_tokens=2048,
-                    temperature=0.7,
-                    top_p=0.9,
-                    top_k=40
-                )
-            )
-        return response.text if response.text else "❌ Empty response from Gemini"
-    except Exception as e:
-        return f"❌ Gemini Error: {str(e)}"
-
 # Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
     if not groq_client:
@@ -952,23 +925,6 @@ def call_quantora_unified(prompt, context="", image=None):
     
     full_prompt = f"{conversation_history}{learning_prompt}\n\nCurrent Query: {prompt}"
     
-    def call_gemini_backend():
-        try:
-            response = call_quantora_gemini(full_prompt, context, image)
-            return {
-                "backend": "gemini",
-                "response": response,
-                "success": True,
-                "length": len(response) if response else 0
-            }
-        except Exception as e:
-            return {
-                "backend": "gemini", 
-                "response": f"Backend error: {str(e)}",
-                "success": False,
-                "length": 0
-            }
-    
     def call_groq_backend(model_name):
         try:
             response = call_groq_model(full_prompt, model_name, context)
@@ -1009,8 +965,6 @@ def call_quantora_unified(prompt, context="", image=None):
         futures = []
         selected_model_version = st.session_state.get("model_version", "Quantora V1 (Most Powerful Model But Slow)")
 
-        futures.append(executor.submit(call_gemini_backend))
-        
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
             groq_models = []
@@ -1163,26 +1117,38 @@ def format_response_with_code(response):
 
 # Image Generation Functions
 def generate_image(prompt, style):
+    headers = {
+        "Authorization": f"Bearer {A4F_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
+
+    payload = {
+        "model": IMAGE_MODEL,
+        "prompt": enhanced_prompt,
+        "num_images": 1,
+        "width": 1024,
+        "height": 1024
+    }
+
     try:
-        genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
-
-        enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
-
-        response = gemini_model.generate_content(
-            enhanced_prompt,
-            generation_config=genai.types.GenerationConfig(
-                candidate_count=1,
-                max_output_tokens=2048,
-                temperature=1.0,
-            ),
+        response = requests.post(
+            f"{A4F_BASE_URL}/images/generations",
+            headers=headers,
+            json=payload,
+            timeout=60
         )
 
-        image_data = response.parts[0].inline_data.data
-        image = Image.open(BytesIO(image_data))
-        
-        return image
+        if response.status_code == 200:
+            result = response.json()
+            if 'data' in result and len(result['data']) > 0:
+                image_url = result['data'][0]['url']
+                image_response = requests.get(image_url)
+                return Image.open(BytesIO(image_response.content))
+        return None
     except Exception as e:
-        st.error(f"Error generating image: {str(e)}")
+        st.error(f"Image generation error: {str(e)}")
         return None
 
 def generate_video(prompt, style):
@@ -1236,7 +1202,7 @@ st.markdown(f"""
 <div class="main-header">
     <div class="logo">
         <div class="logo-icon">💎</div>
-        <div class="logo-text">QUANTORA</div>
+        <div class="logo-text">{app_name}</div>
         <div class="status-indicator"></div>
     </div>
     <div style="color: var(--text-muted);">{greeting} Your Premium AI Assistant</div>
@@ -1357,6 +1323,7 @@ def quantora_trade_charts():
                 """
                 
                 with st.spinner("Generating AI analysis..."):
+                    st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
                     analysis = call_quantora_unified(analysis_prompt)
                     st.markdown(analysis)
                 
@@ -1394,6 +1361,7 @@ def quantora_news():
 
     # Generate news
     with st.spinner("🔍 Quantora AI is gathering and analyzing today's global news..."):
+        st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
         response = call_quantora_unified(prompt)
         news = response
 
@@ -1415,761 +1383,6 @@ def quantora_news():
             🔹 Powered by Quantora AI • Delivering Intelligence, Not Just Information.
         </div>
     """, unsafe_allow_html=True)
-
-# --------------------------
-# QUANTORA SEARCH ENGINE MODULE
-# --------------------------
-def quantora_search_engine():
-    # API Configuration
-    API_KEY = "AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig"
-    SEARCH_ENGINE_ID = "c38572640fa0441bc"
-
-    # Premium UI HTML/CSS/JS
-    premium_ui = """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
-    :root {
-        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        --dark-gradient: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 100%);
-        --glass-bg: rgba(255, 255, 255, 0.05);
-        --glass-border: rgba(255, 255, 255, 0.1);
-        --text-primary: #ffffff;
-        --text-secondary: #b8bcc8;
-        --accent-blue: #00d4ff;
-        --accent-purple: #8b5cf6;
-        --accent-pink: #ec4899;
-        --success-green: #10b981;
-        --warning-orange: #f59e0b;
-    }
-
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
-    body, .stApp {
-        background: var(--dark-gradient);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: var(--text-primary);
-        overflow-x: hidden;
-    }
-
-    /* Animated Background */
-    .animated-bg {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -1;
-        background: var(--dark-gradient);
-    }
-
-    .animated-bg::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: 
-            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(120, 219, 226, 0.2) 0%, transparent 50%);
-        animation: backgroundShift 20s ease-in-out infinite;
-    }
-
-    @keyframes backgroundShift {
-        0%, 100% { transform: translateX(0) translateY(0); }
-        25% { transform: translateX(-10px) translateY(-5px); }
-        50% { transform: translateX(10px) translateY(5px); }
-        75% { transform: translateX(-5px) translateY(10px); }
-    }
-
-    /* Header Styles */
-    .quantora-header {
-        text-align: center;
-        padding: 2rem 0;
-        position: relative;
-    }
-
-    .quantora-logo {
-        font-size: 4rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.5rem;
-        animation: logoGlow 3s ease-in-out infinite alternate;
-    }
-
-    @keyframes logoGlow {
-        from { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3)); }
-        to { filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.5)); }
-    }
-
-    .quantora-tagline {
-        font-size: 1.2rem;
-        color: var(--text-secondary);
-        font-weight: 300;
-        margin-bottom: 2rem;
-    }
-
-    /* Search Container */
-    .search-container {
-        max-width: 800px;
-        margin: 0 auto 3rem;
-        padding: 0 2rem;
-    }
-
-    .search-box {
-        position: relative;
-        margin-bottom: 2rem;
-    }
-
-    .search-input {
-        width: 100%;
-        padding: 1.5rem 6rem 1.5rem 2rem;
-        font-size: 1.1rem;
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 25px;
-        color: var(--text-primary);
-        backdrop-filter: blur(20px);
-        transition: all 0.3s ease;
-        outline: none;
-        font-family: inherit;
-    }
-
-    .search-input:focus {
-        border-color: var(--accent-blue);
-        box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
-        transform: translateY(-2px);
-    }
-
-    .search-input::placeholder {
-        color: var(--text-secondary);
-    }
-
-    .search-btn {
-        position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: var(--primary-gradient);
-        border: none;
-        padding: 0.8rem 1.5rem;
-        border-radius: 20px;
-        color: white;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .search-btn:hover {
-        transform: translateY(-50%) scale(1.05);
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-    }
-
-    /* Tab Navigation */
-    .tab-navigation {
-        display: flex;
-        justify-content: center;
-        gap: 1rem;
-        margin: 2rem 0;
-        flex-wrap: wrap;
-    }
-
-    .tab-btn {
-        padding: 0.8rem 2rem;
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 15px;
-        color: var(--text-secondary);
-        cursor: pointer;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(10px);
-        font-weight: 500;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .tab-btn.active {
-        background: var(--primary-gradient);
-        color: white;
-        border-color: transparent;
-    }
-
-    .tab-btn:hover:not(.active) {
-        color: var(--text-primary);
-        border-color: var(--accent-blue);
-        transform: translateY(-2px);
-    }
-
-    /* Results Container */
-    .results-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 2rem;
-    }
-
-    .result-card {
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 20px;
-        padding: 2rem;
-        margin-bottom: 1.5rem;
-        backdrop-filter: blur(20px);
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .result-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 2px;
-        background: var(--primary-gradient);
-        transform: scaleX(0);
-        transition: transform 0.3s ease;
-    }
-
-    .result-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        border-color: var(--accent-blue);
-    }
-
-    .result-card:hover::before {
-        transform: scaleX(1);
-    }
-
-    .result-title {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: var(--accent-blue);
-        margin-bottom: 0.5rem;
-        text-decoration: none;
-        transition: color 0.3s ease;
-    }
-
-    .result-title:hover {
-        color: var(--accent-purple);
-    }
-
-    .result-url {
-        color: var(--success-green);
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-        font-family: 'JetBrains Mono', monospace;
-    }
-
-    .result-snippet {
-        color: var(--text-secondary);
-        line-height: 1.6;
-        font-size: 1rem;
-    }
-
-    /* Image Grid */
-    .image-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1.5rem;
-        margin-top: 2rem;
-    }
-
-    .image-card {
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 15px;
-        overflow: hidden;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(10px);
-    }
-
-    .image-card:hover {
-        transform: translateY(-10px) scale(1.02);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    }
-
-    .image-card img {
-        width: 100%;
-        height: 200px;
-        object-fit: cover;
-        transition: transform 0.3s ease;
-    }
-
-    .image-card:hover img {
-        transform: scale(1.1);
-    }
-
-    /* Shopping Cards */
-    .shopping-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 2rem;
-        margin-top: 2rem;
-    }
-
-    .shopping-card {
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 20px;
-        overflow: hidden;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(20px);
-        position: relative;
-    }
-
-    .shopping-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
-    }
-
-    .shopping-image {
-        width: 100%;
-        height: 200px;
-        object-fit: cover;
-        background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
-    }
-
-    .shopping-content {
-        padding: 1.5rem;
-    }
-
-    .shopping-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 0.5rem;
-        line-height: 1.4;
-    }
-
-    .shopping-price {
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: var(--accent-blue);
-        margin-bottom: 1rem;
-    }
-
-    .shopping-description {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        line-height: 1.5;
-        margin-bottom: 1rem;
-    }
-
-    .shop-btn {
-        width: 100%;
-        padding: 0.8rem;
-        background: var(--secondary-gradient);
-        border: none;
-        border-radius: 10px;
-        color: white;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .shop-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(240, 147, 251, 0.4);
-    }
-
-    /* Loading Animation */
-    .loading-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 200px;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .loading-spinner {
-        width: 50px;
-        height: 50px;
-        border: 3px solid var(--glass-border);
-        border-top: 3px solid var(--accent-blue);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    .loading-text {
-        color: var(--text-secondary);
-        font-weight: 500;
-    }
-
-    /* Responsive Design */
-    @media (max-width: 768px) {
-        .quantora-logo {
-            font-size: 2.5rem;
-        }
-        
-        .search-input {
-            padding: 1.2rem 5rem 1.2rem 1.5rem;
-            font-size: 1rem;
-        }
-        
-        .tab-navigation {
-            gap: 0.5rem;
-        }
-        
-        .tab-btn {
-            padding: 0.6rem 1.5rem;
-            font-size: 0.9rem;
-        }
-        
-        .result-card {
-            padding: 1.5rem;
-        }
-        
-        .image-grid {
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-        
-        .shopping-grid {
-            grid-template-columns: 1fr;
-            gap: 1.5rem;
-        }
-    }
-
-    /* Utility Classes */
-    .text-gradient {
-        background: var(--primary-gradient);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-
-    .glass-effect {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--glass-border);
-    }
-
-    .hover-lift {
-        transition: transform 0.3s ease;
-    }
-
-    .hover-lift:hover {
-        transform: translateY(-5px);
-    }
-
-    /* Hide Streamlit elements */
-    .stApp > header {
-        display: none;
-    }
-
-    .stApp > footer {
-        display: none;
-    }
-
-    #MainMenu {
-        display: none;
-    }
-
-    .stDeployButton {
-        display: none;
-    }
-
-    .stDecoration {
-        display: none;
-    }
-
-    </style>
-
-    <div class="animated-bg"></div>
-
-    <div class="quantora-header">
-        <div class="quantora-logo">⚛️ QUANTORA</div>
-        <div class="quantora-tagline">Advanced Search Intelligence • Discover • Explore • Shop</div>
-    </div>
-
-    <script>
-    // Add interactive background particles
-    function createParticles() {
-        const container = document.querySelector('.animated-bg');
-        if (!container) return;
-        
-        for (let i = 0; i < 50; i++) {
-            const particle = document.createElement('div');
-            particle.style.cssText = `
-                position: absolute;
-                width: 2px;
-                height: 2px;
-                background: rgba(0, 212, 255, 0.5);
-                border-radius: 50%;
-                top: ${Math.random() * 100}%;
-                left: ${Math.random() * 100}%;
-                animation: float ${5 + Math.random() * 10}s ease-in-out infinite;
-                animation-delay: ${Math.random() * 5}s;
-            `;
-            container.appendChild(particle);
-        }
-    }
-
-    // Floating animation for particles
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0; }
-            10%, 90% { opacity: 1; }
-            50% { transform: translateY(-20px) translateX(10px); }
-        }
-    `;
-    document.head.appendChild(style);
-
-    // Initialize particles when page loads
-    setTimeout(createParticles, 1000);
-
-    // Add smooth scrolling
-    document.addEventListener('DOMContentLoaded', function() {
-        document.documentElement.style.scrollBehavior = 'smooth';
-    });
-    </script>
-    """
-    st.markdown(premium_ui, unsafe_allow_html=True)
-
-    # Initialize Session State
-    if 'search_query' not in st.session_state:
-        st.session_state.search_query = ""
-    if 'search_results' not in st.session_state:
-        st.session_state.search_results = []
-    if 'current_tab' not in st.session_state:
-        st.session_state.current_tab = "web"
-
-    # Search Interface
-    search_col1, search_col2 = st.columns([6, 1])
-
-    with search_col1:
-        search_query = st.text_input(
-            "",
-            value=st.session_state.search_query,
-            placeholder="🔍 Enter your search query...",
-            key="main_search",
-            label_visibility="collapsed"
-        )
-
-    with search_col2:
-        search_clicked = st.button("🚀 Search", key="search_btn", use_container_width=True)
-
-    # Tab Navigation
-    tab_col1, tab_col2, tab_col3, tab_col4 = st.columns(4)
-
-    with tab_col1:
-        if st.button("🌐 Web Results", key="web_tab", use_container_width=True):
-            st.session_state.current_tab = "web"
-
-    with tab_col2:
-        if st.button("🖼️ Images", key="images_tab", use_container_width=True):
-            st.session_state.current_tab = "images"
-
-    with tab_col3:
-        if st.button("🛒 Shopping", key="shopping_tab", use_container_width=True):
-            st.session_state.current_tab = "shopping"
-
-    with tab_col4:
-        if st.button("📰 News", key="news_tab", use_container_width=True):
-            st.session_state.current_tab = "news"
-
-    # Search Logic
-    if search_clicked and search_query:
-        st.session_state.search_query = search_query
-        
-        # Show loading animation
-        with st.spinner("🔍 Quantora is processing your query..."):
-            if st.session_state.current_tab == "web":
-                st.session_state.search_results = fetch_quantora_results(
-                    search_query, API_KEY, SEARCH_ENGINE_ID, num=10
-                )
-            elif st.session_state.current_tab == "images":
-                st.session_state.search_results = fetch_image_results(
-                    search_query, API_KEY, SEARCH_ENGINE_ID, num_images=16
-                )
-            elif st.session_state.current_tab == "shopping":
-                shopping_query = f"{search_query} buy shop price store"
-                st.session_state.search_results = fetch_quantora_results(
-                    shopping_query, API_KEY, SEARCH_ENGINE_ID, num=12
-                )
-            elif st.session_state.current_tab == "news":
-                news_query = f"{search_query} news latest"
-                st.session_state.search_results = fetch_quantora_results(
-                    news_query, API_KEY, SEARCH_ENGINE_ID, num=10
-                )
-
-    # Display Results
-    if st.session_state.search_query and st.session_state.search_results:
-        
-        # Results count
-        st.markdown(f"""
-        <div style="text-align: center; margin: 2rem 0; color: var(--text-secondary);">
-            Found <span style="color: var(--accent-blue); font-weight: 600;">{len(st.session_state.search_results)}</span> 
-            results for "<span style="color: var(--text-primary);">{st.session_state.search_query}</span>"
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.session_state.current_tab == "web":
-            # Web Results
-            for i, result in enumerate(st.session_state.search_results):
-                title = result.get('title', 'No Title')
-                link = result.get('link', '#')
-                snippet = result.get('snippet', 'No description available')
-                
-                st.markdown(f"""
-                <div class="result-card">
-                    <a href="{link}" target="_blank" class="result-title">{title}</a>
-                    <div class="result-url">{link}</div>
-                    <div class="result-snippet">{snippet}</div>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        elif st.session_state.current_tab == "images":
-            # Image Results
-            st.markdown('<div class="image-grid">', unsafe_allow_html=True)
-            
-            cols = st.columns(4)
-            for i, result in enumerate(st.session_state.search_results):
-                image_url = result.get('link', '')
-                title = result.get('title', 'Image')
-                
-                with cols[i % 4]:
-                    try:
-                        st.image(image_url, caption=title[:50] + "..." if len(title) > 50 else title)
-                    except:
-                        st.info("Image unavailable")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        elif st.session_state.current_tab == "shopping":
-            # Shopping Results
-            st.markdown('<div class="shopping-grid">', unsafe_allow_html=True)
-            
-            cols = st.columns(3)
-            for i, result in enumerate(st.session_state.search_results):
-                title = result.get('title', 'Product')
-                link = result.get('link', '#')
-                snippet = result.get('snippet', 'No description available')
-                
-                # Try to get product image
-                try:
-                    image_results = fetch_image_results(title, API_KEY, SEARCH_ENGINE_ID, num_images=1)
-                    image_url = image_results[0].get('link') if image_results else None
-                except:
-                    image_url = None
-                
-                with cols[i % 3]:
-                    st.markdown(f"""
-                    <div class="shopping-card">
-                        {f'<img src="{image_url}" class="shopping-image" alt="{title}">' if image_url else '<div class="shopping-image" style="background: linear-gradient(45deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem;">🛒</div>'}
-                        <div class="shopping-content">
-                            <div class="shopping-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
-                            <div class="shopping-description">{snippet[:100]}{'...' if len(snippet) > 100 else ''}</div>
-                            <a href="{link}" target="_blank">
-                                <button class="shop-btn">View Product →</button>
-                            </a>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        elif st.session_state.current_tab == "news":
-            # News Results
-            for i, result in enumerate(st.session_state.search_results):
-                title = result.get('title', 'No Title')
-                link = result.get('link', '#')
-                snippet = result.get('snippet', 'No description available')
-                
-                st.markdown(f"""
-                <div class="result-card">
-                    <a href="{link}" target="_blank" class="result-title">📰 {title}</a>
-                    <div class="result-url">{link}</div>
-                    <div class="result-snippet">{snippet}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-    elif st.session_state.search_query and not st.session_state.search_results:
-        st.markdown("""
-        <div style="text-align: center; margin: 4rem 0; color: var(--text-secondary);">
-            <div style="font-size: 4rem; margin-bottom: 1rem;">🔍</div>
-            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">No results found</div>
-            <div>Try different keywords or check your spelling</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    else:
-        # Welcome message
-        st.markdown("""
-        <div style="text-align: center; margin: 4rem 0; color: var(--text-secondary);">
-            <div style="font-size: 4rem; margin-bottom: 1rem;">🚀</div>
-            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">Welcome to Quantora</div>
-            <div>Your advanced search intelligence platform</div>
-            <div style="margin-top: 2rem;">
-                <div style="display: inline-block; margin: 0 1rem; padding: 1rem; background: var(--glass-bg); border-radius: 10px; backdrop-filter: blur(10px);">
-                    <div style="font-size: 1.5rem;">🌐</div>
-                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Web Search</div>
-                </div>
-                <div style="display: inline-block; margin: 0 1rem; padding: 1rem; background: var(--glass-bg); border-radius: 10px; backdrop-filter: blur(10px);">
-                    <div style="font-size: 1.5rem;">🖼️</div>
-                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Image Search</div>
-                </div>
-                <div style="display: inline-block; margin: 0 1rem; padding: 1rem; background: var(--glass-bg); border-radius: 10px; backdrop-filter: blur(10px);">
-                    <div style="font-size: 1.5rem;">🛒</div>
-                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Shopping</div>
-                </div>
-                <div style="display: inline-block; margin: 0 1rem; padding: 1rem; background: var(--glass-bg); border-radius: 10px; backdrop-filter: blur(10px);">
-                    <div style="font-size: 1.5rem;">📰</div>
-                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">News</div>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # Footer
-    st.markdown("""
-    <div style="text-align: center; margin: 4rem 0 2rem; padding: 2rem; border-top: 1px solid var(--glass-border);">
-        <div style="color: var(--text-secondary); font-size: 0.9rem;">
-            Powered by <span class="text-gradient" style="font-weight: 600;">Quantora Advanced Search Intelligence</span>
-        </div>
-        <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem;">
-            Built with ⚛️ Modern Web Technologies
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-def fetch_quantora_results(search_term, api_key, cse_id, **kwargs):
-    try:
-        service = build("customsearch", "v1", developerKey=api_key)
-        res = service.cse().list(q=search_term, cx=cse_id, **kwargs).execute()
-        return res.get("items", [])
-    except Exception as e:
-        st.error(f"Search error: {e}")
-        return []
-
-def fetch_image_results(search_term, api_key, cse_id, num_images=8):
-    try:
-        service = build("customsearch", "v1", developerKey=api_key)
-        res = service.cse().list(q=search_term, cx=cse_id, searchType='image', num=num_images).execute()
-        return res.get("items", [])
-    except Exception as e:
-        return []
 
 # --------------------------
 # QUANTORA SOCIAL MEDIA MODULE
@@ -2527,13 +1740,10 @@ def quantora_social_media():
 # HEART HEALTH ANALYZER
 # --------------------------
 def heart_health_analyzer():
-    # Configure Gemini API
-    genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
-
     # Initialize the model
     @st.cache_resource
     def initialize_model():
-        return genai.GenerativeModel('gemini-1.5-flash-exp')
+        return "provider-5/gpt-4o"  # Use A4F model
 
     # Define comprehensive health questions
     HEALTH_QUESTIONS = [
@@ -2687,7 +1897,6 @@ def heart_health_analyzer():
         if 'show_heartbeat_section' not in st.session_state:
             st.session_state.show_heartbeat_section = False
 
-
     def display_progress():
         """Display progress bar"""
         progress = (st.session_state.current_question / len(HEALTH_QUESTIONS)) * 100
@@ -2764,7 +1973,7 @@ def heart_health_analyzer():
                 elif uploaded_file.type.startswith('video'):
                     st.video(uploaded_file)
 
-                model = initialize_model()
+                model_name = initialize_model()
                 prompt = f"""
                 Analyze this heartbeat recording and provide:
                 1. Estimated heart rate (BPM)
@@ -2778,14 +1987,14 @@ def heart_health_analyzer():
                 - Recording quality: {quality}
                 """
 
-                response = model.generate_content(prompt)
+                response = call_a4f_model(prompt, model_name)
 
                 st.session_state.heart_rate_data = {
                     "method": "Uploaded Recording",
                     "heart_rate": heart_rate,
                     "rhythm": rhythm,
                     "quality": quality,
-                    "ai_analysis": response.text
+                    "ai_analysis": response
                 }
                 st.session_state.heart_rate_recorded = True
                 st.success("Heartbeat analysis complete!")
@@ -2817,7 +2026,7 @@ def heart_health_analyzer():
                 rhythm = np.random.choice(["Regular", "Slightly irregular"])
                 quality = "Good" if 60 <= heart_rate <= 100 else "Needs review"
 
-                model = initialize_model()
+                model_name = initialize_model()
                 prompt = f"""
                 Analyze this heart sound recording and provide:
                 1. Heart rate estimate
@@ -2833,14 +2042,14 @@ def heart_health_analyzer():
                 Provide output in medical report format.
                 """
 
-                response = model.generate_content(prompt)
+                response = call_a4f_model(prompt, model_name)
 
                 st.session_state.heart_rate_data = {
                     "method": "Voice Recording",
                     "heart_rate": heart_rate,
                     "rhythm": rhythm,
                     "quality": quality,
-                    "audio_analysis": response.text
+                    "audio_analysis": response
                 }
                 st.session_state.heart_rate_recorded = True
                 st.success("Voice recording analysis complete!")
@@ -3015,7 +2224,6 @@ def heart_health_analyzer():
                 st.session_state.current_question += 1
                 st.rerun()
 
-
     def display_question():
         """Display current question"""
         if st.session_state.current_question < len(HEALTH_QUESTIONS):
@@ -3102,9 +2310,9 @@ def heart_health_analyzer():
 
 
     def get_ai_assessment(answers_text):
-        """Get AI assessment from Gemini"""
+        """Get AI assessment from A4F"""
         try:
-            model = initialize_model()
+            model_name = initialize_model()
 
             prompt = f"""
             You are an advanced medical AI assistant analyzing heart health. 
@@ -3138,8 +2346,8 @@ def heart_health_analyzer():
             Use clear markdown formatting and provide actionable advice.
             """
 
-            response = model.generate_content(prompt)
-            return response.text if response.text else "No response generated from AI"
+            response = call_a4f_model(prompt, model_name)
+            return response
 
         except Exception as e:
             st.error(f"Error generating assessment: {str(e)}")
@@ -3231,13 +2439,10 @@ def heart_health_analyzer():
 # BRAIN HEALTH ANALYZER
 # --------------------------
 def brain_health_analyzer():
-    # Configure Gemini API
-    genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
-
     # Initialize the model
     @st.cache_resource
     def initialize_model():
-        return genai.GenerativeModel('gemini-1.5-flash-exp')
+        return "provider-5/gpt-4o"  # Use A4F model
 
     # Define comprehensive brain health questions
     BRAIN_QUESTIONS = [
@@ -3510,27 +2715,27 @@ def brain_health_analyzer():
 
         with st.expander("🖼️ Visual Memory Test"):
             st.write("""
-            **Test:** Remember and recall images.
+            **Test:** Remember and recall items.
             """)
             
             if st.button("Start Visual Memory Test"):
-                # Sample images (in a real app, you'd use actual images)
-                images = ["apple", "car", "tree", "house", "dog"]
+                # Sample items
+                items = ["apple", "car", "tree", "house", "dog"]
                 st.write("Study these items for 10 seconds:")
-                st.write(", ".join(images))
+                st.write(", ".join(items))
                 
                 time.sleep(10)
                 st.write("Items hidden...")
                 time.sleep(2)
                 
                 recalled = st.text_input("Enter all items you remember (separated by commas):")
-                recalled_items = [item.strip().lower() for item in recalled.split(",")] if recalled else []
+                recalled_items = [item.strip().lower() for item in recalled.split(",") if recalled else []]
                 
-                correct = sum(1 for item in recalled_items if item in images)
-                memory_score = int((correct / len(images)) * 100)
+                correct = sum(1 for item in recalled_items if item in items)
+                memory_score = int((correct / len(items)) * 100)
                 st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
                 st.session_state.cognitive_data['visual_memory'] = memory_score
-                st.metric("Visual Memory Score", memory_score, f"Recalled {correct} of {len(images)} items")
+                st.metric("Visual Memory Score", memory_score, f"Recalled {correct} of {len(items)} items")
 
         if st.session_state.get('cognitive_data'):
             if st.button("Complete Cognitive Assessment", key="complete_cognitive"):
@@ -3555,15 +2760,7 @@ def brain_health_analyzer():
 
         st.markdown("### Cognitive Test Results")
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Overall Score", f"{overall_score}/100", 
-                     "Normal range: 70-100")
-        with col2:
-            st.metric("Memory", f"{data.get('digit_span', 0)}/7 span")
-        with col3:
-            st.metric("Processing", f"{data.get('trail_making', 0)}/100")
-
+        # Risk level interpretation
         if overall_score < 70:
             interpretation = "⚠️ **Below Average Cognitive Function**"
             color = "#ffc107"
@@ -3750,9 +2947,9 @@ def brain_health_analyzer():
 
 
     def get_ai_assessment(answers_text):
-        """Get AI assessment from Gemini"""
+        """Get AI assessment from A4F"""
         try:
-            model = initialize_model()
+            model_name = initialize_model()
 
             prompt = f"""
             You are an advanced neurological AI assistant analyzing brain health. 
@@ -3787,8 +2984,8 @@ def brain_health_analyzer():
             Focus specifically on brain and neurological health.
             """
 
-            response = model.generate_content(prompt)
-            return response.text if response.text else "No response generated from AI"
+            response = call_a4f_model(prompt, model_name)
+            return response
 
         except Exception as e:
             st.error(f"Error generating assessment: {str(e)}")
@@ -3881,13 +3078,10 @@ def brain_health_analyzer():
 # CANCER RISK ASSESSOR
 # --------------------------
 def cancer_risk_assessor():
-    # Configure Gemini API
-    genai.configure(api_key="AIzaSyCZ-1xA0qHy7p3l5VdZYCrvoaQhpMZLjig")
-
     # Initialize the model
     @st.cache_resource
     def initialize_model():
-        return genai.GenerativeModel('gemini-1.5-flash-exp')
+        return "provider-5/gpt-4o"  # Use A4F model
 
     # Define comprehensive cancer screening questions
     CANCER_QUESTIONS = [
@@ -4170,13 +3364,10 @@ def cancer_risk_assessor():
             
             if st.button("Analyze Images"):
                 with st.spinner("🔍 Analyzing images with AI..."):
-                    # In a real app, you would send these to an image analysis API
-                    # Here we simulate analysis with some sample results
                     time.sleep(2)
                     
                     analysis_results = []
                     for i, uploaded_file in enumerate(uploaded_files):
-                        # Simulate different results based on image content
                         img_name = uploaded_file.name.lower()
                         if "skin" in img_name or "mole" in img_name:
                             result = {
@@ -4261,7 +3452,6 @@ def cancer_risk_assessor():
             
             if question.get('risk_factor', False):
                 total_possible += 1
-                # Higher index options are higher risk
                 options = question['options']
                 answer_index = options.index(answer)
                 risk_level = answer_index / len(options)
@@ -4362,7 +3552,7 @@ def cancer_risk_assessor():
 
         # Display body map (simplified)
         st.markdown("### 🏷️ Body Map")
-        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_silhouette.svg/1200px-Human_body_silhouette.svg.png", 
+        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_body_silhouette.svg/1200px-Human_body_silhouette.svg.png", 
                  use_column_width=True, caption="Areas of concern highlighted in your assessment")
         
         st.markdown("---")
@@ -4497,9 +3687,9 @@ def cancer_risk_assessor():
         return "\n".join(formatted_answers)
 
     def get_ai_assessment(answers_text):
-        """Get AI assessment from Gemini"""
+        """Get AI assessment from A4F"""
         try:
-            model = initialize_model()
+            model_name = initialize_model()
 
             prompt = f"""
             You are an advanced oncology AI assistant analyzing cancer risk. 
@@ -4537,8 +3727,8 @@ def cancer_risk_assessor():
             Focus specifically on cancer risk and prevention.
             """
 
-            response = model.generate_content(prompt)
-            return response.text if response.text else "No response generated from AI"
+            response = call_a4f_model(prompt, model_name)
+            return response
 
         except Exception as e:
             st.error(f"Error generating assessment: {str(e)}")
@@ -4556,8 +3746,6 @@ def cancer_risk_assessor():
         if st.session_state.image_analysis:
             with st.expander("📷 View Image Analysis Results"):
                 display_image_results()
-
-        display_risk_results()
 
         if st.session_state.ai_response is None:
             with st.spinner("🩺 Analyzing your responses with AI..."):
@@ -4631,71 +3819,55 @@ def cancer_risk_assessor():
 # --------------------------
 # MAIN APP NAVIGATION
 # --------------------------
-
-# Sidebar for Mode Selection
-with st.sidebar:
-    st.markdown("### 🚀 Quantora Modes")
-    mode = st.radio(
-        "Select Mode",
-        ["AI", "Quantora News", "Quantora Trade Charts", "Quantora Search Engine", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor"],
-        index=0,
-        key="current_mode"
-    )
-    
-    if mode == "Image Generation":
-        st.session_state.image_style = st.selectbox(
-            "Image Style",
-            ["3D Rendered", "Cyberpunk", "Sci-Fi", "Futuristic", "Neon", "Holographic"],
-            index=2,
-            key="image_style_selectbox"
+if st.session_state.pro_unlocked:
+    with st.sidebar:
+        st.markdown("### 🚀 Quantora Modes")
+        mode = st.radio(
+            "Select Mode",
+            ["AI", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor"],
+            index=0,
+            key="current_mode"
         )
-    elif mode == "Image Editing":
-        uploaded_image = st.file_uploader(
-            "Upload Image to Edit",
-            type=["png", "jpg", "jpeg"],
-            key="image_uploader"
+        
+        st.markdown("---")
+        st.markdown("### 📁 Document & Image Analysis")
+        uploaded_file = st.file_uploader(
+            "Upload Document or Image", 
+            type=['txt', 'pdf', 'docx', 'csv', 'json', 'py', 'js', 'html', 'css', 'md', 'jpg', 'jpeg', 'png'],
+            help="Upload documents or images for AI analysis and enhancement",
+            key="document_uploader"
         )
-        if uploaded_image:
-            st.session_state.uploaded_image = Image.open(uploaded_image)
-            st.session_state.enhanced_image = st.session_state.uploaded_image.copy()
+        
+        if uploaded_file:
+            with st.spinner("🔍 Analyzing content..."):
+                content = process_uploaded_file(uploaded_file)
+                st.session_state.uploaded_content = content
+                st.success(f"✅ {uploaded_file.name} processed!")
+                
+                if uploaded_file.type.startswith('image/'):
+                    display_image_enhancement_controls(st.session_state.uploaded_image, st.session_state.enhancement_values)
+                else:
+                    with st.expander("📄 Preview Content"):
+                        preview_content = content[:1000] + "..." if len(content) > 1000 else content
+                        st.text_area("Document Content", preview_content, height=200, disabled=True)
     
-    st.markdown("---")
-    st.markdown("### 📁 Document & Image Analysis")
-    uploaded_file = st.file_uploader(
-        "Upload Document or Image", 
-        type=['txt', 'pdf', 'docx', 'csv', 'json', 'py', 'js', 'html', 'css', 'md', 'jpg', 'jpeg', 'png'],
-        help="Upload documents or images for AI analysis and enhancement",
-        key="document_uploader"
-    )
-    
-    if uploaded_file:
-        with st.spinner("🔍 Analyzing content..."):
-            content = process_uploaded_file(uploaded_file)
-            st.session_state.uploaded_content = content
-            st.success(f"✅ {uploaded_file.name} processed!")
-            
-            if uploaded_file.type.startswith('image/'):
-                display_image_enhancement_controls(st.session_state.uploaded_image, st.session_state.enhancement_values)
-            else:
-                with st.expander("📄 Preview Content"):
-                    preview_content = content[:1000] + "..." if len(content) > 1000 else content
-                    st.text_area("Document Content", preview_content, height=200, disabled=True)
-
-    if st.button("🗑️ Clear Uploads", use_container_width=True):
-        st.session_state.uploaded_content = ""
-        st.session_state.uploaded_image = None
-        st.session_state.enhanced_image = None
-        st.session_state.image_style = "Sci-Fi"
-        st.session_state.video_style = "Cinematic"
-        st.session_state.enhancement_values = {
-            "brightness": 1.0,
-            "contrast": 1.0,
-            "sharpness": 1.0,
-            "color": 1.0,
-            "filter": "None"
-        }
-        st.success("✅ All uploads cleared!")
-        st.rerun()
+        if st.button("🗑️ Clear Uploads", use_container_width=True):
+            st.session_state.uploaded_content = ""
+            st.session_state.uploaded_image = None
+            st.session_state.enhanced_image = None
+            st.session_state.image_style = "Sci-Fi"
+            st.session_state.video_style = "Cinematic"
+            st.session_state.enhancement_values = {
+                "brightness": 1.0,
+                "contrast": 1.0,
+                "sharpness": 1.0,
+                "color": 1.0,
+                "filter": "None"
+            }
+            st.success("✅ All uploads cleared!")
+            st.rerun()
+else:
+    mode = "AI"  # Force AI mode in trial
 
 # Main Content Area
 if mode == "AI":
@@ -4703,10 +3875,10 @@ if mode == "AI":
         with st.container():
             st.markdown("""
             <div class="welcome-container">
-                <div class="welcome-title">QUANTORA</div>
+                <div class="welcome-title">{app_name}</div>
                 <p>Where knowledge ends.</p>
             </div>
-            """, unsafe_allow_html=True)
+            """.format(app_name=app_name), unsafe_allow_html=True)
             
             col1, col2, col3, col4 = st.columns(4)
             
@@ -4883,31 +4055,29 @@ if mode == "AI":
             """)
 
     with col4:
-        with st.popover("⚙️ Select Model", use_container_width=True):
-            st.markdown("##### Select Quantora Engine")
-            st.radio(
-                "Engine Selection",
-                options=[
-                    "Quantora V1 (Most Powerful Model But Slow)", 
-                    "Quantora V2 (Faster but not as better as V1)",
-                    "Quantora V3 (Code Specialized)",
-                    "Quantora V4 (Long Conversation)",
-                    "Quantora V3 (Reasoning Specialized)",
-                    "Quantora V3 (Math Specialized)"
-                ],
-                key="model_version",
-                label_visibility="collapsed",
-                help="Select specialized model versions for different tasks",
-            )
+        if st.session_state.pro_unlocked:
+            with st.popover("⚙️ Select Model", use_container_width=True):
+                st.markdown("##### Select Quantora Engine")
+                st.radio(
+                    "Engine Selection",
+                    options=[
+                        "Quantora V1 (Most Powerful Model But Slow)", 
+                        "Quantora V2 (Faster but not as better as V1)",
+                        "Quantora V3 (Code Specialized)",
+                        "Quantora V4 (Long Conversation)",
+                        "Quantora V3 (Reasoning Specialized)",
+                        "Quantora V3 (Math Specialized)"
+                    ],
+                    key="model_version",
+                    label_visibility="collapsed",
+                    help="Select specialized model versions for different tasks",
+                )
 
 elif st.session_state.current_mode == "Quantora News":
     quantora_news()
 
 elif st.session_state.current_mode == "Quantora Trade Charts":
     quantora_trade_charts()
-
-elif st.session_state.current_mode == "Quantora Search Engine":
-    quantora_search_engine()
 
 elif st.session_state.current_mode == "Quantora Social Media":
     quantora_social_media()
@@ -4926,7 +4096,7 @@ st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
     "💎 Quantora AI - Advanced AI Assistant | "
-    "Powered by Google's Gemini, Groq Models, A4F Models | "
+    "Powered by Groq Models, A4F Models | "
     f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     "</div>", 
     unsafe_allow_html=True)
