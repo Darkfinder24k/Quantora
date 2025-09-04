@@ -2729,7 +2729,7 @@ def brain_health_analyzer():
                 time.sleep(2)
                 
                 recalled = st.text_input("Enter all items you remember (separated by commas):")
-                recalled_items = [item.strip().lower() for item in recalled.split(",") if recalled else []]
+                recalled_items = [item.strip().lower() for item in recalled.split(",") if recalled]
                 
                 correct = sum(1 for item in recalled_items if item in items)
                 memory_score = int((correct / len(items)) * 100)
