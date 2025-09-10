@@ -26,6 +26,22 @@ A4F_BASE_URL = "https://api.a4f.co/v1"
 IMAGE_MODEL = "provider-4/imagen-4"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
+# History persistence
+HISTORY_FILE = "quantora_history.json"
+if not os.path.exists(HISTORY_FILE):
+    with open(HISTORY_FILE, 'w') as f:
+        json.dump([], f)
+
+def load_history():
+    with open(HISTORY_FILE, 'r') as f:
+        return json.load(f)
+
+def save_history(query):
+    history = load_history()
+    history.append({"query": query, "timestamp": datetime.now().isoformat()})
+    with open(HISTORY_FILE, 'w') as f:
+        json.dump(history, f)
+
 # ✅ Page Setup
 if "pro_unlocked" not in st.session_state:
     st.session_state.pro_unlocked = False
@@ -430,6 +446,12 @@ header {visibility: hidden;}
 .pro-button:hover {
     transform: scale(1.05);
     box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
+/* Permanent white searchbar */
+.stTextArea > div > div > textarea {
+    background-color: white !important;
+    color: black !important;
 }
 
 </style>
@@ -3817,6 +3839,20 @@ def cancer_risk_assessor():
     main_cancer()
 
 # --------------------------
+# HISTORY DISPLAY
+# --------------------------
+def show_history():
+    st.title("📜 Query History")
+    history = load_history()
+    if not history:
+        st.info("No query history yet.")
+    else:
+        for item in history[::-1]:  # Recent first
+            st.markdown(f"**{item['timestamp']}**")
+            st.write(item['query'])
+            st.markdown("---")
+
+# --------------------------
 # MAIN APP NAVIGATION
 # --------------------------
 if st.session_state.pro_unlocked:
@@ -3824,7 +3860,7 @@ if st.session_state.pro_unlocked:
         st.markdown("### 🚀 Quantora Modes")
         mode = st.radio(
             "Select Mode",
-            ["AI", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor"],
+            ["AI", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History"],
             index=0,
             key="current_mode"
         )
@@ -3868,6 +3904,14 @@ if st.session_state.pro_unlocked:
             st.rerun()
 else:
     mode = "AI"  # Force AI mode in trial
+    with st.sidebar:
+        st.markdown("### 📜 Query History")
+        history = load_history()
+        if not history:
+            st.info("No query history yet.")
+        else:
+            for item in history[::-1]:  # Recent first
+                st.write(f"{item['timestamp']}: {item['query']}")
 
 # Main Content Area
 if mode == "AI":
@@ -3890,6 +3934,7 @@ if mode == "AI":
                     response = call_quantora_unified(prompt)
                     response_time = time.time() - start_time
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    save_history(prompt)
                     st.rerun()
             
             with col2:
@@ -3900,6 +3945,7 @@ if mode == "AI":
                     response = call_quantora_unified(prompt)
                     response_time = time.time() - start_time
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    save_history(prompt)
                     st.rerun()
             
             with col3:
@@ -3910,6 +3956,7 @@ if mode == "AI":
                     response = call_quantora_unified(prompt)
                     response_time = time.time() - start_time
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    save_history(prompt)
                     st.rerun()
             
             with col4:
@@ -3920,6 +3967,7 @@ if mode == "AI":
                     response = call_quantora_unified(prompt)
                     response_time = time.time() - start_time
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    save_history(prompt)
                     st.rerun()
             
             st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>Ask Quantora anything...</strong></p>", 
@@ -3988,6 +4036,7 @@ if mode == "AI":
         response_time = time.time() - start_time
         st.session_state.last_response_time = response_time
         st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+        save_history(user_input.strip())
         st.rerun()
 
     if st.session_state.chat:
@@ -4090,6 +4139,9 @@ elif st.session_state.current_mode == "Brain Health Analyzer":
 
 elif st.session_state.current_mode == "Cancer Risk Assessor":
     cancer_risk_assessor()
+
+elif st.session_state.current_mode == "History":
+    show_history()
 
 # Footer
 st.markdown("---")
