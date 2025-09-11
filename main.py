@@ -18,6 +18,7 @@ import yfinance as yf
 import plotly.graph_objects as go
 import numpy as np
 
+timestamp = datetime.now()
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
