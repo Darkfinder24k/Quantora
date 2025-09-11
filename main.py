@@ -877,7 +877,7 @@ Provide a comprehensive and helpful response:"""
         else:
             error_msg += str(e)
         # Fallback to Groq
-        return call_groq_model(prompt, "compound-beta", context)
+        return call_groq_model(prompt, "groq/compound", context)
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
