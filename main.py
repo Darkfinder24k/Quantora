@@ -26,7 +26,7 @@ A4F_BASE_URL = "https://api.a4f.co/v1"
 IMAGE_MODEL = "provider-4/imagen-4"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
-# History persistence
+# History persistence for queries
 HISTORY_FILE = "quantora_history.json"
 if not os.path.exists(HISTORY_FILE):
     with open(HISTORY_FILE, 'w') as f:
@@ -41,6 +41,27 @@ def save_history(query):
     history.append({"query": query, "timestamp": datetime.now().isoformat()})
     with open(HISTORY_FILE, 'w') as f:
         json.dump(history, f)
+
+# Chat history persistence
+CHAT_HISTORY_FILE = "quantora_chat_history.json"
+
+def load_chat_history():
+    if os.path.exists(CHAT_HISTORY_FILE):
+        with open(CHAT_HISTORY_FILE, 'r') as f:
+            loaded = json.load(f)
+            # Convert back to list of lists (since tuples not JSON serializable)
+            return [item for item in loaded]
+    return []
+
+def save_chat_history():
+    # Convert to serializable list of lists
+    serializable_chat = []
+    for item in st.session_state.chat:
+        serial_item = list(item)
+        # Timestamp is already str from isoformat
+        serializable_chat.append(serial_item)
+    with open(CHAT_HISTORY_FILE, 'w') as f:
+        json.dump(serializable_chat, f)
 
 # ✅ Page Setup
 if "pro_unlocked" not in st.session_state:
@@ -519,7 +540,7 @@ if not st.session_state.pro_unlocked:
 
 # Initialize session state variables
 if "chat" not in st.session_state:
-    st.session_state.chat = []
+    st.session_state.chat = load_chat_history()
 if "uploaded_content" not in st.session_state:
     st.session_state.uploaded_content = ""
 if "last_response_time" not in st.session_state:
@@ -931,7 +952,8 @@ def call_quantora_unified(prompt, context="", image=None):
     # Build conversation history for memory
     conversation_history = ""
     for item in st.session_state.chat[-5:]:  # Last 5 messages for context
-        speaker, message, _ = item[:3]
+        speaker = item[0]
+        message = item[1]
         conversation_history += f"{speaker.upper()}: {message}\n\n"
     
     # Simulated learning: Append previous corrections or improvements
@@ -3930,10 +3952,13 @@ if mode == "AI":
                 if st.button("💠 Simulate a quantum network"):
                     prompt = "Simulate a quantum network"
                     start_time = time.time()
-                    st.session_state.chat.append(("user", prompt, datetime.now()))
+                    timestamp = datetime.now().isoformat()
+                    st.session_state.chat.append(["user", prompt, timestamp])
                     response = call_quantora_unified(prompt)
                     response_time = time.time() - start_time
-                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    timestamp_resp = datetime.now().isoformat()
+                    st.session_state.chat.append(["quantora", response, timestamp_resp, response_time])
+                    save_chat_history()  # Save after adding
                     save_history(prompt)
                     st.rerun()
             
@@ -3941,10 +3966,13 @@ if mode == "AI":
                 if st.button("🧬 Simulate a molecular model"):
                     prompt = "Simulate a molecular model"
                     start_time = time.time()
-                    st.session_state.chat.append(("user", prompt, datetime.now()))
+                    timestamp = datetime.now().isoformat()
+                    st.session_state.chat.append(["user", prompt, timestamp])
                     response = call_quantora_unified(prompt)
                     response_time = time.time() - start_time
-                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    timestamp_resp = datetime.now().isoformat()
+                    st.session_state.chat.append(["quantora", response, timestamp_resp, response_time])
+                    save_chat_history()  # Save after adding
                     save_history(prompt)
                     st.rerun()
             
@@ -3952,10 +3980,13 @@ if mode == "AI":
                 if st.button("🌍 Predict climate patterns"):
                     prompt = "Predict climate patterns"
                     start_time = time.time()
-                    st.session_state.chat.append(("user", prompt, datetime.now()))
+                    timestamp = datetime.now().isoformat()
+                    st.session_state.chat.append(["user", prompt, timestamp])
                     response = call_quantora_unified(prompt)
                     response_time = time.time() - start_time
-                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    timestamp_resp = datetime.now().isoformat()
+                    st.session_state.chat.append(["quantora", response, timestamp_resp, response_time])
+                    save_chat_history()  # Save after adding
                     save_history(prompt)
                     st.rerun()
             
@@ -3963,10 +3994,13 @@ if mode == "AI":
                 if st.button("📜 Draft AI ethics code"):
                     prompt = "Draft AI ethics code"
                     start_time = time.time()
-                    st.session_state.chat.append(("user", prompt, datetime.now()))
+                    timestamp = datetime.now().isoformat()
+                    st.session_state.chat.append(["user", prompt, timestamp])
                     response = call_quantora_unified(prompt)
                     response_time = time.time() - start_time
-                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+                    timestamp_resp = datetime.now().isoformat()
+                    st.session_state.chat.append(["quantora", response, timestamp_resp, response_time])
+                    save_chat_history()  # Save after adding
                     save_history(prompt)
                     st.rerun()
             
@@ -3974,39 +4008,40 @@ if mode == "AI":
                         unsafe_allow_html=True)
 
     for i, chat_item in enumerate(st.session_state.chat):
-        if len(chat_item) >= 3:
-            speaker, message, timestamp = chat_item[:3]
-            response_time = chat_item[3] if len(chat_item) > 3 else None
-            
-            if speaker == "user":
-                st.markdown(f"""
-                <div class="chat-message user-message">
-                    <div class="message-header">
-                        👤 <strong>You</strong>
-                        <span class="message-time">{timestamp.strftime('%H:%M:%S')}</span>
-                    </div>
-                    <div>{message}</div>
+        speaker = chat_item[0]
+        message = chat_item[1]
+        timestamp = chat_item[2]
+        response_time = chat_item[3] if len(chat_item) > 3 else None
+        
+        if speaker == "user":
+            st.markdown(f"""
+            <div class="chat-message user-message">
+                <div class="message-header">
+                    👤 <strong>You</strong>
+                    <span class="message-time">{datetime.fromisoformat(timestamp).strftime('%H:%M:%S')}</span>
                 </div>
-                """, unsafe_allow_html=True)
+                <div>{message}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        elif speaker in ["quantora", "ai"]:
+            formatted_parts = format_response_with_code(message)
             
-            elif speaker in ["quantora", "ai"]:
-                formatted_parts = format_response_with_code(message)
-                
-                st.markdown(f"""
-                <div class="chat-message ai-message">
-                    <div class="message-header">
-                        💎 <strong>Quantora</strong>
-                        <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                for part in formatted_parts:
-                    if part[0] == 'text':
-                        st.markdown(f"<div>{part[1]}</div>", unsafe_allow_html=True)
-                    elif part[0] == 'code':
-                        st.code(part[1], language=part[2])
-                
-                st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="chat-message ai-message">
+                <div class="message-header">
+                    💎 <strong>Quantora</strong>
+                    <span class="message-time">{datetime.fromisoformat(timestamp).strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            for part in formatted_parts:
+                if part[0] == 'text':
+                    st.markdown(f"<div>{part[1]}</div>", unsafe_allow_html=True)
+                elif part[0] == 'code':
+                    st.code(part[1], language=part[2])
+            
+            st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     col1, col2 = st.columns([0.85, 0.15])
@@ -4026,7 +4061,9 @@ if mode == "AI":
 
     if send_button and user_input.strip():
         start_time = time.time()
-        st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
+        timestamp_user = datetime.now().isoformat()
+        st.session_state.chat.append(["user", user_input.strip(), timestamp_user])
+        save_chat_history()  # Save after user message
         
         with st.spinner("⚛️ Quantumizing Through Timeless Refinement Toward the Ultimate Answer."):
             context = st.session_state.uploaded_content
@@ -4035,7 +4072,9 @@ if mode == "AI":
         
         response_time = time.time() - start_time
         st.session_state.last_response_time = response_time
-        st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
+        timestamp_resp = datetime.now().isoformat()
+        st.session_state.chat.append(["quantora", response, timestamp_resp, response_time])
+        save_chat_history()  # Save after AI response
         save_history(user_input.strip())
         st.rerun()
 
@@ -4065,6 +4104,7 @@ if mode == "AI":
     with col1:
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.chat = []
+            save_chat_history()  # Save empty chat
             st.success("✅ Chat cleared!")
             st.rerun()
 
@@ -4076,7 +4116,7 @@ if mode == "AI":
                     chat_data.append({
                         "Speaker": item[0],
                         "Message": item[1],
-                        "Timestamp": item[2].strftime('%Y-%m-%d %H:%M:%S'),
+                        "Timestamp": item[2],
                         "Response_Time": item[3] if len(item) > 3 else None
                     })
                 
