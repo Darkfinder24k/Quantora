@@ -3861,7 +3861,7 @@ if st.session_state.pro_unlocked:
         st.markdown("### 🚀 Quantora Modes")
         mode = st.radio(
             "Select Mode",
-            ["AI", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History"],
+            ["AI", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "Image Generation"],
             index=0,
             key="current_mode"
         )
