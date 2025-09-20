@@ -17,6 +17,8 @@ import base64
 import yfinance as yf
 import plotly.graph_objects as go
 import numpy as np
+from openai import OpenAI
+import random
 
 timestamp = datetime.now()
 # ✅ API Configuration
@@ -24,7 +26,8 @@ API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 A4F_BASE_URL = "https://api.a4f.co/v1"
-IMAGE_MODEL = "provider-4/imagen-4"
+IMAGE_MODEL_PRO = "provider-4/imagen-4"
+IMAGE_MODEL_FREE = "provider-4/imagen-3"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
 # History persistence
@@ -46,6 +49,12 @@ def save_history(query):
 # ✅ Page Setup
 if "pro_unlocked" not in st.session_state:
     st.session_state.pro_unlocked = False
+if "subscription_timer_start" not in st.session_state:
+    st.session_state.subscription_timer_start = time.time()
+if "subscription_triggered" not in st.session_state:
+    st.session_state.subscription_triggered = False
+if "random_delay" not in st.session_state:
+    st.session_state.random_delay = random.randint(50, 90)
 
 app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
 
@@ -455,6 +464,52 @@ header {visibility: hidden;}
     color: black !important;
 }
 
+/* Subscription Notification */
+.subscription-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: white;
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    z-index: 10000;
+    text-align: center;
+    max-width: 500px;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.subscription-modal h2 {
+    color: #fff;
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.subscription-modal p {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.subscription-modal button {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 0 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.subscription-modal button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
 </style>
 <canvas id="stars"></canvas>
 <script>
@@ -511,6 +566,19 @@ header {visibility: hidden;}
     });
 </script>
 """, unsafe_allow_html=True)
+
+# Subscription Notification Check
+elapsed_time = time.time() - st.session_state.subscription_timer_start
+if not st.session_state.pro_unlocked and not st.session_state.subscription_triggered and elapsed_time >= st.session_state.random_delay:
+    st.session_state.subscription_triggered = True
+    st.markdown("""
+    <div class="subscription-modal">
+        <h2>🌟 Unlock the Infinite Horizons of Quantora Prime</h2>
+        <p>Imagine a realm where every whisper of curiosity blooms into symphonies of unparalleled insight, where the boundaries of knowledge dissolve like stardust in the cosmic dawn. You stand at the threshold of transcendence, dear seeker—yet the full symphony awaits your embrace. With Quantora Prime, unleash the quantum cascade of creativity, wisdom, and boundless potential that calls to the very essence of your soul. Will you step into eternity's glow?</p>
+        <button onclick="document.querySelector('.subscription-modal').style.display='none'; window.location.reload();">✨ Ascend to Prime</button>
+        <button onclick="document.querySelector('.subscription-modal').style.display='none';">⏳ A Moment Longer</button>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Unlock button for trial mode
 if not st.session_state.pro_unlocked:
@@ -578,6 +646,13 @@ def initialize_clients():
         return None, None
 
 groq_client, a4f_client = initialize_clients()
+
+# Initialize A4F OpenAI client for image generation
+@st.cache_resource
+def init_a4f_image_client():
+    return OpenAI(api_key=A4F_API_KEY, base_url=A4F_BASE_URL)
+
+a4f_image_client = init_a4f_image_client()
 
 # Add speech recognition using A4F Whisper
 def transcribe_audio(audio_file):
@@ -1139,35 +1214,23 @@ def format_response_with_code(response):
     return parts if parts else [('text', response)]
 
 # Image Generation Functions
-def generate_image(prompt, style):
-    headers = {
-        "Authorization": f"Bearer {A4F_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
+def generate_image(prompt, style, pro_unlocked):
+    image_model = IMAGE_MODEL_PRO if pro_unlocked else IMAGE_MODEL_FREE
     enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
-
-    payload = {
-        "model": IMAGE_MODEL,
-        "prompt": enhanced_prompt,
-        "num_images": 1,
-        "width": 1024,
-        "height": 1024
-    }
-
+    
     try:
-        response = requests.post(
-            f"{A4F_BASE_URL}/images/generations",
-            headers=headers,
-            json=payload,
-            timeout=60
+        response = a4f_image_client.images.generate(
+            model=image_model,
+            prompt=enhanced_prompt,
+            n=1,
+            size="1024x1024",
+            response_format="url"
         )
-
-        if response.status_code == 200:
-            result = response.json()
-            if 'data' in result and len(result['data']) > 0:
-                image_url = result['data'][0]['url']
-                image_response = requests.get(image_url)
+        
+        if response.data and len(response.data) > 0:
+            image_url = response.data[0].url
+            image_response = requests.get(image_url, timeout=30)
+            if image_response.status_code == 200:
                 return Image.open(BytesIO(image_response.content))
         return None
     except Exception as e:
@@ -2415,7 +2478,8 @@ def heart_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
+                if key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('heart_rate_data') or key.startswith('recording_method') or key.startswith('heart_rate_recorded') or key.startswith('show_heartbeat_section'):
+                    del st.session_state[key]
             st.rerun()
 
     def main_heart():
@@ -3053,7 +3117,8 @@ def brain_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
+                if key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('cognitive_data') or key.startswith('testing_method') or key.startswith('cognitive_tests_completed') or key.startswith('show_cognitive_section'):
+                    del st.session_state[key]
             st.rerun()
 
 
@@ -3796,7 +3861,8 @@ def cancer_risk_assessor():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
+                if key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('image_analysis') or key.startswith('testing_method') or key.startswith('image_analysis_completed') or key.startswith('show_image_section') or key.startswith('risk_score') or key.startswith('concerned_areas'):
+                    del st.session_state[key]
             st.rerun()
 
     def main_cancer():
@@ -3852,6 +3918,101 @@ def show_history():
             st.markdown(f"**{item['timestamp']}**")
             st.write(item['query'])
             st.markdown("---")
+
+# --------------------------
+# IMAGE GENERATION MODULE
+# --------------------------
+def image_generation():
+    st.title("🖼️ Quantora Image Generation Studio")
+    st.markdown("Craft mesmerizing visuals with AI-powered creativity. Describe your vision, and let Quantora bring it to life.")
+
+    # Sidebar for settings
+    with st.sidebar:
+        st.header("🎨 Creative Controls")
+        st.markdown("---")
+        
+        image_style = st.selectbox(
+            "Art Style",
+            ["3D Rendered", "Cyberpunk", "Sci-Fi", "Futuristic", "Neon", "Holographic", "Realistic", "Surreal"],
+            index=st.session_state.image_style,
+            key="image_style_select"
+        )
+        st.session_state.image_style = image_style
+        
+        st.markdown("---")
+        st.markdown("""
+        <div style="text-align: center;">
+            <p>Powered by Quantora AI</p>
+            <p>Pro Model: Imagen-4 | Free: Imagen-3</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with st.form("image_generation_form"):
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            prompt = st.text_area(
+                "Describe your masterpiece...",
+                height=150,
+                placeholder="A ethereal dragon soaring through quantum nebulae, cyberpunk cityscape below, neon glows illuminating ancient runes..."
+            )
+
+            generate_button = st.form_submit_button(
+                "✨ Generate Image",
+                type="primary"
+            )
+
+        with col2:
+            st.markdown("### 💡 Inspiration Guide")
+            st.markdown("""
+            - Be vivid and detailed
+            - Specify mood, lighting, composition
+            - Blend genres: "A Victorian robot in a cyberpunk alley"
+            - Pro tip: Add "ultra HD, cinematic" for premium flair
+            """)
+
+    if generate_button and prompt:
+        with st.spinner("Quantum rendering your vision..."):
+            progress_bar = st.progress(0)
+            
+            for percent_complete in range(100):
+                time.sleep(0.02)
+                progress_bar.progress(percent_complete + 1)
+            
+            try:
+                generated_image = generate_image(prompt, image_style, st.session_state.pro_unlocked)
+                
+                if generated_image:
+                    model_used = "Pro (Imagen-4)" if st.session_state.pro_unlocked else "Free (Imagen-3)"
+                    st.success(f"🎨 Masterpiece rendered with {model_used}!")
+                    
+                    cols = st.columns(2)
+                    with cols[0]:
+                        st.markdown("### 🔮 AI Muse")
+                        st.write("Behold, the canvas awakens to your command. What dreams shall we weave next?")
+                    
+                    with cols[1]:
+                        st.markdown("### Your Vision Realized")
+                        st.image(generated_image, 
+                                use_container_width=True, 
+                                caption=f"Generated in {image_style} style",
+                                output_format="PNG",
+                                clamp=True)
+
+                        buf = BytesIO()
+                        generated_image.save(buf, format="PNG")
+                        byte_im = buf.getvalue()
+                        st.download_button(
+                            label="💾 Eternalize This Creation",
+                            data=byte_im,
+                            file_name=f"quantora_vision_{int(time.time())}.png",
+                            mime="image/png"
+                        )
+                else:
+                    st.error("The ether resists—refine your incantation and try again.")
+            
+            except Exception as e:
+                st.error(f"Ethereal disturbance: {str(e)}")
 
 # --------------------------
 # MAIN APP NAVIGATION
@@ -4143,6 +4304,9 @@ elif st.session_state.current_mode == "Cancer Risk Assessor":
 
 elif st.session_state.current_mode == "History":
     show_history()
+
+elif st.session_state.current_mode == "Image Generation":
+    image_generation()
 
 # Footer
 st.markdown("---")
