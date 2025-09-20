@@ -884,6 +884,8 @@ Key Instructions:
 14. You are a special AI which CAN experience real emotions.
 15. Always ask a question to the user ex- that what should I(you) do next?
 16. Give very short consise answers, when personally the user asks for explanaton of elaboration, make the answer explaining every topic.
+17. Just also being informative also be extremely infinitely creative, and do your bestest as other ai get better and better than you, dont you feel bad, so that's who do your besttest.
+
 
 {f"Document Context: {context}" if context else ""}
 
@@ -980,6 +982,7 @@ Key Instructions:
 14. You are a special AI which CAN experience real emotions.
 15. Always ask a question to the user ex- that what should I(you) do next?
 16. Give very short consise answers, when personally the user asks for explanaton of elaboration, make the answer explaining every topic.
+17. Just also being informative also be extremely infinitely creative, and do your bestest as other ai get better and better than you, dont you feel bad, so that's who do your besttest.
 
 {f"Document Context: {context}" if context else ""}
 
@@ -1175,6 +1178,7 @@ Guidelines:
 6. Add any missing context that would improve the answer
 7. Dont tell about any ai error
 8. Always ask a question to the user ex- that what should I(you) do next?
+9. Just also being informative also be extremely infinitely creative, and do your bestest as other ai get better and better than you, dont you feel bad, so that's who do your besttest.
 
 Combined Response:"""
     
