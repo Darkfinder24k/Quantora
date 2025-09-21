@@ -17,8 +17,6 @@ import base64
 import yfinance as yf
 import plotly.graph_objects as go
 import numpy as np
-import random
-from openai import OpenAI
 
 timestamp = datetime.now()
 # ✅ API Configuration
@@ -457,112 +455,6 @@ header {visibility: hidden;}
     color: black !important;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap');
-
-:root {
-    --primary: #00f0ff;
-    --secondary: #ff00f0;
-    --dark: #0a0a1a;
-    --light: #f0f0ff;
-}
-
-* {
-    font-family: 'Orbitron', sans-serif;
-}
-
-.stApp {
-    background: linear-gradient(135deg, var(--dark) 0%, #1a1a2e 100%);
-    color: var(--light);
-}
-
-h1, h2, h3, h4, h5, h6 {
-    color: var(--primary) !important;
-    text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
-}
-
-.stTextInput>div>div>input, .stTextArea>div>div>textarea {
-    background-color: rgba(10, 10, 26, 0.8) !important;
-    color: var(--light) !important;
-    border: 1px solid var(--primary) !important;
-    border-radius: 5px !important;
-}
-
-.stButton>button {
-    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%) !important;
-    color: var(--dark) !important;
-    border: none !important;
-    border-radius: 25px !important;
-    padding: 10px 25px !important;
-    font-weight: bold !important;
-    box-shadow: 0 0 15px rgba(0, 240, 255, 0.7);
-    transition: all 0.3s ease !important;
-}
-
-.stButton>button:hover {
-    transform: scale(1.05) !important;
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.9);
-}
-
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
-}
-
-.generated-image {
-    animation: float 4s ease-in-out infinite;
-    border: 2px solid var(--primary);
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
-    transition: all 0.3s ease;
-}
-
-.generated-image:hover {
-    transform: scale(1.02);
-    box-shadow: 0 0 30px rgba(0, 240, 255, 0.8);
-}
-
-.stProgress>div>div>div {
-    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%) !important;
-}
-
-.css-1d391kg {
-    background-color: rgba(10, 10, 26, 0.9) !important;
-    border-right: 1px solid var(--primary) !important;
-}
-
-.stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-}
-
-.stTabs [data-baseweb="tab"] {
-    height: 50px;
-    padding: 0 20px;
-    background-color: rgba(10, 10, 26, 0.5);
-    border-radius: 10px 10px 0 0 !important;
-    border: 1px solid var(--primary) !important;
-    color: var(--light) !important;
-}
-
-.stTabs [aria-selected="true"] {
-    background-color: rgba(0, 240, 255, 0.2) !important;
-    color: var(--primary) !important;
-    font-weight: bold;
-    box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
-}
-
-video {
-    border: 2px solid var(--primary);
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
-    width: 100%;
-    margin-bottom: 20px;
-}
-
-.generated-video {
-    animation: float 6s ease-in-out infinite;
-}
-
 </style>
 <canvas id="stars"></canvas>
 <script>
@@ -687,12 +579,33 @@ def initialize_clients():
 
 groq_client, a4f_client = initialize_clients()
 
-# Add for image gen
-@st.cache_resource
-def init_a4f_client():
-    return OpenAI(api_key=A4F_API_KEY, base_url=A4F_BASE_URL)
-
-a4f_client = init_a4f_client()
+# Add speech recognition using A4F Whisper
+def transcribe_audio(audio_file):
+    try:
+        headers = {
+            "Authorization": f"Bearer {A4F_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": "provider-2/whisper-1",
+            "file": base64.b64encode(audio_file.getvalue()).decode("utf-8")
+        }
+        
+        response = requests.post(
+            "https://api.a4f.co/v1/audio/transcriptions",
+            headers=headers,
+            json=data
+        )
+        
+        if response.status_code == 200:
+            return response.json().get("text", "")
+        else:
+            st.error(f"Transcription error: {response.text}")
+            return ""
+    except Exception as e:
+        st.error(f"Transcription failed: {str(e)}")
+        return ""
 
 # IQ Tester in Sidebar
 if st.session_state.pro_unlocked:
@@ -2059,7 +1972,7 @@ def heart_health_analyzer():
         st.markdown("""
         <div class="heartbeat-container">
             <h3>🎵 Upload Recorded Heartbeat</h3>
-            <p>Upload an audio recording or video of your heartbeat for analysis</p>
+            <p>Upload an audio recording (WAV/MP3) or video of your heartbeat for analysis</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2528,7 +2441,6 @@ def heart_health_analyzer():
         st.markdown("""
         <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only. 
-            It is not a substitute for professional medical advice, diagnosis, or treatment. 
             It is not a substitute for professional medical advice, diagnosis, or treatment. 
             Always consult with qualified healthcare professionals for medical concerns.
         </div>
@@ -4085,7 +3997,7 @@ if mode == "AI":
                 <div class="chat-message ai-message">
                     <div class="message-header">
                         💎 <strong>Quantora</strong>
-                        <span class="message-time">{timestamp.strftime('%H:%M:%S')} • • ⏱️ {response_time:.1f}s</span>
+                        <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
                     </div>
                 """, unsafe_allow_html=True)
                 
@@ -4232,70 +4144,6 @@ elif st.session_state.current_mode == "Cancer Risk Assessor":
 elif st.session_state.current_mode == "History":
     show_history()
 
-elif st.session_state.current_mode == "Image Generation":
-    with st.form("image_generation_form"):
-        col1, col2 = st.columns([2, 1])
-
-        with col1:
-            prompt = st.text_area(
-                "Describe your image...",
-                height=200,
-                placeholder="A cybernetic owl with neon wings perched on a futuristic skyscraper..."
-            )
-
-            generate_button = st.form_submit_button(
-                "Generate Image",
-                type="primary"
-            )
-
-        with col2:
-            st.markdown("### 💡 Prompt Tips")
-            st.markdown("""
-            - Be descriptive with details
-            - Mention lighting and style
-            - Include futuristic elements
-            - Example: "A floating city at sunset with neon lights"
-            """)
-
-    if generate_button and prompt:
-        with st.spinner("Generating your vision..."):
-            progress_bar = st.progress(0)
-            
-            for percent_complete in range(100):
-                time.sleep(0.02)
-                progress_bar.progress(percent_complete + 1)
-            
-            try:
-                generated_image = generate_image(prompt, st.session_state.image_style)
-                
-                if generated_image:
-                    st.success("✨ Image generation complete!")
-                    
-                    cols = st.columns(2)
-                    cols[0].markdown("### AI Notes")
-                    cols[0].write("Your futuristic image has been created!")
-                    
-                    cols[1].markdown("### Generated Image")
-                    cols[1].image(generated_image, 
-                                use_container_width=True, 
-                                caption="Your creation",
-                                output_format="PNG")
-
-                    buf = BytesIO()
-                    generated_image.save(buf, format="PNG")
-                    byte_im = buf.getvalue()
-                    cols[1].download_button(
-                        label="Download Image",
-                        data=byte_im,
-                        file_name="nexusai_image.png",
-                        mime="image/png"
-                    )
-                else:
-                    st.error("Image generation failed. Please try again.")
-            
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-
 # Footer
 st.markdown("---")
 st.markdown(
@@ -4304,17 +4152,4 @@ st.markdown(
     "Powered by Groq Models, A4F Models | "
     f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     "</div>", 
-    unsafe_allow_html=True)
-
-# Subscription prompt for free users
-if not st.session_state.pro_unlocked:
-    if "session_start_time" not in st.session_state:
-        st.session_state.session_start_time = time.time()
-        st.session_state.prompt_time = random.randint(50, 90)
-        st.session_state.prompt_shown = False
-
-    if not st.session_state.prompt_shown and time.time() - st.session_state.session_start_time > st.session_state.prompt_time:
-        st.info("""
-        🌟 Imagine unlocking a realm where innovation knows no bounds, where every query transforms into a masterpiece of insight and creativity. Feel the irresistible pull of unlimited potential coursing through your digital veins – subscribe now and let Quantora Prime X elevate your existence to unprecedented heights of intellectual ecstasy. Your future self demands this transcendence; resist no longer, embrace the sublime power awaiting you!
-        """)
-        st.session_state.prompt_shown = True
+    unsafe_allow_html=True),
