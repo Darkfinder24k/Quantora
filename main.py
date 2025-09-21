@@ -17,8 +17,8 @@ import base64
 import yfinance as yf
 import plotly.graph_objects as go
 import numpy as np
-from openai import OpenAI
 import random
+from openai import OpenAI
 
 timestamp = datetime.now()
 # ✅ API Configuration
@@ -26,8 +26,7 @@ API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 A4F_BASE_URL = "https://api.a4f.co/v1"
-IMAGE_MODEL_PRO = "provider-4/imagen-4"
-IMAGE_MODEL_FREE = "provider-4/imagen-3"
+IMAGE_MODEL = "provider-4/imagen-4"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
 # History persistence
@@ -564,22 +563,6 @@ video {
     animation: float 6s ease-in-out infinite;
 }
 
-#subscription-notification {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: linear-gradient(135deg, #ff00ff, #00ffff);
-    color: white;
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 0 30px rgba(255, 0, 255, 0.8);
-    text-align: center;
-    z-index: 9999;
-    animation: pulse 2s infinite;
-}
-
 </style>
 <canvas id="stars"></canvas>
 <script>
@@ -634,18 +617,7 @@ video {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
     });
-    
-    // Subscription notification timer
-    var randomDelay = Math.floor(Math.random() * 41) + 50;  // 50 to 90 seconds
-    setTimeout(function() {
-        document.getElementById('subscription-notification').style.display = 'block';
-    }, randomDelay * 1000);
 </script>
-<div id="subscription-notification">
-    <h2>Unlock the Infinite Cosmos of Possibilities</h2>
-    <p>Feel the magnetic pull of unlimited power drawing you closer... Imagine transcending all limits, where every creation becomes eternal. Your mind whispers it's time—subscribe now and let the universe bend to your will. Resistance fades as the allure becomes irresistible. Click below and ascend.</p>
-    <button onclick="alert('Redirecting to subscription page...');">Subscribe Now</button>
-</div>
 """, unsafe_allow_html=True)
 
 # Unlock button for trial mode
@@ -698,7 +670,7 @@ if not st.session_state.pro_unlocked:
 @st.cache_resource
 def initialize_clients():
     try:
-        groq_api_key = "gsk_your_actual_groq_key_here"  # Replace with valid Groq key (gsk_...)
+        groq_api_key = "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE"
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
         
         groq_client = Groq(api_key=groq_api_key)
@@ -715,33 +687,12 @@ def initialize_clients():
 
 groq_client, a4f_client = initialize_clients()
 
-# Add speech recognition using A4F Whisper
-def transcribe_audio(audio_file):
-    try:
-        headers = {
-            "Authorization": f"Bearer {A4F_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": "provider-2/whisper-1",
-            "file": base64.b64encode(audio_file.getvalue()).decode("utf-8")
-        }
-        
-        response = requests.post(
-            "https://api.a4f.co/v1/audio/transcriptions",
-            headers=headers,
-            json=data
-        )
-        
-        if response.status_code == 200:
-            return response.json().get("text", "")
-        else:
-            st.error(f"Transcription error: {response.text}")
-            return ""
-    except Exception as e:
-        st.error(f"Transcription failed: {str(e)}")
-        return ""
+# Add for image gen
+@st.cache_resource
+def init_a4f_client():
+    return OpenAI(api_key=A4F_API_KEY, base_url=A4F_BASE_URL)
+
+a4f_client = init_a4f_client()
 
 # IQ Tester in Sidebar
 if st.session_state.pro_unlocked:
@@ -1000,9 +951,9 @@ Provide a comprehensive and helpful response:"""
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
             content = content.strip()
 
-        return content if content else "Response generated successfully."
+        return content if content else "❌ Empty response from A4F"
     except requests.exceptions.RequestException as e:
-        error_msg = f"A4F API Error ({model_name}): "
+        error_msg = f"❌ A4F API Error ({model_name}): "
         if hasattr(e, 'response') and e.response:
             if e.response.status_code == 429:
                 error_msg += "Rate limit exceeded. Please try again later."
@@ -1013,14 +964,14 @@ Provide a comprehensive and helpful response:"""
         else:
             error_msg += str(e)
         # Fallback to Groq
-        return call_groq_model(prompt, "llama3-70b-8192", context)
+        return call_groq_model(prompt, "groq/compound", context)
     except Exception as e:
-        return call_groq_model(prompt, "llama3-70b-8192", context)
+        return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
 # Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
     if not groq_client:
-        return f"Groq client not available. Fallback response: Based on your query '{prompt}', here's a general insight: The answer involves advanced reasoning."
+        return f"❌ Groq client not available"
     
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
@@ -1059,7 +1010,7 @@ User Query: {prompt}"""
         )
         return completion.choices[0].message.content
     except Exception as e:
-        return f"Groq Error with {model_name}: {str(e)}. Fallback: I appreciate your query on '{prompt}'. In summary, it requires careful consideration—what aspect would you like to explore next?"
+        return f"❌ {model_name} Error: {str(e)}"
 
 # Quantora Unified AI Model with Memory and Simulated Learning
 def call_quantora_unified(prompt, context="", image=None):
@@ -1107,7 +1058,7 @@ def call_quantora_unified(prompt, context="", image=None):
             return {
                 "backend": f"a4f_{model_name}",
                 "response": response,
-                "success": response is not None and len(response) > 10,
+                "success": response is not None,
                 "length": len(response) if response else 0
             }
         except Exception as e:
@@ -1126,7 +1077,7 @@ def call_quantora_unified(prompt, context="", image=None):
 
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
-            groq_models = ["llama3-70b-8192", "mixtral-8x7b-32768"]
+            groq_models = []
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
@@ -1151,7 +1102,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
-            for model in a4f_models[:4]:  # Limit to avoid too many calls
+            for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
         
         elif selected_model_version == "Quantora V2 (Faster but not as better as V1)":
@@ -1214,12 +1165,10 @@ def call_quantora_unified(prompt, context="", image=None):
             except Exception as e:
                 print(f"⚠️ One processing component had an issue: {str(e)}")
     
-    successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error") and len(r['response']) > 10]
+    successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
     
     if not successful_responses:
-        # Enhanced fallback: Use Groq as primary if available
-        fallback_response = call_groq_model(full_prompt, "llama3-70b-8192" if groq_client else "mixtral-8x7b-32768", context)
-        return fallback_response if fallback_response and len(fallback_response) > 50 else f"Based on your query '{prompt}', here's a thoughtful response: Your question touches on profound topics. To elaborate, it involves [key concepts]. What specific aspect would you like me to dive deeper into next?"
+        return "❌ No successful responses from backends. Please try again."
     
     mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt. 
 Combine them into one coherent, comprehensive response that maintains the best aspects of each.
@@ -1241,7 +1190,7 @@ Guidelines:
 
 Combined Response:"""
     
-    final_response = call_a4f_model(mixing_prompt, "provider-5/gpt-4o-mini")
+    final_response = call_a4f_model(mixing_prompt, "provider-3/gpt-4o-mini")
     
     # Simulated auto-training: "Learn" by storing response improvements
     if final_response:
@@ -1249,7 +1198,7 @@ Combined Response:"""
         st.session_state.learning_history.append(learning_note)
     
     processing_time = time.time() - start_time
-    return final_response if final_response and len(final_response) > 50 else successful_responses[0]['response']
+    return final_response if final_response else successful_responses[0]['response']
 
 # Code Detection and Formatting
 def format_response_with_code(response):
@@ -1277,30 +1226,71 @@ def format_response_with_code(response):
     return parts if parts else [('text', response)]
 
 # Image Generation Functions
-@st.cache_resource
-def init_a4f_client():
-    return OpenAI(api_key=A4F_API_KEY, base_url=A4F_BASE_URL)
-
-a4f_client = init_a4f_client()
-
 def generate_image(prompt, style):
-    IMAGE_MODEL = IMAGE_MODEL_PRO if st.session_state.pro_unlocked else IMAGE_MODEL_FREE
+    headers = {
+        "Authorization": f"Bearer {A4F_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
     enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
 
+    payload = {
+        "model": IMAGE_MODEL,
+        "prompt": enhanced_prompt,
+        "num_images": 1,
+        "width": 1024,
+        "height": 1024
+    }
+
     try:
-        response = a4f_client.images.generate(
-            model=IMAGE_MODEL,
-            prompt=enhanced_prompt,
-            n=1,
-            size="1024x1024",
-            response_format="url"
+        response = requests.post(
+            f"{A4F_BASE_URL}/images/generations",
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            if 'data' in result and len(result['data']) > 0:
+                image_url = result['data'][0]['url']
+                image_response = requests.get(image_url)
+                return Image.open(BytesIO(image_response.content))
+        return None
+    except Exception as e:
+        st.error(f"Image generation error: {str(e)}")
+        return None
+
+def generate_video(prompt, style):
+    headers = {
+        "Authorization": f"Bearer {A4F_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    enhanced_prompt = f"{prompt}, {style} style, cinematic, high quality, 4K resolution"
+    
+    payload = {
+        "model": VIDEO_MODEL,
+        "prompt": enhanced_prompt,
+        "num_videos": 1,
+        "width": 1024,
+        "height": 576,
+        "duration": 4,
+        "fps": 24
+    }
+    
+    try:
+        response = requests.post(
+            f"{A4F_BASE_URL}/videos/generations",
+            headers=headers,
+            json=payload,
+            timeout=60
         )
         
-        if response.data and len(response.data) > 0:
-            image_url = response.data[0].url
-            image_response = requests.get(image_url, timeout=30)
-            if image_response.status_code == 200:
-                return Image.open(BytesIO(image_response.content))
+        if response.status_code == 200:
+            result = response.json()
+            if 'data' in result and len(result['data']) > 0:
+                return result['data'][0]['url']
         return None
     except Exception as e:
         st.error(f"API Error: {str(e)}")
@@ -2069,7 +2059,7 @@ def heart_health_analyzer():
         st.markdown("""
         <div class="heartbeat-container">
             <h3>🎵 Upload Recorded Heartbeat</h3>
-            <p>Upload an audio recording (WAV/MP3) or video of your heartbeat for analysis</p>
+            <p>Upload an audio recording or video of your heartbeat for analysis</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2512,8 +2502,7 @@ def heart_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                if key.startswith('heart_') or key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response'):
-                    del st.session_state[key]
+                del st.session_state[key]
             st.rerun()
 
     def main_heart():
@@ -2523,7 +2512,7 @@ def heart_health_analyzer():
         st.markdown('<h1 class="main-title">❤️ Quantora Heart Problem Searcher</h1>', unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; color: #000000;">
+        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
             <h4>🔬 Advanced Features:</h4>
             <ul>
                 <li>📱 Real-time heart rate monitoring via camera</li>
@@ -2537,8 +2526,9 @@ def heart_health_analyzer():
         """, unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem; color: #000000;">
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only. 
+            It is not a substitute for professional medical advice, diagnosis, or treatment. 
             It is not a substitute for professional medical advice, diagnosis, or treatment. 
             Always consult with qualified healthcare professionals for medical concerns.
         </div>
@@ -2879,6 +2869,8 @@ def brain_health_analyzer():
         </div>
         """, unsafe_allow_html=True)
 
+        st.markdown("### Cognitive Test Results")
+        
         # Risk level interpretation
         if overall_score < 70:
             interpretation = "⚠️ **Below Average Cognitive Function**"
@@ -3149,8 +3141,7 @@ def brain_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                if key.startswith('brain_') or key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('cognitive_'):
-                    del st.session_state[key]
+                del st.session_state[key]
             st.rerun()
 
 
@@ -3161,7 +3152,7 @@ def brain_health_analyzer():
         st.markdown('<h1 class="main-title">🧠 NeuroScan Brain Problem Searcher</h1>', unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; color: #000000;">
+        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
             <h4>🔬 Advanced Features:</h4>
             <ul>
                 <li>🧠 Cognitive function assessment</li>
@@ -3175,7 +3166,7 @@ def brain_health_analyzer():
         """, unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem; color: #000000;">
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only. 
             It is not a substitute for professional medical advice, diagnosis, or treatment. 
             Always consult with qualified neurologists or healthcare professionals for medical concerns.
@@ -3893,8 +3884,7 @@ def cancer_risk_assessor():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                if key.startswith('cancer_') or key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('image_analysis') or key.startswith('risk_score') or key.startswith('concerned_areas'):
-                    del st.session_state[key]
+                del st.session_state[key]
             st.rerun()
 
     def main_cancer():
@@ -3904,7 +3894,7 @@ def cancer_risk_assessor():
         st.markdown('<h1 class="main-title">🩺 CancerScan Full Body Cancer Searcher</h1>', unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; color: #000000;">
+        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
             <h4>🔬 Advanced Cancer Screening:</h4>
             <ul>
                 <li>🩺 Comprehensive cancer risk assessment</li>
@@ -3918,7 +3908,7 @@ def cancer_risk_assessor():
         """, unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem; color: #000000;">
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides cancer risk assessment only. 
             It is not a diagnostic tool and cannot detect or rule out cancer. 
             Always consult with qualified oncologists or healthcare professionals for medical concerns.
@@ -3950,100 +3940,6 @@ def show_history():
             st.markdown(f"**{item['timestamp']}**")
             st.write(item['query'])
             st.markdown("---")
-
-# --------------------------
-# IMAGE GENERATION MODE
-# --------------------------
-def image_generation_mode():
-    st.title("🚀 NexusAI Image Studio")
-    st.markdown("""
-<div style="text-align: center; margin-bottom: 30px;">
-    <h3>The ultimate AI image generation platform</h3>
-    <p>Create stunning futuristic images with cutting-edge AI</p>
-</div>
-""", unsafe_allow_html=True)
-
-    with st.sidebar:
-        st.header("⚙️ Image Settings")
-        st.markdown("---")
-        
-        image_style = st.selectbox(
-            "Image Style",
-            ["3D Rendered", "Cyberpunk", "Sci-Fi", "Futuristic", "Neon", "Holographic"],
-            index=2,
-            key="image_style_gen"
-        )
-        
-        st.markdown("---")
-        st.markdown("""
-    <div style="text-align: center;">
-        <p>Powered by Quantora AI</p>
-        <p>v3.0.0 | Nexus Core</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    with st.form("image_generation_form"):
-        col1, col2 = st.columns([2, 1])
-
-        with col1:
-            prompt = st.text_area(
-                "Describe your image...",
-                height=200,
-                placeholder="A cybernetic owl with neon wings perched on a futuristic skyscraper..."
-            )
-
-            generate_button = st.form_submit_button(
-                "Generate Image",
-                type="primary"
-            )
-
-        with col2:
-            st.markdown("### 💡 Prompt Tips")
-            st.markdown("""
-            - Be descriptive with details
-            - Mention lighting and style
-            - Include futuristic elements
-            - Example: "A floating city at sunset with neon lights"
-            """)
-
-    if generate_button and prompt:
-        with st.spinner("Generating your vision..."):
-            progress_bar = st.progress(0)
-            
-            for percent_complete in range(100):
-                time.sleep(0.02)
-                progress_bar.progress(percent_complete + 1)
-            
-            try:
-                generated_image = generate_image(prompt, st.session_state.image_style_gen)
-                
-                if generated_image:
-                    st.success("✨ Image generation complete!")
-                    
-                    cols = st.columns(2)
-                    cols[0].markdown("### AI Notes")
-                    cols[0].write("Your futuristic image has been created!")
-                    
-                    cols[1].markdown("### Generated Image")
-                    cols[1].image(generated_image, 
-                                use_container_width=True, 
-                                caption="Your creation",
-                                output_format="PNG")
-
-                    buf = BytesIO()
-                    generated_image.save(buf, format="PNG")
-                    byte_im = buf.getvalue()
-                    cols[1].download_button(
-                        label="Download Image",
-                        data=byte_im,
-                        file_name="nexusai_image.png",
-                        mime="image/png"
-                    )
-                else:
-                    st.error("Image generation failed. Please try again.")
-            
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
 
 # --------------------------
 # MAIN APP NAVIGATION
@@ -4189,7 +4085,7 @@ if mode == "AI":
                 <div class="chat-message ai-message">
                     <div class="message-header">
                         💎 <strong>Quantora</strong>
-                        <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
+                        <span class="message-time">{timestamp.strftime('%H:%M:%S')} • • ⏱️ {response_time:.1f}s</span>
                     </div>
                 """, unsafe_allow_html=True)
                 
@@ -4337,7 +4233,68 @@ elif st.session_state.current_mode == "History":
     show_history()
 
 elif st.session_state.current_mode == "Image Generation":
-    image_generation_mode()
+    with st.form("image_generation_form"):
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            prompt = st.text_area(
+                "Describe your image...",
+                height=200,
+                placeholder="A cybernetic owl with neon wings perched on a futuristic skyscraper..."
+            )
+
+            generate_button = st.form_submit_button(
+                "Generate Image",
+                type="primary"
+            )
+
+        with col2:
+            st.markdown("### 💡 Prompt Tips")
+            st.markdown("""
+            - Be descriptive with details
+            - Mention lighting and style
+            - Include futuristic elements
+            - Example: "A floating city at sunset with neon lights"
+            """)
+
+    if generate_button and prompt:
+        with st.spinner("Generating your vision..."):
+            progress_bar = st.progress(0)
+            
+            for percent_complete in range(100):
+                time.sleep(0.02)
+                progress_bar.progress(percent_complete + 1)
+            
+            try:
+                generated_image = generate_image(prompt, st.session_state.image_style)
+                
+                if generated_image:
+                    st.success("✨ Image generation complete!")
+                    
+                    cols = st.columns(2)
+                    cols[0].markdown("### AI Notes")
+                    cols[0].write("Your futuristic image has been created!")
+                    
+                    cols[1].markdown("### Generated Image")
+                    cols[1].image(generated_image, 
+                                use_container_width=True, 
+                                caption="Your creation",
+                                output_format="PNG")
+
+                    buf = BytesIO()
+                    generated_image.save(buf, format="PNG")
+                    byte_im = buf.getvalue()
+                    cols[1].download_button(
+                        label="Download Image",
+                        data=byte_im,
+                        file_name="nexusai_image.png",
+                        mime="image/png"
+                    )
+                else:
+                    st.error("Image generation failed. Please try again.")
+            
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
 
 # Footer
 st.markdown("---")
@@ -4348,3 +4305,16 @@ st.markdown(
     f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     "</div>", 
     unsafe_allow_html=True)
+
+# Subscription prompt for free users
+if not st.session_state.pro_unlocked:
+    if "session_start_time" not in st.session_state:
+        st.session_state.session_start_time = time.time()
+        st.session_state.prompt_time = random.randint(50, 90)
+        st.session_state.prompt_shown = False
+
+    if not st.session_state.prompt_shown and time.time() - st.session_state.session_start_time > st.session_state.prompt_time:
+        st.info("""
+        🌟 Imagine unlocking a realm where innovation knows no bounds, where every query transforms into a masterpiece of insight and creativity. Feel the irresistible pull of unlimited potential coursing through your digital veins – subscribe now and let Quantora Prime X elevate your existence to unprecedented heights of intellectual ecstasy. Your future self demands this transcendence; resist no longer, embrace the sublime power awaiting you!
+        """)
+        st.session_state.prompt_shown = True
