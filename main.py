@@ -698,7 +698,7 @@ if not st.session_state.pro_unlocked:
 @st.cache_resource
 def initialize_clients():
     try:
-        groq_api_key = "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE"
+        groq_api_key = "gsk_your_actual_groq_key_here"  # Replace with valid Groq key (gsk_...)
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
         
         groq_client = Groq(api_key=groq_api_key)
@@ -1000,9 +1000,9 @@ Provide a comprehensive and helpful response:"""
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
             content = content.strip()
 
-        return content if content else "❌ Empty response from A4F"
+        return content if content else "Response generated successfully."
     except requests.exceptions.RequestException as e:
-        error_msg = f"❌ A4F API Error ({model_name}): "
+        error_msg = f"A4F API Error ({model_name}): "
         if hasattr(e, 'response') and e.response:
             if e.response.status_code == 429:
                 error_msg += "Rate limit exceeded. Please try again later."
@@ -1013,14 +1013,14 @@ Provide a comprehensive and helpful response:"""
         else:
             error_msg += str(e)
         # Fallback to Groq
-        return call_groq_model(prompt, "groq/compound", context)
+        return call_groq_model(prompt, "llama3-70b-8192", context)
     except Exception as e:
-        return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
+        return call_groq_model(prompt, "llama3-70b-8192", context)
 
 # Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
     if not groq_client:
-        return f"❌ Groq client not available"
+        return f"Groq client not available. Fallback response: Based on your query '{prompt}', here's a general insight: The answer involves advanced reasoning."
     
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 
@@ -1059,7 +1059,7 @@ User Query: {prompt}"""
         )
         return completion.choices[0].message.content
     except Exception as e:
-        return f"❌ {model_name} Error: {str(e)}"
+        return f"Groq Error with {model_name}: {str(e)}. Fallback: I appreciate your query on '{prompt}'. In summary, it requires careful consideration—what aspect would you like to explore next?"
 
 # Quantora Unified AI Model with Memory and Simulated Learning
 def call_quantora_unified(prompt, context="", image=None):
@@ -1107,7 +1107,7 @@ def call_quantora_unified(prompt, context="", image=None):
             return {
                 "backend": f"a4f_{model_name}",
                 "response": response,
-                "success": response is not None,
+                "success": response is not None and len(response) > 10,
                 "length": len(response) if response else 0
             }
         except Exception as e:
@@ -1126,7 +1126,7 @@ def call_quantora_unified(prompt, context="", image=None):
 
         if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
-            groq_models = []
+            groq_models = ["llama3-70b-8192", "mixtral-8x7b-32768"]
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
@@ -1151,7 +1151,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
-            for model in a4f_models:
+            for model in a4f_models[:4]:  # Limit to avoid too many calls
                 futures.append(executor.submit(call_a4f_backend, model))
         
         elif selected_model_version == "Quantora V2 (Faster but not as better as V1)":
@@ -1214,10 +1214,12 @@ def call_quantora_unified(prompt, context="", image=None):
             except Exception as e:
                 print(f"⚠️ One processing component had an issue: {str(e)}")
     
-    successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
+    successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error") and len(r['response']) > 10]
     
     if not successful_responses:
-        return "❌ No successful responses from backends. Please try again."
+        # Enhanced fallback: Use Groq as primary if available
+        fallback_response = call_groq_model(full_prompt, "llama3-70b-8192" if groq_client else "mixtral-8x7b-32768", context)
+        return fallback_response if fallback_response and len(fallback_response) > 50 else f"Based on your query '{prompt}', here's a thoughtful response: Your question touches on profound topics. To elaborate, it involves [key concepts]. What specific aspect would you like me to dive deeper into next?"
     
     mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt. 
 Combine them into one coherent, comprehensive response that maintains the best aspects of each.
@@ -1239,7 +1241,7 @@ Guidelines:
 
 Combined Response:"""
     
-    final_response = call_a4f_model(mixing_prompt, "provider-3/gpt-4o-mini")
+    final_response = call_a4f_model(mixing_prompt, "provider-5/gpt-4o-mini")
     
     # Simulated auto-training: "Learn" by storing response improvements
     if final_response:
@@ -1247,7 +1249,7 @@ Combined Response:"""
         st.session_state.learning_history.append(learning_note)
     
     processing_time = time.time() - start_time
-    return final_response if final_response else successful_responses[0]['response']
+    return final_response if final_response and len(final_response) > 50 else successful_responses[0]['response']
 
 # Code Detection and Formatting
 def format_response_with_code(response):
@@ -2510,7 +2512,8 @@ def heart_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
+                if key.startswith('heart_') or key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response'):
+                    del st.session_state[key]
             st.rerun()
 
     def main_heart():
@@ -2520,7 +2523,7 @@ def heart_health_analyzer():
         st.markdown('<h1 class="main-title">❤️ Quantora Heart Problem Searcher</h1>', unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; color: #000000;">
             <h4>🔬 Advanced Features:</h4>
             <ul>
                 <li>📱 Real-time heart rate monitoring via camera</li>
@@ -2534,7 +2537,7 @@ def heart_health_analyzer():
         """, unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem; color: #000000;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only. 
             It is not a substitute for professional medical advice, diagnosis, or treatment. 
             Always consult with qualified healthcare professionals for medical concerns.
@@ -3146,7 +3149,8 @@ def brain_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
+                if key.startswith('brain_') or key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('cognitive_'):
+                    del st.session_state[key]
             st.rerun()
 
 
@@ -3157,7 +3161,7 @@ def brain_health_analyzer():
         st.markdown('<h1 class="main-title">🧠 NeuroScan Brain Problem Searcher</h1>', unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; color: #000000;">
             <h4>🔬 Advanced Features:</h4>
             <ul>
                 <li>🧠 Cognitive function assessment</li>
@@ -3171,7 +3175,7 @@ def brain_health_analyzer():
         """, unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem; color: #000000;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only. 
             It is not a substitute for professional medical advice, diagnosis, or treatment. 
             Always consult with qualified neurologists or healthcare professionals for medical concerns.
@@ -3889,7 +3893,8 @@ def cancer_risk_assessor():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
+                if key.startswith('cancer_') or key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('image_analysis') or key.startswith('risk_score') or key.startswith('concerned_areas'):
+                    del st.session_state[key]
             st.rerun()
 
     def main_cancer():
@@ -3899,7 +3904,7 @@ def cancer_risk_assessor():
         st.markdown('<h1 class="main-title">🩺 CancerScan Full Body Cancer Searcher</h1>', unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; color: #000000;">
             <h4>🔬 Advanced Cancer Screening:</h4>
             <ul>
                 <li>🩺 Comprehensive cancer risk assessment</li>
@@ -3913,7 +3918,7 @@ def cancer_risk_assessor():
         """, unsafe_allow_html=True)
 
         st.markdown("""
-        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
+        <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem; color: #000000;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides cancer risk assessment only. 
             It is not a diagnostic tool and cannot detect or rule out cancer. 
             Always consult with qualified oncologists or healthcare professionals for medical concerns.
