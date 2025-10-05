@@ -1221,16 +1221,16 @@ else:
     greeting = "🌌 Good Night!"
 
 # Header with Quantora branding
-st.markdown(f"""
+st.markdown("""
 <div class="main-header">
     <div class="logo">
         <div class="logo-icon">💎</div>
-        <div class="logo-text">{app_name}</div>
+        <div class="logo-text">{}</div>
         <div class="status-indicator"></div>
     </div>
-    <div style="color: var(--text-muted);">{greeting} Your Premium AI Assistant</div>
+    <div style="color: var(--text-muted);">{}</div>
 </div>
-""", unsafe_allow_html=True)
+""".format(app_name, greeting), unsafe_allow_html=True)
 
 # --------------------------
 # QUANTORA TRADE CHARTS MODULE
@@ -3920,10 +3920,10 @@ if mode == "AI":
         with st.container():
             st.markdown("""
             <div class="welcome-container">
-                <div class="welcome-title">{app_name}</div>
+                <div class="welcome-title">{}</div>
                 <p>Where knowledge ends.</p>
             </div>
-            """.format(app_name=app_name), unsafe_allow_html=True)
+            """.format(app_name), unsafe_allow_html=True)
             
             col1, col2, col3, col4 = st.columns(4)
             
@@ -4147,9 +4147,10 @@ elif st.session_state.current_mode == "History":
 # Footer
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: var(--text-muted); font-size: 0.9rem;'>"
-    "💎 Quantora AI - Advanced AI Assistant | "
-    "Powered by Groq Models, A4F Models | "
-    f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    "</div>", 
-    unsafe_allow_html=True),
+    '<div style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">'
+    '💎 Quantora AI - Advanced AI Assistant | '
+    'Powered by Groq Models, A4F Models | '
+    f'Session started: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+    '</div>', 
+    unsafe_allow_html=True
+)
