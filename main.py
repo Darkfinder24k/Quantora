@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import datetime, timedelta
+from datetime import datetime
 import time
 import os
 from PyPDF2 import PdfReader
@@ -17,71 +17,6 @@ import base64
 import yfinance as yf
 import plotly.graph_objects as go
 import numpy as np
-from github import Github
-import streamlit.components.v1 as components
-from disposable_email_domains import blocklist
-import razorpay
-
-# Razorpay setup
-RAZORPAY_KEY_ID = "rzp_live_RPksPgcj9AjvMt"
-RAZORPAY_KEY_SECRET = "inAgH295NdscBCETqi9atybI"
-razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
-
-# GitHub setup - Assume secrets
-GITHUB_TOKEN = st.secrets["github_token"]  # Add in secrets.toml
-GITHUB_REPO = st.secrets["github_repo"]  # e.g., "username/repo"
-GITHUB_FILE = "users.json"
-
-gh = Github(GITHUB_TOKEN)
-repo = gh.get_repo(GITHUB_REPO)
-
-def get_users_data():
-    try:
-        file = repo.get_contents(GITHUB_FILE)
-        content = base64.b64decode(file.content).decode('utf-8')
-        return json.loads(content)
-    except:
-        return {}
-
-def update_users_data(data):
-    content = json.dumps(data, indent=2)
-    repo.update_file(GITHUB_FILE, "Update users data", content, repo.get_contents(GITHUB_FILE).sha)
-
-# Google Login
-user = st.login(provider="google")
-if not user:
-    st.stop()
-
-email = user['email']
-domain = email.split('@')[1]
-if domain in blocklist:
-    st.error("Disposable emails are not allowed. Please use a valid email.")
-    st.stop()
-
-users_data = get_users_data()
-user_id = user['id']
-if user_id not in users_data:
-    users_data[user_id] = {
-        "name": user['name'],
-        "email": email,
-        "subscription_start": None,
-        "subscription_active": False,
-        "bank_details": None
-    }
-    update_users_data(users_data)
-
-user_data = users_data[user_id]
-
-# Check subscription
-current_date = datetime.now()
-if user_data["subscription_start"]:
-    start = datetime.fromisoformat(user_data["subscription_start"])
-    days_passed = (current_date - start).days
-    if days_passed > 23 and days_passed < 30:
-        st.warning(f"Your free subscription ends in {30 - days_passed} days.")
-    if days_passed >= 30 and not user_data["subscription_active"]:
-        st.error("Your free trial has ended. Please subscribe to continue.")
-        # Show payment
 
 timestamp = datetime.now()
 # ✅ API Configuration
@@ -580,102 +515,8 @@ header {visibility: hidden;}
 # Unlock button for trial mode
 if not st.session_state.pro_unlocked:
     if st.button("Unlock Next-Gen Pro", key="unlock_pro_btn"):
-        st.session_state.show_pro_page = True
-
-if st.session_state.get("show_pro_page", False):
-    # Futuristic page
-    st.markdown("""
-    <style>
-    .futuristic-page {
-        background: linear-gradient(135deg, #0f172a, #1e293b);
-        border-radius: 20px;
-        padding: 2rem;
-        box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    with st.container():
-        st.markdown('<div class="futuristic-page">', unsafe_allow_html=True)
-        st.title("🚀 Unlock Quantora Prime X")
-        st.markdown("Experience premium features for 30 days free!")
-        
-        if st.button("Start 30-Day Free Trial"):
-            if not user_data["subscription_start"]:
-                user_data["subscription_start"] = current_date.isoformat()
-                update_users_data(users_data)
-            st.session_state.pro_unlocked = True
-            st.session_state.show_pro_page = False
-            st.rerun()
-        
-        st.markdown("After 30 days, subscribe for continued access.")
-        
-        # Payment form
-        st.subheader("Subscribe Now")
-        name = st.text_input("Name", value=user_data.get("name", ""))
-        gmail = st.text_input("Gmail", value=user_data.get("email", ""), disabled=True)
-        card_number = st.text_input("Card Number")
-        expiry = st.text_input("Expiry (MM/YY)")
-        cvv = st.text_input("CVV", type="password")
-        
-        if st.button("Subscribe"):
-            if card_number and expiry and cvv:
-                # Check if bank details exist
-                for uid, ud in users_data.items():
-                    if ud.get("bank_details") == {"card": card_number}:
-                        st.error("These bank details are already used.")
-                        break
-                else:
-                    # Create Razorpay order
-                    order = razorpay_client.order.create({
-                        "amount": 10000,  # 100 INR example
-                        "currency": "INR",
-                        "receipt": f"sub_{user_id}"
-                    })
-                    
-                    # Show payment button
-                    components.html(f"""
-                    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-                    <form>
-                        <script>
-                            var options = {{
-                                "key": "{RAZORPAY_KEY_ID}",
-                                "amount": "{order['amount']}",
-                                "currency": "INR",
-                                "name": "Quantora",
-                                "description": "Pro Subscription",
-                                "order_id": "{order['id']}",
-                                "handler": function (response){{
-                                    alert("Payment Successful!");
-                                }}
-                            }};
-                            var rzp1 = new Razorpay(options);
-                            rzp1.open();
-                        </script>
-                    </form>
-                    """, height=1)
-                    
-                    user_data["bank_details"] = {"card": card_number}
-                    user_data["subscription_active"] = True
-                    update_users_data(users_data)
-                    st.session_state.pro_unlocked = True
-            else:
-                st.error("Please enter all details.")
-
-        # Cancel button
-        if user_data["subscription_active"] or user_data["subscription_start"]:
-            if st.button("Cancel Subscription"):
-                user_data["subscription_active"] = False
-                user_data["subscription_start"] = None
-                update_users_data(users_data)
-                st.session_state.pro_unlocked = False
-                st.success("Subscription cancelled.")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# If subscribed or in trial, set pro_unlocked
-if user_data["subscription_active"] or (user_data["subscription_start"] and (current_date - datetime.fromisoformat(user_data["subscription_start"])).days < 30):
-    st.session_state.pro_unlocked = True
+        st.session_state.pro_unlocked = True
+        st.rerun()
 
 # Initialize session state variables
 if "chat" not in st.session_state:
@@ -2591,7 +2432,7 @@ def heart_health_analyzer():
                 <li>📊 Comprehensive health questionnaire</li>
                 <li>🤖 AI-powered health analysis</li>
                 <li>💓 Heart rate variability assessment</li>
-                <li>🎵 Upload recorded recorded heartbeat for analysis</li>
+                <li>🎵 Upload recorded heartbeat for analysis</li>
                 <li>🏥 Emergency and preventive care recommendations</li>
             </ul>
         </div>
