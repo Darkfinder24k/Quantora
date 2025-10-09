@@ -4149,7 +4149,7 @@ st.markdown("---")
 st.markdown(
     '<div style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">'
     '💎 Quantora AI - Advanced AI Assistant | '
-    'Powered by Groq Models, A4F Models | '
+    'Powered by Groq Models, A4F Models | Double-check — Quantora isn’t perfect. |'
     f'Session started: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
     '</div>', 
     unsafe_allow_html=True
