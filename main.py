@@ -4203,13 +4203,9 @@ if mode == "AI":
                 st.radio(
                     "Engine Selection",
                     options=[
-                        "Quantora V1 (Most Powerful Model But Slow)", 
-                        "Quantora V2 (Faster but not as better as V1)",
-                        "Quantora V3 (Code Specialized)",
-                        "Quantora V4 (Long Conversation)",
-                        "Quantora V3 (Reasoning Specialized)",
-                        "Quantora V3 (Math Specialized)",
-                        "Quantom Prime 1 (Ultimate Ensemble)"
+                        "Quantora V1 (Previous Flagship Model But Slow)", 
+                        "Quantora V2 (Faster but not as better as V1, or Prime 1)",
+                        "Quantom Prime 1 (Latest Flagship Ultimate Ensemble)"
                     ],
                     key="model_version",
                     label_visibility="collapsed",
