@@ -1011,7 +1011,11 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-2/llama-4-maverick",
                 "provider-3/qwen-2.5-72b",
                 "provider-3/gpt-5-nano",
-                "provider-1/deepseek-v3.1"
+                "provider-1/deepseek-v3.1",
+                "provider-7/claude-opus-4-1-20250805",
+                "provider-3/glm-4.6",
+                "provider-2/gpt-5",
+                "provider-1/kimi-k2-instruct"
                 
             ]
             for model in groq_models:
