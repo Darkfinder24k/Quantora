@@ -24,8 +24,7 @@ API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 A4F_BASE_URL = "https://api.a4f.co/v1"
-IMAGE_MODEL = "provider-5/seedream-4"
-IMAGE_EDIT_MODEL = "provider-3/flux-kontext-pro"
+IMAGE_MODEL = "provider-4/imagen-4"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
 # History persistence
@@ -35,11 +34,8 @@ if not os.path.exists(HISTORY_FILE):
         json.dump([], f)
 
 def load_history():
-    try:
-        with open(HISTORY_FILE, 'r') as f:
-            return json.load(f)
-    except:
-        return []
+    with open(HISTORY_FILE, 'r') as f:
+        return json.load(f)
 
 def save_history(query):
     history = load_history()
@@ -768,45 +764,6 @@ def parse_edit_instructions(instructions):
     
     return enhancements
 
-def edit_image_ai(image, edit_prompt):
-    """AI-based image editing using Flux Kontext Pro"""
-    headers = {
-        "Authorization": f"Bearer {A4F_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-    
-    payload = {
-        "model": IMAGE_EDIT_MODEL,
-        "prompt": edit_prompt,
-        "image": img_str,
-        "num_images": 1,
-        "width": 1024,
-        "height": 1024
-    }
-    
-    try:
-        response = requests.post(
-            f"{A4F_BASE_URL}/images/edits",
-            headers=headers,
-            json=payload,
-            timeout=60
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            if 'data' in result and len(result['data']) > 0:
-                image_url = result['data'][0]['url']
-                image_response = requests.get(image_url)
-                return Image.open(BytesIO(image_response.content))
-        return None
-    except Exception as e:
-        st.error(f"AI Image Edit error: {str(e)}")
-        return None
-
 def display_image_enhancement_controls(image, enhancements):
     with st.expander("🖼️ Image Enhancement Tools", expanded=True):
         st.markdown("### Adjust Image Parameters")
@@ -829,22 +786,7 @@ def display_image_enhancement_controls(image, enhancements):
         if selected_filter != 'None':
             enhanced_image = apply_image_filters(enhanced_image, selected_filter)
         
-        st.session_state.enhanced_image = enhanced_image
-        st.image(enhanced_image, caption="Enhanced Image", use_column_width=True)
-        
         return enhanced_image
-
-    with st.expander("✨ AI Image Edits", expanded=False):
-        edit_prompt = st.text_area("Describe the edit (e.g., 'remove background, add sunset')", height=100)
-        if st.button("Apply AI Edit") and edit_prompt:
-            with st.spinner("Editing image with AI..."):
-                edited = edit_image_ai(image, edit_prompt)
-                if edited:
-                    st.session_state.enhanced_image = edited
-                    st.image(edited, caption="AI Edited Image", use_column_width=True)
-                    st.success("AI Edit applied!")
-                else:
-                    st.error("Failed to apply AI edit.")
 
 # Enhanced A4F Model Call with fallback
 def call_a4f_model(prompt, model_name, context="", image=None):
@@ -934,7 +876,8 @@ Provide a comprehensive and helpful response:"""
                 error_msg += f"HTTP {e.response.status_code} - {str(e)}"
         else:
             error_msg += str(e)
-        return error_msg
+        # Fallback to Groq
+        return call_groq_model(prompt, "groq/compound", context)
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
@@ -1028,7 +971,7 @@ def call_quantora_unified(prompt, context="", image=None):
             return {
                 "backend": f"a4f_{model_name}",
                 "response": response,
-                "success": response is not None and not response.startswith("❌"),
+                "success": response is not None,
                 "length": len(response) if response else 0
             }
         except Exception as e:
@@ -1045,18 +988,35 @@ def call_quantora_unified(prompt, context="", image=None):
         futures = []
         selected_model_version = st.session_state.get("model_version", "Quantora V1 (Most Powerful Model But Slow)")
 
-        if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
-            st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
-            groq_models = ["llama3-8b-8192", "mixtral-8x7b-32768"]  # Valid Groq models
+        if selected_model_version == "Quantora Prime 1 (Latest Flsgship Model But Slow)":
+            st.toast("🚀 Using Quantora Prime 1 Engine...", icon="🚀")
+            groq_models = []
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
                 "provider-2/r1-1776", 
                 "provider-5/gpt-4o",
-                "provider-1/claude-opus-4"
+                "provider-1/claude-opus-4",
+                "provider-6/grok-3-reasoning",
+                "provider-5/gpt-4.1-nano",
+                "provider-3/deepseek-v3",
+                "provider-6/claude-3-7-sonnet-20250219-thinking",
+                "provider-1/claude-sonnet-4",
+                "provider-5/gemini-2.5-flash-preview-05-20",
+                "provider-3/grok-4-0709",
+                "provider-1/sonar-pro",
+                "provider-3/qwen-2.5-coder-32b",
+                "provider-2/codestral",
+                "provider-1/sonar-deep-research",
+                "provider-1/sonar-reasoning-pro",
+                "provider-2/llama-4-maverick",
+                "provider-3/qwen-2.5-72b",
+                "provider-3/gpt-5-nano",
+                "provider-1/deepseek-v3.1"
+                
             ]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
-            for model in a4f_models[:2]:  # Limit to avoid too many calls
+            for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
         
         elif selected_model_version == "Quantora V2 (Faster but not as better as V1)":
@@ -1073,7 +1033,9 @@ def call_quantora_unified(prompt, context="", image=None):
             code_models = [
                 "provider-6/claude-opus-4-20250514",
                 "provider-3/qwen-2.5-coder-32b",
-                "provider-2/codestral"
+                "provider-2/codestral",
+                "provider-1/sonar-pro",
+                "provider-1/sonar-reasoning-pro"
             ]
             for model in code_models:
                 futures.append(executor.submit(call_a4f_backend, model))
@@ -1082,7 +1044,9 @@ def call_quantora_unified(prompt, context="", image=None):
             st.toast("🗣️ Using Quantora V4 Conversation Engine...", icon="🗣️")
             conversation_models = [
                 "provider-6/gemini-2.5-flash",
-                "provider-6/minimax-m1-40k"
+                "provider-6/minimax-m1-40k",
+                "provider-1/claude-opus-4",
+                "provider-1/sonar-deep-research"
             ]
             for model in conversation_models:
                 futures.append(executor.submit(call_a4f_backend, model))
@@ -1091,7 +1055,9 @@ def call_quantora_unified(prompt, context="", image=None):
             st.toast("🧠 Using Quantora V3 Reasoning Engine...", icon="🧠")
             reasoning_models = [
                 "provider-1/sonar-reasoning",
-                "provider-6/r1-1776"
+                "provider-6/r1-1776",
+                "provider-1/sonar-reasoning-pro",
+                "provider-1/sonar-deep-research"
             ]
             for model in reasoning_models:
                 futures.append(executor.submit(call_a4f_backend, model))
@@ -1100,21 +1066,10 @@ def call_quantora_unified(prompt, context="", image=None):
             st.toast("🧮 Using Quantora V3 Math Engine...", icon="🧮")
             math_models = [
                 "provider-3/qwen-2.5-72b",
-                "provider-6/gemini-2.5-flash"
+                "provider-6/gemini-2.5-flash",
+                "provider-6/minimax-m1-40k"
             ]
             for model in math_models:
-                futures.append(executor.submit(call_a4f_backend, model))
-                
-        elif selected_model_version == "Quantom Prime 1 (Latest Ultimate Flagship Model Ensemble)":
-            st.toast("🌟 Using Quantom Prime 1 Ultimate Ensemble...", icon="🌟")
-            # Use only reliable models for Prime 1
-            prime_models = [
-                "provider-5/gpt-4o",
-                "provider-1/claude-opus-4",
-                "provider-3/claude-3.5-haiku",
-                "provider-6/gemini-2.5-flash"
-            ]
-            for model in prime_models:
                 futures.append(executor.submit(call_a4f_backend, model))
 
         for future in concurrent.futures.as_completed(futures):
@@ -1127,30 +1082,37 @@ def call_quantora_unified(prompt, context="", image=None):
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
     
     if not successful_responses:
-        # Use Groq as reliable fallback
-        st.toast("🔄 Using reliable fallback model...", icon="🔄")
-        fallback_response = call_groq_model(full_prompt, "llama3-8b-8192", context)
-        if not fallback_response or fallback_response.startswith("❌"):
-            # Final fallback - generate a meaningful response
-            fallback_response = f"""Hello! I'm Quantora, your advanced AI assistant. 
-
-Regarding your query: "{prompt}"
-
-I'm currently optimizing my backend connections for the best performance. Let me provide you with a comprehensive response:
-
-As an AI assistant created by Quantora with designer Kushagra, I'm here to help you with any task. Whether you need code, analysis, creative writing, or problem-solving, I'm equipped to assist.
-
-For your specific request, I'd be happy to help. Could you provide more details about what you'd like me to focus on? I can assist with programming, data analysis, content creation, research, and much more.
-
-What would you like me to help you with today?"""
-        processing_time = time.time() - start_time
-        return fallback_response
+        return "❌ No successful responses from backends. Please try again."
     
-    # If we have successful responses, use the best one
-    best_response = max(successful_responses, key=lambda x: x['length'])
+    mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt. 
+Combine them into one coherent, comprehensive response that maintains the best aspects of each.
+
+Original Prompt: {prompt}
+
+Responses to combine:
+{'\n\n'.join([f"Response from {r['backend']}:\n{r['response']}" for r in successful_responses])}
+
+Guidelines:
+1. Preserve all valuable information
+2. Remove any redundancies
+3. Maintain a professional, engaging tone
+4. Keep code blocks intact
+5. Ensure logical flow
+6. Add any missing context that would improve the answer
+7. Dont tell about any ai error
+8. Always ask a question to the user ex- that what should I(you) do next?
+
+Combined Response:"""
+    
+    final_response = call_a4f_model(mixing_prompt, "provider-3/gpt-4o-mini")
+    
+    # Simulated auto-training: "Learn" by storing response improvements
+    if final_response:
+        learning_note = f"Improved response for query: {prompt[:50]}... by combining {len(successful_responses)} backends"
+        st.session_state.learning_history.append(learning_note)
     
     processing_time = time.time() - start_time
-    return best_response['response']
+    return final_response if final_response else successful_responses[0]['response']
 
 # Code Detection and Formatting
 def format_response_with_code(response):
@@ -1686,7 +1648,7 @@ def quantora_social_media():
                 st.markdown(f"<div style='margin-top: 10px; font-size: 1em; line-height: 1.4;'>{handle_hashtags(row.get('quantora_text', ''))}</div>", unsafe_allow_html=True)
                 image_path = row.get('quantora_image_path')
                 if image_path and isinstance(image_path, str) and os.path.exists(image_path):
-                    st.image(image_path, use_column_width=True)
+                    st.image(image_path, use_column_width=True, style="margin-top: 10px; border-radius: 8px;")
                 st.markdown("<hr style='margin: 15px 0; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
                 quantora_post_actions(row, index)
                 st.markdown("</div>", unsafe_allow_html=True)
@@ -1721,7 +1683,9 @@ def quantora_social_media():
                 if username_to_view != st.session_state.quantora_username:
                     is_following = is_user_following(st.session_state.quantora_username, username_to_view)
                     follow_text = "Following" if is_following else "Follow"
-                    st.button(follow_text, key=f"profile_follow_{username_to_view}", use_container_width=True)
+                    if st.button(follow_text, key=f"profile_follow_{username_to_view}", use_container_width=True):
+                        update_follow(st.session_state.quantora_username, username_to_view, not is_following)
+                        st.rerun()
 
             st.subheader("Posts")
             if not posts.empty:
@@ -1729,7 +1693,7 @@ def quantora_social_media():
                 for i, row in posts.iterrows():
                     with cols[i % 3]:
                         if row['quantora_image_path'] and os.path.exists(row['quantora_image_path']):
-                            st.image(row['quantora_image_path'], use_column_width=True)
+                            st.image(row['quantora_image_path'], use_column_width=True, style="border-radius: 5px;")
                         else:
                             st.info("No image")
             else:
@@ -2452,8 +2416,7 @@ def heart_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                if key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('heart_rate_data') or key.startswith('recording_method') or key.startswith('heart_rate_recorded') or key.startswith('show_heartbeat_section'):
-                    del st.session_state[key]
+                del st.session_state[key]
             st.rerun()
 
     def main_heart():
@@ -3091,8 +3054,7 @@ def brain_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                if key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('cognitive_data') or key.startswith('testing_method') or key.startswith('cognitive_tests_completed') or key.startswith('show_cognitive_section'):
-                    del st.session_state[key]
+                del st.session_state[key]
             st.rerun()
 
 
@@ -3614,7 +3576,7 @@ def cancer_risk_assessor():
 
         # Display body map (simplified)
         st.markdown("### 🏷️ Body Map")
-        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_body_silhouette.svg/1200px-Human_body_body_silhouette.svg.png", 
+        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_body_silhouette.svg/1200px-Human_body_silhouette.svg.png", 
                  use_column_width=True, caption="Areas of concern highlighted in your assessment")
         
         st.markdown("---")
@@ -3835,8 +3797,7 @@ def cancer_risk_assessor():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                if key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('image_analysis') or key.startswith('testing_method') or key.startswith('image_analysis_completed') or key.startswith('show_image_section') or key.startswith('risk_score') or key.startswith('concerned_areas'):
-                    del st.session_state[key]
+                del st.session_state[key]
             st.rerun()
 
     def main_cancer():
@@ -4007,7 +3968,7 @@ if mode == "AI":
                     st.session_state.chat.append(("user", prompt, datetime.now()))
                     response = call_quantora_unified(prompt)
                     response_time = time.time() - start_time
-                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))  # Fixed typo: was "quantora"
+                    st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
                     save_history(prompt)
                     st.rerun()
             
@@ -4151,34 +4112,33 @@ if mode == "AI":
                 st.radio(
                     "Engine Selection",
                     options=[
-                        "Quantora V1 (Most Powerful Model But Slow)", 
-                        "Quantora V2 (Faster but not as better as V1)",
-                        "Quantom Prime 1 (Latest Ultimate Flagship Model Ultimate Ensemble)"
+                        "Quantora Prime 1 (Most Powerful Model But Slow)", 
+                        "Quantora Prime 1 Fast (Faster but not as better as Prime 1)"
                     ],
                     key="model_version",
                     label_visibility="collapsed",
                     help="Select specialized model versions for different tasks",
                 )
 
-elif mode == "Quantora News":
+elif st.session_state.current_mode == "Quantora News":
     quantora_news()
 
-elif mode == "Quantora Trade Charts":
+elif st.session_state.current_mode == "Quantora Trade Charts":
     quantora_trade_charts()
 
-elif mode == "Quantora Social Media":
+elif st.session_state.current_mode == "Quantora Social Media":
     quantora_social_media()
 
-elif mode == "Heart Health Analyzer":
+elif st.session_state.current_mode == "Heart Health Analyzer":
     heart_health_analyzer()
 
-elif mode == "Brain Health Analyzer":
+elif st.session_state.current_mode == "Brain Health Analyzer":
     brain_health_analyzer()
 
-elif mode == "Cancer Risk Assessor":
+elif st.session_state.current_mode == "Cancer Risk Assessor":
     cancer_risk_assessor()
 
-elif mode == "History":
+elif st.session_state.current_mode == "History":
     show_history()
 
 # Footer
