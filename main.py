@@ -24,7 +24,8 @@ API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 A4F_BASE_URL = "https://api.a4f.co/v1"
-IMAGE_MODEL = "provider-4/imagen-4"
+IMAGE_MODEL = "provider-5/seedream-4"
+IMAGE_EDIT_MODEL = "provider-3/flux-kontext-pro"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
 # History persistence
@@ -764,6 +765,45 @@ def parse_edit_instructions(instructions):
     
     return enhancements
 
+def edit_image_ai(image, edit_prompt):
+    """AI-based image editing using Flux Kontext Pro"""
+    headers = {
+        "Authorization": f"Bearer {A4F_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    
+    payload = {
+        "model": IMAGE_EDIT_MODEL,
+        "prompt": edit_prompt,
+        "image": img_str,
+        "num_images": 1,
+        "width": 1024,
+        "height": 1024
+    }
+    
+    try:
+        response = requests.post(
+            f"{A4F_BASE_URL}/images/edits",
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if 'data' in result and len(result['data']) > 0:
+                image_url = result['data'][0]['url']
+                image_response = requests.get(image_url)
+                return Image.open(BytesIO(image_response.content))
+        return None
+    except Exception as e:
+        st.error(f"AI Image Edit error: {str(e)}")
+        return None
+
 def display_image_enhancement_controls(image, enhancements):
     with st.expander("🖼️ Image Enhancement Tools", expanded=True):
         st.markdown("### Adjust Image Parameters")
@@ -786,7 +826,22 @@ def display_image_enhancement_controls(image, enhancements):
         if selected_filter != 'None':
             enhanced_image = apply_image_filters(enhanced_image, selected_filter)
         
+        st.session_state.enhanced_image = enhanced_image
+        st.image(enhanced_image, caption="Enhanced Image", use_column_width=True)
+        
         return enhanced_image
+
+    with st.expander("✨ AI Image Edits", expanded=False):
+        edit_prompt = st.text_area("Describe the edit (e.g., 'remove background, add sunset')", height=100)
+        if st.button("Apply AI Edit") and edit_prompt:
+            with st.spinner("Editing image with AI..."):
+                edited = edit_image_ai(image, edit_prompt)
+                if edited:
+                    st.session_state.enhanced_image = edited
+                    st.image(edited, caption="AI Edited Image", use_column_width=True)
+                    st.success("AI Edit applied!")
+                else:
+                    st.error("Failed to apply AI edit.")
 
 # Enhanced A4F Model Call with fallback
 def call_a4f_model(prompt, model_name, context="", image=None):
@@ -986,9 +1041,9 @@ def call_quantora_unified(prompt, context="", image=None):
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
-        selected_model_version = st.session_state.get("model_version", "Quantora V1 (Most Powerful Model But Slow)")
+        selected_model_version = st.session_state.get("model_version", "Quantora V1 (Previous Slow Flagship Model)")
 
-        if selected_model_version == "Quantora V1 (Most Powerful Model But Slow)":
+        if selected_model_version == "Quantora V1 (Previous Slow Flagship Model)":
             st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
             groq_models = []
             a4f_models = [
@@ -1011,7 +1066,10 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-2/llama-4-maverick",
                 "provider-3/qwen-2.5-72b",
                 "provider-3/gpt-5-nano",
-                "provider-1/deepseek-v3.1"
+                "provider-1/deepseek-v3.1",
+                "provider-7/claude-opus-4-1-20250805",
+                "provider-3/glm-4.6",
+                "provider-2/gpt-5"
             ]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
@@ -1069,6 +1127,37 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-6/minimax-m1-40k"
             ]
             for model in math_models:
+                futures.append(executor.submit(call_a4f_backend, model))
+                
+        elif selected_model_version == "Quantom Prime 1 (Latest Ultimate Flagship Model Ensemble)":
+            st.toast("🌟 Using Quantom Prime 1 Ultimate Ensemble...", icon="🌟")
+            # All default models + new ones
+            all_a4f_models = [
+                "provider-3/claude-3.5-haiku",
+                "provider-2/r1-1776", 
+                "provider-5/gpt-4o",
+                "provider-1/claude-opus-4",
+                "provider-6/grok-3-reasoning",
+                "provider-5/gpt-4.1-nano",
+                "provider-3/deepseek-v3",
+                "provider-6/claude-3-7-sonnet-20250219-thinking",
+                "provider-1/claude-sonnet-4",
+                "provider-5/gemini-2.5-flash-preview-05-20",
+                "provider-3/grok-4-0709",
+                "provider-1/sonar-pro",
+                "provider-3/qwen-2.5-coder-32b",
+                "provider-2/codestral",
+                "provider-1/sonar-deep-research",
+                "provider-1/sonar-reasoning-pro",
+                "provider-2/llama-4-maverick",
+                "provider-3/qwen-2.5-72b",
+                "provider-3/gpt-5-nano",
+                "provider-1/deepseek-v3.1",
+                "provider-7/claude-opus-4-1-20250805",
+                "provider-3/glm-4.6",
+                "provider-2/gpt-5"
+            ]
+            for model in all_a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
 
         for future in concurrent.futures.as_completed(futures):
@@ -2415,7 +2504,8 @@ def heart_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
+                if key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('heart_rate_data') or key.startswith('recording_method') or key.startswith('heart_rate_recorded') or key.startswith('show_heartbeat_section'):
+                    del st.session_state[key]
             st.rerun()
 
     def main_heart():
@@ -2568,7 +2658,7 @@ def brain_health_analyzer():
         },
         {
             "id": 17,
-            "question": "How many hours of sleep do you get per night on average?",
+            "question": "How how many hours of sleep do you get per night on average?",
             "type": "selectbox",
             "options": ["Less than 4 hours", "4-6 hours", "6-8 hours", "8-10 hours", "More than 10 hours"]
         },
@@ -3053,7 +3143,8 @@ def brain_health_analyzer():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
+                if key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('cognitive_data') or key.startswith('testing_method') or key.startswith('cognitive_tests_completed') or key.startswith('show_cognitive_section'):
+                    del st.session_state[key]
             st.rerun()
 
 
@@ -3796,7 +3887,8 @@ def cancer_risk_assessor():
 
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
+                if key.startswith('current_question') or key.startswith('answers') or key.startswith('assessment_complete') or key.startswith('ai_response') or key.startswith('image_analysis') or key.startswith('testing_method') or key.startswith('image_analysis_completed') or key.startswith('show_image_section') or key.startswith('risk_score') or key.startswith('concerned_areas'):
+                    del st.session_state[key]
             st.rerun()
 
     def main_cancer():
@@ -4116,32 +4208,33 @@ if mode == "AI":
                         "Quantora V3 (Code Specialized)",
                         "Quantora V4 (Long Conversation)",
                         "Quantora V3 (Reasoning Specialized)",
-                        "Quantora V3 (Math Specialized)"
+                        "Quantora V3 (Math Specialized)",
+                        "Quantom Prime 1 (Ultimate Ensemble)"
                     ],
                     key="model_version",
                     label_visibility="collapsed",
                     help="Select specialized model versions for different tasks",
                 )
 
-elif st.session_state.current_mode == "Quantora News":
+elif mode == "Quantora News":
     quantora_news()
 
-elif st.session_state.current_mode == "Quantora Trade Charts":
+elif mode == "Quantora Trade Charts":
     quantora_trade_charts()
 
-elif st.session_state.current_mode == "Quantora Social Media":
+elif mode == "Quantora Social Media":
     quantora_social_media()
 
-elif st.session_state.current_mode == "Heart Health Analyzer":
+elif mode == "Heart Health Analyzer":
     heart_health_analyzer()
 
-elif st.session_state.current_mode == "Brain Health Analyzer":
+elif mode == "Brain Health Analyzer":
     brain_health_analyzer()
 
-elif st.session_state.current_mode == "Cancer Risk Assessor":
+elif mode == "Cancer Risk Assessor":
     cancer_risk_assessor()
 
-elif st.session_state.current_mode == "History":
+elif mode == "History":
     show_history()
 
 # Footer
