@@ -25,6 +25,7 @@ API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 A4F_BASE_URL = "https://api.a4f.co/v1"
 IMAGE_MODEL = "provider-4/imagen-4"
+EDIT_MODEL = "provider-3/flux-kontext-pro"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
 # History persistence
@@ -1175,6 +1176,44 @@ def generate_image(prompt, style):
         st.error(f"Image generation error: {str(e)}")
         return None
 
+def edit_image(image, edit_prompt):
+    headers = {
+        "Authorization": f"Bearer {A4F_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+    payload = {
+        "model": EDIT_MODEL,
+        "prompt": edit_prompt,
+        "image": img_str,
+        "num_images": 1,
+        "width": 1024,
+        "height": 1024
+    }
+
+    try:
+        response = requests.post(
+            f"{A4F_BASE_URL}/images/edits",
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            if 'data' in result and len(result['data']) > 0:
+                image_url = result['data'][0]['url']
+                image_response = requests.get(image_url)
+                return Image.open(BytesIO(image_response.content))
+        return None
+    except Exception as e:
+        st.error(f"Image editing error: {str(e)}")
+        return None
+
 def generate_video(prompt, style):
     headers = {
         "Authorization": f"Bearer {A4F_API_KEY}",
@@ -2081,7 +2120,7 @@ def heart_health_analyzer():
         return None
 
     def display_heart_rate_analysis(heart_rate_data):
-        """Enhanced heart rate analysis display with detailed medical insights"""
+        """Enhanced heart rate analysis analysis display with detailed medical insights"""
         if not heart_rate_data:
             return
 
@@ -3841,6 +3880,77 @@ def cancer_risk_assessor():
     main_cancer()
 
 # --------------------------
+# IMAGE GENERATION MODULE
+# --------------------------
+def image_generation():
+    st.title("🖼️ Quantora Image Generation & Editing")
+    st.markdown("Create stunning images from text prompts or edit existing ones with AI precision.")
+
+    tab1, tab2 = st.tabs(["✨ Generate New Image", "🛠️ Edit Existing Image"])
+
+    with tab1:
+        st.subheader("Generate New Image")
+        prompt = st.text_area("Describe the image you want to create:", height=100, placeholder="E.g., A futuristic cityscape at sunset with flying cars")
+        style = st.selectbox("Art Style", ["Sci-Fi", "Realistic", "Fantasy", "Abstract", "Oil Painting", "Digital Art"])
+
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("🎨 Generate Image", type="primary"):
+                with st.spinner("Generating your image..."):
+                    generated_image = generate_image(prompt, style)
+                    if generated_image:
+                        st.session_state.generated_image = generated_image
+                        st.success("Image generated successfully!")
+                    else:
+                        st.error("Failed to generate image. Please try again.")
+        
+        if hasattr(st.session_state, 'generated_image') and st.session_state.generated_image:
+            st.image(st.session_state.generated_image, caption="Generated Image", use_column_width=True)
+            if st.button("🔄 Generate Another"):
+                del st.session_state.generated_image
+                st.rerun()
+
+    with tab2:
+        st.subheader("Edit Existing Image")
+        uploaded_image = st.file_uploader("Upload an image to edit:", type=["jpg", "jpeg", "png"])
+        
+        if uploaded_image:
+            image = Image.open(uploaded_image)
+            st.image(image, caption="Original Image", use_column_width=True)
+            
+            edit_prompt = st.text_area("Describe the edits you want (e.g., 'add a sunset background, make the sky vibrant'):", height=100)
+            
+            if st.button("✏️ Apply Edits", type="primary"):
+                if edit_prompt:
+                    with st.spinner("Editing your image..."):
+                        edited_image = edit_image(image, edit_prompt)
+                        if edited_image:
+                            st.session_state.edited_image = edited_image
+                            st.success("Image edited successfully!")
+                        else:
+                            st.error("Failed to edit image. Please try again.")
+                else:
+                    st.warning("Please provide edit instructions.")
+        
+        if hasattr(st.session_state, 'edited_image') and st.session_state.edited_image:
+            st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("💾 Download Edited Image"):
+                    buffered = BytesIO()
+                    st.session_state.edited_image.save(buffered, format="PNG")
+                    st.download_button(
+                        label="Download PNG",
+                        data=buffered.getvalue(),
+                        file_name="edited_image.png",
+                        mime="image/png"
+                    )
+            with col2:
+                if st.button("🔄 Edit Again"):
+                    del st.session_state.edited_image
+                    st.rerun()
+
+# --------------------------
 # HISTORY DISPLAY
 # --------------------------
 def show_history():
@@ -4140,6 +4250,9 @@ elif st.session_state.current_mode == "Cancer Risk Assessor":
 
 elif st.session_state.current_mode == "History":
     show_history()
+
+elif st.session_state.current_mode == "Image Generation":
+    image_generation()
 
 # Footer
 st.markdown("---")
