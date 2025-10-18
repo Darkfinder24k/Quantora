@@ -989,7 +989,7 @@ def call_quantora_unified(prompt, context="", image=None):
         selected_model_version = st.session_state.get("model_version", "Quantora Prime 1 (Latest Flagship Model)")
 
         if selected_model_version == "Quantora Prime 1 (Latest Flagship Model)":
-            st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
+            st.toast("🚀 Using Quantora Prime 1 Engine...", icon="🚀")
             groq_models = []
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
@@ -1020,7 +1020,7 @@ def call_quantora_unified(prompt, context="", image=None):
                 futures.append(executor.submit(call_a4f_backend, model))
         
         elif selected_model_version == "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)":
-            st.toast("⚡ Using Quantora V2 Engine...", icon="⚡")
+            st.toast("⚡ Using Quantora Prime 1 Fast Engine...", icon="⚡")
             a4f_v2_models = [
                 "provider-2/gemini-2.5-flash-lite",
                 "provider-1/deepseek-v3.1"
