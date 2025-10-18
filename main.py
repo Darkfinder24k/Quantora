@@ -538,7 +538,7 @@ if "enhancement_values" not in st.session_state:
         "filter": "None"
     }
 if "model_version" not in st.session_state:
-    st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
+    st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
 if "image_style" not in st.session_state:
     st.session_state.image_style = "Sci-Fi"
 if "video_style" not in st.session_state:
@@ -556,7 +556,7 @@ if "iq_test_score" not in st.session_state:
 
 # Force V2 in trial mode
 if not st.session_state.pro_unlocked:
-    st.session_state.model_version = "Quantora V2 (Faster but not as better as V1)"
+    st.session_state.model_version = "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)"
 
 # Initialize API clients
 @st.cache_resource
@@ -986,10 +986,10 @@ def call_quantora_unified(prompt, context="", image=None):
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
-        selected_model_version = st.session_state.get("model_version", "Quantora V1 (Most Powerful Model But Slow)")
+        selected_model_version = st.session_state.get("model_version", "Quantora Prime 1 (Latest Flagship Model)")
 
-        if selected_model_version == "Quantora Prime 1 (Most Powerful Model But Slow)":
-            st.toast("🚀 Using Quantora Prime 1 Engine...", icon="🚀")
+        if selected_model_version == "Quantora Prime 1 (Latest Flagship Model)":
+            st.toast("🚀 Using Quantora V1 Engine...", icon="🚀")
             groq_models = []
             a4f_models = [
                 "provider-3/claude-3.5-haiku",
@@ -1011,11 +1011,7 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-2/llama-4-maverick",
                 "provider-3/qwen-2.5-72b",
                 "provider-3/gpt-5-nano",
-                "provider-1/deepseek-v3.1",
-                "provider-7/claude-opus-4-1-20250805",
-                "provider-3/glm-4.6",
-                "provider-2/gpt-5",
-                "provider-1/kimi-k2-instruct"
+                "provider-1/deepseek-v3.1"
                 
             ]
             for model in groq_models:
@@ -1023,7 +1019,7 @@ def call_quantora_unified(prompt, context="", image=None):
             for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
         
-        elif selected_model_version == "Quantora Prime 1 Fast (Faster but not as better as Prime 1)":
+        elif selected_model_version == "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)":
             st.toast("⚡ Using Quantora V2 Engine...", icon="⚡")
             a4f_v2_models = [
                 "provider-2/gemini-2.5-flash-lite",
@@ -1351,7 +1347,7 @@ def quantora_trade_charts():
                 """
                 
                 with st.spinner("Generating AI analysis..."):
-                    st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
+                    st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
                     analysis = call_quantora_unified(analysis_prompt)
                     st.markdown(analysis)
                 
@@ -1389,7 +1385,7 @@ def quantora_news():
 
     # Generate news
     with st.spinner("🔍 Quantora AI is gathering and analyzing today's global news..."):
-        st.session_state.model_version = "Quantora V1 (Most Powerful Model But Slow)"
+        st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
         response = call_quantora_unified(prompt)
         news = response
 
@@ -4116,8 +4112,8 @@ if mode == "AI":
                 st.radio(
                     "Engine Selection",
                     options=[
-                        "Quantora Prime 1 (Most Powerful Model But Slow)", 
-                        "Quantora Prime 1 Fast (Faster but not as better as Prime 1)"
+                        "Quantora Prime 1 (Latest Flagship Model)", 
+                        "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)"
                     ],
                     key="model_version",
                     label_visibility="collapsed",
