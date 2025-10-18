@@ -1687,7 +1687,7 @@ def quantora_social_media():
                 st.markdown(f"<div style='margin-top: 10px; font-size: 1em; line-height: 1.4;'>{handle_hashtags(row.get('quantora_text', ''))}</div>", unsafe_allow_html=True)
                 image_path = row.get('quantora_image_path')
                 if image_path and isinstance(image_path, str) and os.path.exists(image_path):
-                    st.image(image_path, use_column_width=True, style="margin-top: 10px; border-radius: 8px;")
+                    st.image(image_path, use_container_width=True, style="margin-top: 10px; border-radius: 8px;")
                 st.markdown("<hr style='margin: 15px 0; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
                 quantora_post_actions(row, index)
                 st.markdown("</div>", unsafe_allow_html=True)
@@ -1732,7 +1732,7 @@ def quantora_social_media():
                 for i, row in posts.iterrows():
                     with cols[i % 3]:
                         if row['quantora_image_path'] and os.path.exists(row['quantora_image_path']):
-                            st.image(row['quantora_image_path'], use_column_width=True, style="border-radius: 5px;")
+                            st.image(row['quantora_image_path'], use_container_width=True, style="border-radius: 5px;")
                         else:
                             st.info("No image")
             else:
@@ -3423,7 +3423,7 @@ def cancer_risk_assessor():
             for i, uploaded_file in enumerate(uploaded_files):
                 with cols[i]:
                     image = Image.open(uploaded_file)
-                    st.image(image, caption=f"Image {i+1}", use_column_width=True)
+                    st.image(image, caption=f"Image {i+1}", use_container_width=True)
             
             if st.button("Analyze Images"):
                 with st.spinner("🔍 Analyzing images with AI..."):
@@ -3616,7 +3616,7 @@ def cancer_risk_assessor():
         # Display body map (simplified)
         st.markdown("### 🏷️ Body Map")
         st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_body_silhouette.svg/1200px-Human_body_silhouette.svg.png", 
-                 use_column_width=True, caption="Areas of concern highlighted in your assessment")
+                 use_container_width=True, caption="Areas of concern highlighted in your assessment")
         
         st.markdown("---")
         st.subheader("📊 Detailed Risk Factors")
@@ -3905,7 +3905,7 @@ def image_generation():
                         st.error("Failed to generate image. Please try again.")
         
         if hasattr(st.session_state, 'generated_image') and st.session_state.generated_image:
-            st.image(st.session_state.generated_image, caption="Generated Image", use_column_width=True)
+            st.image(st.session_state.generated_image, caption="Generated Image", use_container_width=True)
             if st.button("🔄 Generate Another"):
                 del st.session_state.generated_image
                 st.rerun()
@@ -3916,7 +3916,7 @@ def image_generation():
         
         if uploaded_image:
             image = Image.open(uploaded_image)
-            st.image(image, caption="Original Image", use_column_width=True)
+            st.image(image, caption="Original Image", use_container_width=True)
             
             edit_prompt = st.text_area("Describe the edits you want (e.g., 'add a sunset background, make the sky vibrant'):", height=100)
             
@@ -3933,7 +3933,7 @@ def image_generation():
                     st.warning("Please provide edit instructions.")
         
         if hasattr(st.session_state, 'edited_image') and st.session_state.edited_image:
-            st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=True)
+            st.image(st.session_state.edited_image, caption="Edited Image", use_container_width=True)
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("💾 Download Edited Image"):
