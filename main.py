@@ -17,8 +17,12 @@ import base64
 import yfinance as yf
 import plotly.graph_objects as go
 import numpy as np
+import speech_recognition as sr
+import pyttsx3
+import threading
+import queue
+import pyaudio
 
-timestamp = datetime.now()
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
@@ -110,6 +114,56 @@ st.markdown("""
         padding: 1rem;
         background: rgba(0, 0, 0, 0.8);
         z-index: 1000;
+    }
+
+    /* Voice Assistant Styles */
+    .voice-assistant-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        margin: 1rem 0;
+        text-align: center;
+        color: white;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    
+    .voice-button {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 80px;
+        height: 80px;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        margin: 10px;
+    }
+    
+    .voice-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6);
+    }
+    
+    .voice-button.listening {
+        background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+        animation: pulse 1.5s infinite;
+    }
+    
+    .voice-status {
+        font-size: 1.2em;
+        margin: 1rem 0;
+        font-weight: bold;
+    }
+    
+    .transcript-box {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 1rem 0;
+        min-height: 60px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
     }
 
     /* Rest of the CSS remains the same */
@@ -554,6 +608,16 @@ if "learning_history" not in st.session_state:
     st.session_state.learning_history = []  # For simulated auto-training
 if "iq_test_score" not in st.session_state:
     st.session_state.iq_test_score = None
+if "voice_transcript" not in st.session_state:
+    st.session_state.voice_transcript = ""
+if "is_listening" not in st.session_state:
+    st.session_state.is_listening = False
+if "voice_model" not in st.session_state:
+    st.session_state.voice_model = "Quantora Prime 1 (Latest Flagship Model)"
+if "tts_engine" not in st.session_state:
+    st.session_state.tts_engine = None
+if "stop_listening" not in st.session_state:
+    st.session_state.stop_listening = None
 
 # Force V2 in trial mode
 if not st.session_state.pro_unlocked:
@@ -580,6 +644,318 @@ def initialize_clients():
 
 groq_client, a4f_client = initialize_clients()
 
+# Initialize Text-to-Speech Engine
+@st.cache_resource
+def initialize_tts():
+    try:
+        engine = pyttsx3.init()
+        # Configure voice properties
+        voices = engine.getProperty('voices')
+        if voices:
+            engine.setProperty('voice', voices[0].id)  # Use first available voice
+        engine.setProperty('rate', 180)  # Speed of speech
+        engine.setProperty('volume', 0.8)  # Volume level
+        return engine
+    except Exception as e:
+        st.error(f"TTS Engine Error: {e}")
+        return None
+
+# Initialize TTS engine
+if st.session_state.tts_engine is None:
+    st.session_state.tts_engine = initialize_tts()
+
+# --------------------------
+# VOICE ASSISTANT MODULE
+# --------------------------
+class QuantoraVoiceAssistant:
+    def __init__(self):
+        self.recognizer = sr.Recognizer()
+        self.microphone = sr.Microphone()
+        self.is_listening = False
+        self.audio_queue = queue.Queue()
+        self.setup_microphone()
+    
+    def setup_microphone(self):
+        """Setup microphone with optimal settings"""
+        try:
+            # Adjust for ambient noise
+            with self.microphone as source:
+                self.recognizer.adjust_for_ambient_noise(source, duration=1)
+        except Exception as e:
+            st.error(f"Microphone setup error: {e}")
+    
+    def listen_continuous(self):
+        """Continuous listening in a separate thread"""
+        self.is_listening = True
+        st.session_state.is_listening = True
+        
+        def audio_callback(recognizer, audio):
+            """Callback for when audio is received"""
+            try:
+                if self.is_listening:
+                    self.audio_queue.put(audio)
+            except Exception as e:
+                print(f"Audio callback error: {e}")
+        
+        # Start listening in the background
+        try:
+            stop_listening = self.recognizer.listen_in_background(
+                self.microphone, 
+                audio_callback,
+                phrase_time_limit=10  # Maximum 10 seconds per phrase
+            )
+            return stop_listening
+        except Exception as e:
+            st.error(f"Failed to start listening: {e}")
+            return None
+    
+    def stop_listening(self, stop_listening):
+        """Stop the listening thread"""
+        if stop_listening:
+            try:
+                stop_listening(wait_for_stop=False)
+            except:
+                pass
+        self.is_listening = False
+        st.session_state.is_listening = False
+    
+    def process_audio(self, audio):
+        """Process audio data and convert to text using multiple methods"""
+        transcript = ""
+        
+        # Method 1: Google Speech Recognition (Primary)
+        try:
+            transcript = self.recognizer.recognize_google(audio, language='en-US')
+            return transcript, "Google"
+        except sr.UnknownValueError:
+            pass
+        except sr.RequestError as e:
+            st.error(f"Google API error: {e}")
+        
+        # Method 2: Sphinx (Offline)
+        try:
+            transcript = self.recognizer.recognize_sphinx(audio)
+            return transcript, "Sphinx"
+        except sr.UnknownValueError:
+            pass
+        except Exception as e:
+            st.error(f"Sphinx error: {e}")
+        
+        # Method 3: Whisper via A4F API
+        try:
+            # Convert audio to WAV format
+            wav_data = audio.get_wav_data()
+            audio_file = BytesIO(wav_data)
+            transcript = transcribe_audio(audio_file)
+            if transcript:
+                return transcript, "Whisper"
+        except Exception as e:
+            st.error(f"Whisper API error: {e}")
+        
+        return "", "None"
+    
+    def speak_text(self, text):
+        """Convert text to speech using pyttsx3"""
+        if st.session_state.tts_engine and text.strip():
+            try:
+                # Run TTS in a separate thread to avoid blocking
+                def run_tts():
+                    try:
+                        st.session_state.tts_engine.say(text)
+                        st.session_state.tts_engine.runAndWait()
+                    except Exception as e:
+                        st.error(f"TTS playback error: {e}")
+                
+                tts_thread = threading.Thread(target=run_tts)
+                tts_thread.daemon = True
+                tts_thread.start()
+                
+                return True
+            except Exception as e:
+                st.error(f"TTS Error: {e}")
+                return False
+        else:
+            return False
+
+# Initialize voice assistant
+voice_assistant = QuantoraVoiceAssistant()
+
+def voice_assistant_module():
+    st.markdown("""
+    <div class="voice-assistant-container">
+        <h2>🎤 Quantora Voice Assistant</h2>
+        <p>Speak naturally and let Quantora understand and respond to you</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        # Model selection for voice assistant
+        st.markdown("### 🤖 Select AI Model for Voice")
+        voice_model = st.radio(
+            "Choose model for voice responses:",
+            ["Quantora Prime 1 (Latest Flagship Model)", 
+             "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)"],
+            key="voice_model",
+            horizontal=True
+        )
+        
+        # Voice controls
+        st.markdown("### 🎙️ Voice Controls")
+        
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
+        
+        with col_btn1:
+            if st.button("🎤 Start Listening", key="start_listen", use_container_width=True):
+                if not st.session_state.is_listening:
+                    stop_listening = voice_assistant.listen_continuous()
+                    if stop_listening:
+                        st.session_state.stop_listening = stop_listening
+                        st.success("🎧 Listening... Speak now!")
+                    else:
+                        st.error("Failed to start listening")
+                else:
+                    st.info("Already listening...")
+        
+        with col_btn2:
+            if st.button("⏹️ Stop Listening", key="stop_listen", use_container_width=True):
+                if st.session_state.is_listening and 'stop_listening' in st.session_state:
+                    voice_assistant.stop_listening(st.session_state.stop_listening)
+                    st.success("Stopped listening")
+        
+        with col_btn3:
+            if st.button("🗣️ Test TTS", key="test_tts", use_container_width=True):
+                test_text = "Hello! I am Quantora Voice Assistant. How can I help you today?"
+                if voice_assistant.speak_text(test_text):
+                    st.success("Speaking test message...")
+        
+        # Display listening status
+        if st.session_state.is_listening:
+            st.markdown("""
+            <div class="voice-status" style="color: #00ff00;">
+                🔴 LIVE - Listening... Speak now!
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="voice-status" style="color: #ff6b6b;">
+                ⏸️ Ready - Click Start Listening to begin
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Transcript display
+        st.markdown("### 📝 Live Transcript")
+        transcript_display = st.empty()
+        
+        # Process audio from queue
+        if st.session_state.is_listening:
+            try:
+                while not voice_assistant.audio_queue.empty():
+                    audio = voice_assistant.audio_queue.get_nowait()
+                    transcript, method = voice_assistant.process_audio(audio)
+                    
+                    if transcript:
+                        st.session_state.voice_transcript = transcript
+                        
+                        # Display transcript
+                        transcript_display.markdown(f"""
+                        <div class="transcript-box">
+                            <strong>You said ({method}):</strong> {transcript}
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Process with AI and respond
+                        with st.spinner("🤔 Quantora is thinking..."):
+                            # Use the selected voice model
+                            original_model = st.session_state.model_version
+                            st.session_state.model_version = st.session_state.voice_model
+                            
+                            response = call_quantora_unified(transcript)
+                            
+                            # Restore original model
+                            st.session_state.model_version = original_model
+                            
+                            # Add to chat
+                            st.session_state.chat.append(("user", transcript, datetime.now()))
+                            st.session_state.chat.append(("quantora", response, datetime.now(), 0))
+                            
+                            # Speak the response
+                            if voice_assistant.speak_text(response):
+                                st.success("✅ Response generated and spoken!")
+                            else:
+                                st.success("✅ Response generated!")
+                            
+                        break  # Process one audio chunk at a time
+                        
+            except queue.Empty:
+                pass
+            except Exception as e:
+                st.error(f"Audio processing error: {e}")
+        
+        # Manual transcript input
+        st.markdown("### ✍️ Manual Input (Alternative)")
+        manual_input = st.text_area("Or type your message here:", height=80, key="manual_voice_input")
+        
+        col_send, col_clear = st.columns(2)
+        with col_send:
+            if st.button("Send & Speak", key="manual_send", use_container_width=True):
+                if manual_input.strip():
+                    st.session_state.voice_transcript = manual_input
+                    
+                    with st.spinner("🤔 Quantora is thinking..."):
+                        # Use the selected voice model
+                        original_model = st.session_state.model_version
+                        st.session_state.model_version = st.session_state.voice_model
+                        
+                        response = call_quantora_unified(manual_input)
+                        
+                        # Restore original model
+                        st.session_state.model_version = original_model
+                        
+                        # Add to chat
+                        st.session_state.chat.append(("user", manual_input, datetime.now()))
+                        st.session_state.chat.append(("quantora", response, datetime.now(), 0))
+                        
+                        # Speak the response
+                        if voice_assistant.speak_text(response):
+                            st.success("✅ Response generated and spoken!")
+                        else:
+                            st.success("✅ Response generated!")
+                else:
+                    st.warning("Please enter a message")
+        
+        with col_clear:
+            if st.button("Clear Input", key="clear_manual", use_container_width=True):
+                st.session_state.voice_transcript = ""
+                st.rerun()
+        
+        # Voice settings
+        with st.expander("⚙️ Voice Settings"):
+            if st.session_state.tts_engine:
+                # TTS rate adjustment
+                current_rate = st.session_state.tts_engine.getProperty('rate')
+                new_rate = st.slider("Speech Speed", 100, 300, int(current_rate), key="tts_rate")
+                if new_rate != current_rate:
+                    st.session_state.tts_engine.setProperty('rate', new_rate)
+                    st.success(f"Speech speed set to {new_rate}")
+                
+                # TTS volume adjustment
+                current_volume = st.session_state.tts_engine.getProperty('volume')
+                new_volume = st.slider("Volume", 0.0, 1.0, float(current_volume), key="tts_volume")
+                if new_volume != current_volume:
+                    st.session_state.tts_engine.setProperty('volume', new_volume)
+                    st.success(f"Volume set to {new_volume:.1f}")
+            
+            # Microphone selection
+            try:
+                mic_list = sr.Microphone.list_microphone_names()
+                if mic_list:
+                    selected_mic = st.selectbox("Select Microphone", mic_list, key="mic_select")
+                    st.info(f"Selected: {selected_mic}")
+            except Exception as e:
+                st.info("Microphone selection not available")
+
 # Add speech recognition using A4F Whisper
 def transcribe_audio(audio_file):
     try:
@@ -588,24 +964,28 @@ def transcribe_audio(audio_file):
             "Content-Type": "application/json"
         }
         
+        # Convert audio file to base64
+        audio_bytes = audio_file.getvalue()
+        audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
+        
         data = {
             "model": "provider-2/whisper-1",
-            "file": base64.b64encode(audio_file.getvalue()).decode("utf-8")
+            "file": audio_b64
         }
         
         response = requests.post(
             "https://api.a4f.co/v1/audio/transcriptions",
             headers=headers,
-            json=data
+            json=data,
+            timeout=30
         )
         
         if response.status_code == 200:
-            return response.json().get("text", "")
+            result = response.json()
+            return result.get("text", "")
         else:
-            st.error(f"Transcription error: {response.text}")
             return ""
     except Exception as e:
-        st.error(f"Transcription failed: {str(e)}")
         return ""
 
 # IQ Tester in Sidebar
@@ -3615,7 +3995,7 @@ def cancer_risk_assessor():
 
         # Display body map (simplified)
         st.markdown("### 🏷️ Body Map")
-        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_body_silhouette.svg/1200px-Human_body_silhouette.svg.png", 
+        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_body_silhouette.svg/1200px-Human_body_body_silhouette.svg.png", 
                  use_container_width=True, caption="Areas of concern highlighted in your assessment")
         
         st.markdown("---")
@@ -3972,7 +4352,7 @@ if st.session_state.pro_unlocked:
         st.markdown("### 🚀 Quantora Modes")
         mode = st.radio(
             "Select Mode",
-            ["AI", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "Image Generation"],
+            ["AI", "Voice Assistant", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "Image Generation"],
             index=0,
             key="current_mode"
         )
@@ -4230,6 +4610,9 @@ if mode == "AI":
                     help="Select specialized model versions for different tasks",
                 )
 
+elif mode == "Voice Assistant":
+    voice_assistant_module()
+
 elif st.session_state.current_mode == "Quantora News":
     quantora_news()
 
@@ -4259,7 +4642,7 @@ st.markdown("---")
 st.markdown(
     '<div style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">'
     '💎 Quantora AI - Advanced AI Assistant | '
-    'Powered by Groq Models, A4F Models | Double-check — Quantora isn’t perfect. |'
+    'Powered by Groq Models, A4F Models | Double-check — Quantora isn\'t perfect. |'
     f'Session started: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
     '</div>', 
     unsafe_allow_html=True
