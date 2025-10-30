@@ -3240,7 +3240,7 @@ def brain_health_analyzer():
     def display_progress():
         """Display progress bar"""
         progress = (st.session_state.current_question / len(BRAIN_QUESTIONS)) * 100
-        progress_html = f"""
+        progress_html = (f"""
         <div class="progress-bar">
             <div class="progress-fill" style="width: {progress}%"></div>
         </div>
