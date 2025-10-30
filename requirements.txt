@@ -20,7 +20,7 @@ razorpay==1.4.3
 asyncio-throttle==1.0.2
 jsonschema==4.20.0
 python-dateutil==2.8.2
-SpeechRecognition==3.10.0
+SpeechRecognition
 pyttsx3==2.90
 pyaudio==0.2.11
 pydub==0.25.1
