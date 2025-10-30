@@ -2544,14 +2544,15 @@ def heart_health_analyzer():
     def display_progress():
         """Display progress bar"""
         progress = (st.session_state.current_question / len(HEALTH_QUESTIONS)) * 100
-        progress_html = (f"""
+        progress_html = f"""
         <div class="progress-bar">
             <div class="progress-fill" style="width: {progress}%"></div>
         </div>
         <p style="text-align: center;">
             Progress: {st.session_state.current_question}/{len(HEALTH_QUESTIONS)} questions completed
         </p>
-        """, unsafe_allow_html=True)
+        """
+        st.markdown(progress_html, unsafe_allow_html=True)
 
     def analyze_heart_rate_manual():
         """Manual heart rate input and analysis"""
@@ -3240,14 +3241,15 @@ def brain_health_analyzer():
     def display_progress():
         """Display progress bar"""
         progress = (st.session_state.current_question / len(BRAIN_QUESTIONS)) * 100
-        progress_html = (f"""
+        progress_html = f"""
         <div class="progress-bar">
             <div class="progress-fill" style="width: {progress}%"></div>
         </div>
         <p style="text-align: center;">
             Progress: {st.session_state.current_question}/{len(BRAIN_QUESTIONS)} questions completed
         </p>
-        """, unsafe_allow_html=True)
+        """
+        st.markdown(progress_html, unsafe_allow_html=True)
 
     def analyze_cognitive_function():
         """Analyze cognitive function through interactive tests"""
@@ -3961,14 +3963,15 @@ def cancer_risk_assessor():
     def display_progress():
         """Display progress bar"""
         progress = (st.session_state.current_question / len(CANCER_QUESTIONS)) * 100
-        progress_html = (f"""
+        progress_html = f"""
         <div class="progress-bar">
             <div class="progress-fill" style="width: {progress}%"></div>
         </div>
         <p style="text-align: center;">
             Progress: {st.session_state.current_question}/{len(CANCER_QUESTIONS)} questions completed
         </p>
-        """, unsafe_allow_html=True)
+        """
+        st.markdown(progress_html, unsafe_allow_html=True)
 
     def analyze_images():
         """Analyze uploaded images for concerning features"""
