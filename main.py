@@ -28,7 +28,7 @@ API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 A4F_BASE_URL = "https://api.a4f.co/v1"
-IMAGE_MODEL = "provider-4/imagen-4"
+IMAGE_MODEL = "provider-4/lucid-origin"
 EDIT_MODEL = "provider-3/flux-kontext-pro"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
