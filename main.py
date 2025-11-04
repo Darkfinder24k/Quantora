@@ -19,6 +19,7 @@ import plotly.graph_objects as go
 import numpy as np
 
 # ✅ API Configuration
+# ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -54,6 +55,28 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
 )
+
+# Initialize API clients
+@st.cache_resource
+def initialize_clients():
+    try:
+        groq_api_key = "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE"
+        a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
+        
+        # Fixed: Use the correct Groq client initialization
+        groq_client = Groq(api_key=groq_api_key)
+        
+        a4f_client = {
+            "api_key": a4f_api_key,
+            "api_url": "https://api.a4f.co/v1/chat/completions"
+        }
+        
+        return groq_client, a4f_client
+    except Exception as e:
+        st.error(f"API Configuration Error: {e}")
+        return None, None
+
+groq_client, a4f_client = initialize_clients()
 
 # Custom CSS with sidebar toggle and canvas background (removed voice assistant styles)
 st.markdown("""
