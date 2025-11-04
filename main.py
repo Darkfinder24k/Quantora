@@ -1099,6 +1099,7 @@ User Query: {prompt}"""
         return f"❌ {model_name} Error: {str(e)}"
 
 # Quantora Unified AI Model with Memory and Simulated Learning
+# Quantora Unified AI Model with Memory and Simulated Learning
 def call_quantora_unified(prompt, context="", image=None):
     start_time = time.time()
     
@@ -1185,7 +1186,6 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-3/qwen-2.5-72b",
                 "provider-3/gpt-5-nano",
                 "provider-1/deepseek-v3.1"
-                
             ]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
@@ -1257,13 +1257,16 @@ def call_quantora_unified(prompt, context="", image=None):
     if not successful_responses:
         return "❌ No successful responses from backends. Please try again."
     
+    # FIXED: Removed backslash from f-string by using a separate variable
+    responses_text = '\n\n'.join([f"Response from {r['backend']}:\n{r['response']}" for r in successful_responses])
+    
     mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt. 
 Combine them into one coherent, comprehensive response that maintains the best aspects of each.
 
 Original Prompt: {prompt}
 
 Responses to combine:
-{'\n\n'.join([f"Response from {r['backend']}:\n{r['response']}" for r in successful_responses])}
+{responses_text}
 
 Guidelines:
 1. Preserve all valuable information
@@ -1286,7 +1289,7 @@ Combined Response:"""
     
     processing_time = time.time() - start_time
     return final_response if final_response else successful_responses[0]['response']
-
+    
 # Code Detection and Formatting
 def format_response_with_code(response):
     code_pattern = r'```(\w+)?\n(.*?)\n```'
