@@ -1313,6 +1313,8 @@ def edit_image(image, edit_prompt):
 def generate_video_replicate(prompt, style):
     try:
         enhanced_prompt = f"{prompt}, {style} style, cinematic, high quality, 4K resolution"
+        
+        # Run the model with proper error handling
         output = replicate.run(
             "minimax/video-01",
             input={
@@ -1326,16 +1328,16 @@ def generate_video_replicate(prompt, style):
             video_url = output.path  # For FileOutput object
         else:
             video_url = str(output)  # For string or list
-       
+
         # Download the video
         response = requests.get(video_url)
-        filename = "generated_video.mp4"
+        filename = f"generated_video_{int(time.time())}.mp4"
         with open(filename, "wb") as file:
             file.write(response.content)
        
         return filename
     except Exception as e:
-        st.error(f"Video generation failed. Please try again. (Technical details hidden)")
+        st.error(f"Video generation failed: {str(e)}")
         return None
 
 # Time-based greeting
@@ -3792,32 +3794,39 @@ def framelab():
                     st.rerun()
     
     with tab3:
-        st.subheader("🎬 Generate Video")
-        prompt = st.text_area("Describe the video scene:", height=100, placeholder="E.g., A woman walking through a busy Tokyo street at night, wearing dark sunglasses")
-        style = st.selectbox("Video Style", ["Cinematic", "Action", "Dramatic", "Surreal", "Documentary"])
-        
-        if st.button("🎥 Generate Video", type="primary"):
-            with st.spinner("Generating your video... This may take a few minutes."):
-                video_file = generate_video_replicate(prompt, style)
-                if video_file and os.path.exists(video_file):
-                    st.session_state.generated_video = video_file
-                    st.success("Video generated successfully!")
-                    st.video(video_file)
-                    st.download_button(
-                        label="💾 Download Video",
-                        data=open(video_file, "rb").read(),
-                        file_name="generated_video.mp4",
-                        mime="video/mp4"
-                    )
-                else:
-                    st.error("Failed to generate video. Please try again.")
-        
-        if hasattr(st.session_state, 'generated_video') and st.session_state.generated_video:
-            st.video(st.session_state.generated_video)
-            if st.button("🔄 Generate Another Video"):
-                os.remove(st.session_state.generated_video)  # Clean up
-                del st.session_state.generated_video
-                st.rerun()
+    st.subheader("🎬 Generate Video")
+    prompt = st.text_area("Describe the video scene:", height=100, placeholder="E.g., A woman walking through a busy Tokyo street at night, wearing dark sunglasses")
+    style = st.selectbox("Video Style", ["Cinematic", "Action", "Dramatic", "Surreal", "Documentary"])
+    
+    if st.button("🎥 Generate Video", type="primary"):
+        with st.spinner("Generating your video... This may take a few minutes."):
+            video_file = generate_video_replicate(prompt, style)
+            if video_file and os.path.exists(video_file):
+                st.session_state.generated_video = video_file
+                st.success("Video generated successfully!")
+                
+                # Display the video
+                with open(video_file, "rb") as f:
+                    video_bytes = f.read()
+                st.video(video_bytes)
+                
+                # Download button
+                st.download_button(
+                    label="💾 Download Video",
+                    data=video_bytes,
+                    file_name="generated_video.mp4",
+                    mime="video/mp4"
+                )
+            else:
+                st.error("Failed to generate video. Please try again.")
+    
+    if hasattr(st.session_state, 'generated_video') and st.session_state.generated_video:
+        if st.button("🔄 Generate Another Video"):
+            # Clean up the file
+            if os.path.exists(st.session_state.generated_video):
+                os.remove(st.session_state.generated_video)
+            del st.session_state.generated_video
+            st.rerun()
 
 # --------------------------
 # HISTORY DISPLAY
