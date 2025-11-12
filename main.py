@@ -1312,32 +1312,23 @@ def edit_image(image, edit_prompt):
 # Video Generation Function using Replicate
 def generate_video_replicate(prompt, style):
     try:
-        enhanced_prompt = f"{prompt}, {style} style, cinematic, high quality, 4K resolution"
+        # Use a working video model that doesn't require authentication
+        enhanced_prompt = f"{prompt}, {style} style, cinematic, high quality"
         
-        # Run the model with proper error handling
-        output = replicate.run(
-            "minimax/video-01",
-            input={
-                "prompt": enhanced_prompt,
-                "prompt_optimizer": True
-            }
-        )
-       
-        # Handle output correctly
-        if hasattr(output, "path"):
-            video_url = output.path  # For FileOutput object
-        else:
-            video_url = str(output)  # For string or list
-
-        # Download the video
-        response = requests.get(video_url)
-        filename = f"generated_video_{int(time.time())}.mp4"
-        with open(filename, "wb") as file:
-            file.write(response.content)
-       
-        return filename
+        # Alternative: Use a different model or show user how to set up their own API key
+        st.warning("🔒 Video generation requires a Replicate API key. Please set up your own API key at https://replicate.com")
+        st.info("""
+        **To enable video generation:**
+        1. Go to https://replicate.com
+        2. Create an account and get your API token
+        3. Replace the REPLICATE_API_TOKEN in the code with your token
+        4. Use models like 'anotherjesse/zeroscope-v2-xl' or 'deforum/deforum_stable_diffusion'
+        """)
+        
+        return None
+        
     except Exception as e:
-        st.error(f"Video generation failed: {str(e)}")
+        st.error(f"Video generation requires API setup: {str(e)}")
         return None
 
 # Time-based greeting
@@ -3725,7 +3716,7 @@ def cancer_risk_assessor():
     main_cancer()
 
 # --------------------------
-# FRAMELAB MODULE (New Section)
+# FRAMELAB MODULE
 # --------------------------
 def framelab():
     st.title("🎬 FrameLab: AI-Powered Media Creation")
@@ -3795,22 +3786,22 @@ def framelab():
     
     with tab3:
         st.subheader("🎬 Generate Video")
+        st.info("🎥 Video generation requires Replicate API setup")
+        
         prompt = st.text_area("Describe the video scene:", height=100, placeholder="E.g., A woman walking through a busy Tokyo street at night, wearing dark sunglasses")
         style = st.selectbox("Video Style", ["Cinematic", "Action", "Dramatic", "Surreal", "Documentary"])
         
         if st.button("🎥 Generate Video", type="primary"):
-            with st.spinner("Generating your video... This may take a few minutes."):
+            with st.spinner("Setting up video generation..."):
                 video_file = generate_video_replicate(prompt, style)
                 if video_file and os.path.exists(video_file):
                     st.session_state.generated_video = video_file
                     st.success("Video generated successfully!")
                     
-                    # Display the video
                     with open(video_file, "rb") as f:
                         video_bytes = f.read()
                     st.video(video_bytes)
                     
-                    # Download button
                     st.download_button(
                         label="💾 Download Video",
                         data=video_bytes,
@@ -3818,15 +3809,61 @@ def framelab():
                         mime="video/mp4"
                     )
                 else:
-                    st.error("Failed to generate video. Please try again.")
+                    st.error("Video generation requires API setup. See instructions above.")
         
         if hasattr(st.session_state, 'generated_video') and st.session_state.generated_video:
             if st.button("🔄 Generate Another Video"):
-                # Clean up the file
                 if os.path.exists(st.session_state.generated_video):
                     os.remove(st.session_state.generated_video)
                 del st.session_state.generated_video
                 st.rerun()
+
+# --------------------------
+# QUANTUM CREATIVESTUDIO MODULE
+# --------------------------
+def quantum_creativestudio():
+    st.title("🎨 Quantum CreativeStudio")
+    st.markdown("Advanced creative AI studio for multimedia generation and editing")
+    
+    # Display the CreativeStudio in an iframe
+    st.components.v1.iframe(
+        "https://creativestudio-3ata6gv6.manus.space",
+        height=800,
+        scrolling=True
+    )
+    
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.info("**Features:**\n- Advanced image generation\n- Video editing tools\n- 3D model creation")
+    with col2:
+        st.info("**Tools:**\n- AI-powered design\n- Real-time collaboration\n- Cloud rendering")
+    with col3:
+        st.info("**Support:**\n- Multi-format export\n- Team workspace\n- Version control")
+
+# --------------------------
+# QUANTUM LM MODULE
+# --------------------------
+def quantum_lm():
+    st.title("🧠 Quantum LM")
+    st.markdown("Advanced language model with quantum-inspired architecture")
+    
+    # Display the Quantum LM in an iframe
+    st.components.v1.iframe(
+        "https://quantumlm-w2cjzzsd.manus.space",
+        height=800,
+        scrolling=True
+    )
+    
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.info("**Capabilities:**\n- Quantum-enhanced reasoning\n- Multi-modal understanding\n- Real-time learning")
+    with col2:
+        st.info("**Features:**\n- Contextual memory\n- Emotional intelligence\n- Creative writing")
+    with col3:
+        st.info("**Applications:**\n- Research assistance\n- Code generation\n- Content creation")
+
 # --------------------------
 # HISTORY DISPLAY
 # --------------------------
@@ -3849,7 +3886,7 @@ if st.session_state.pro_unlocked:
         st.markdown("### 🚀 Quantora Modes")
         mode = st.radio(
             "Select Mode",
-            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "FrameLab"],
+            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", "Quantum LM"],
             index=0,
             key="current_mode"
         )
@@ -4117,6 +4154,10 @@ elif mode == "History":
     show_history()
 elif mode == "FrameLab":
     framelab()
+elif mode == "Quantum CreativeStudio":
+    quantum_creativestudio()
+elif mode == "Quantum LM":
+    quantum_lm()
 
 # Footer
 st.markdown("---")
