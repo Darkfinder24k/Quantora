@@ -1314,14 +1314,12 @@ def generate_video_replicate(prompt, style):
     try:
         # ✅ Set your Replicate API key
         os.environ["REPLICATE_API_TOKEN"] = "r8_LhXDb0YbvLhcj4AsPy7HpHdiNYN118u3FdnA1"
-
-        enhanced_prompt = f"{prompt}, {style} style, cinematic, high quality, 4K resolution"
         
-        # Run the model
+        # Run the model with original prompt only
         output = replicate.run(
             "minimax/video-01",
             input={
-                "prompt": enhanced_prompt,
+                "prompt": prompt,
                 "prompt_optimizer": True
             }
         )
@@ -1347,7 +1345,6 @@ def generate_video_replicate(prompt, style):
     except Exception as e:
         st.error(f"Video generation failed: {str(e)}")
         return None
-
 
 # Time-based greeting
 hour = datetime.now().hour
@@ -3805,11 +3802,10 @@ def framelab():
     with tab3:
         st.subheader("🎬 Generate Video")
         prompt = st.text_area("Describe the video scene:", height=100, placeholder="E.g., A woman walking through a busy Tokyo street at night, wearing dark sunglasses")
-        style = st.selectbox("Video Style", ["Cinematic", "Action", "Dramatic", "Surreal", "Documentary"])
         
         if st.button("🎥 Generate Video", type="primary"):
             with st.spinner("Generating your video... This may take a few minutes."):
-                video_file = generate_video_replicate(prompt, style)
+                video_file = generate_video_replicate(prompt, "")
                 if video_file and os.path.exists(video_file):
                     st.session_state.generated_video = video_file
                     st.success("Video generated successfully!")
