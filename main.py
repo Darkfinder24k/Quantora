@@ -1312,24 +1312,42 @@ def edit_image(image, edit_prompt):
 # Video Generation Function using Replicate
 def generate_video_replicate(prompt, style):
     try:
-        # Use a working video model that doesn't require authentication
-        enhanced_prompt = f"{prompt}, {style} style, cinematic, high quality"
+        # ✅ Set your Replicate API key
+        os.environ["REPLICATE_API_TOKEN"] = "r8_LhXDb0YbvLhcj4AsPy7HpHdiNYN118u3FdnA1"
+
+        enhanced_prompt = f"{prompt}, {style} style, cinematic, high quality, 4K resolution"
         
-        # Alternative: Use a different model or show user how to set up their own API key
-        st.warning("🔒 Video generation requires a Replicate API key. Please set up your own API key at https://replicate.com")
-        st.info("""
-        **To enable video generation:**
-        1. Go to https://replicate.com
-        2. Create an account and get your API token
-        3. Replace the REPLICATE_API_TOKEN in the code with your token
-        4. Use models like 'anotherjesse/zeroscope-v2-xl' or 'deforum/deforum_stable_diffusion'
-        """)
-        
-        return None
+        # Run the model
+        output = replicate.run(
+            "minimax/video-01",
+            input={
+                "prompt": enhanced_prompt,
+                "prompt_optimizer": True
+            }
+        )
+
+        # ✅ Handle output correctly (new Replicate SDK)
+        if hasattr(output, "path"):
+            video_url = output.path  # For FileOutput object
+        else:
+            video_url = str(output)  # For string or list
+
+        print("🎥 Video generated at:", video_url)
+
+        # ✅ Download the file to disk
+        response = requests.get(video_url)
+        filename = f"generated_video_{int(time.time())}.mp4"
+
+        with open(filename, "wb") as file:
+            file.write(response.content)
+
+        print(f"✅ Video saved successfully as {filename}")
+        return filename
         
     except Exception as e:
-        st.error(f"Video generation requires API setup: {str(e)}")
+        st.error(f"Video generation failed: {str(e)}")
         return None
+
 
 # Time-based greeting
 hour = datetime.now().hour
@@ -3785,39 +3803,33 @@ def framelab():
                     st.rerun()
     
     with tab3:
-        st.subheader("🎬 Generate Video")
-        st.info("🎥 Video generation requires Replicate API setup")
-        
-        prompt = st.text_area("Describe the video scene:", height=100, placeholder="E.g., A woman walking through a busy Tokyo street at night, wearing dark sunglasses")
-        style = st.selectbox("Video Style", ["Cinematic", "Action", "Dramatic", "Surreal", "Documentary"])
-        
-        if st.button("🎥 Generate Video", type="primary"):
-            with st.spinner("Setting up video generation..."):
-                video_file = generate_video_replicate(prompt, style)
-                if video_file and os.path.exists(video_file):
-                    st.session_state.generated_video = video_file
-                    st.success("Video generated successfully!")
-                    
-                    with open(video_file, "rb") as f:
-                        video_bytes = f.read()
-                    st.video(video_bytes)
-                    
-                    st.download_button(
-                        label="💾 Download Video",
-                        data=video_bytes,
-                        file_name="generated_video.mp4",
-                        mime="video/mp4"
-                    )
-                else:
-                    st.error("Video generation requires API setup. See instructions above.")
-        
-        if hasattr(st.session_state, 'generated_video') and st.session_state.generated_video:
-            if st.button("🔄 Generate Another Video"):
-                if os.path.exists(st.session_state.generated_video):
-                    os.remove(st.session_state.generated_video)
-                del st.session_state.generated_video
-                st.rerun()
-
+    st.subheader("🎬 Generate Video")
+    prompt = st.text_area("Describe the video scene:", height=100, placeholder="E.g., A woman walking through a busy Tokyo street at night, wearing dark sunglasses")
+    style = st.selectbox("Video Style", ["Cinematic", "Action", "Dramatic", "Surreal", "Documentary"])
+    
+    if st.button("🎥 Generate Video", type="primary"):
+        with st.spinner("Generating your video... This may take a few minutes."):
+            video_file = generate_video_replicate(prompt, style)
+            if video_file and os.path.exists(video_file):
+                st.session_state.generated_video = video_file
+                st.success("Video generated successfully!")
+                st.video(video_file)
+                st.download_button(
+                    label="💾 Download Video",
+                    data=open(video_file, "rb").read(),
+                    file_name="generated_video.mp4",
+                    mime="video/mp4"
+                )
+            else:
+                st.error("Failed to generate video. Please try again.")
+    
+    if hasattr(st.session_state, 'generated_video') and st.session_state.generated_video:
+        if st.button("🔄 Generate Another Video"):
+            # Clean up the file
+            if os.path.exists(st.session_state.generated_video):
+                os.remove(st.session_state.generated_video)
+            del st.session_state.generated_video
+            st.rerun()
 # --------------------------
 # QUANTUM CREATIVESTUDIO MODULE
 # --------------------------
