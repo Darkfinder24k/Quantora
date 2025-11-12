@@ -29,7 +29,7 @@ EDIT_MODEL = "provider-3/flux-kontext-pro"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
 # Replicate API for Video Generation
-os.environ["REPLICATE_API_TOKEN"] = "r8_LhXDb0YbvLhcj4AsPy7HpHdiNYN118u3FdnA1"
+os.environ["REPLICATE_API_TOKEN"] = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
 
 # History persistence
 HISTORY_FILE = "quantora_history.json"
@@ -1313,7 +1313,7 @@ def edit_image(image, edit_prompt):
 def generate_video_replicate(prompt, style):
     try:
         # ✅ Set your Replicate API key
-        os.environ["REPLICATE_API_TOKEN"] = "r8_LhXDb0YbvLhcj4AsPy7HpHdiNYN118u3FdnA1"
+        os.environ["REPLICATE_API_TOKEN"] = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
         
         # Run the model with original prompt only
         output = replicate.run(
