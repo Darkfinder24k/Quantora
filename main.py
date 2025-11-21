@@ -62,7 +62,7 @@ st.set_page_config(
 @st.cache_resource
 def initialize_clients():
     try:
-        groq_api_key = "xai-BECc2rFNZk6qHEWbyzlQo1T1MvnM1bohcMKVS2r3BXcfjzBap1Ki4l7v7kAKkZVGTpaMZlXekSRq7HHE"
+        groq_api_key = "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"
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
        
         groq_client = Groq(api_key=groq_api_key)
