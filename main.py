@@ -1120,6 +1120,9 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-3/qwen-2.5-72b",
                 "provider-3/gpt-5-nano",
                 "provider-1/deepseek-v3.1"
+                "provider-5/gpt-5.1"
+                "provider-2/gemini-3-pro-preview"
+                "provider-7/claude-sonnet-4-5-20250929"
             ]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
