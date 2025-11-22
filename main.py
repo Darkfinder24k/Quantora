@@ -18,6 +18,8 @@ import yfinance as yf
 import plotly.graph_objects as go
 import numpy as np
 import replicate  # Added for video generation
+import sys
+from pathlib import Path
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -166,9 +168,12 @@ def coding_workspace():
         st.code(code, language=lang.lower())
         st.download_button("📥 Download file", data=code, file_name=f"code.{lang.lower()}", mime="text/plain")
 
+# ---------------------------------------------------------
+#  1️⃣  APP-BUILDER WORKSPACE  –  UX unchanged
+# ---------------------------------------------------------
 def app_builder_workspace():
     st.title("🏗️ Streamlit App Builder")
-    st.markdown("Describe an app idea → Claude expands it → GPT-5.1-codex builds it → run instantly")
+    st.markdown("Describe an app idea → Claude expands → GPT-5.1-codex builds → run instantly")
 
     idea = st.text_area("Your app idea (1–2 sentences):", placeholder="e.g., an app that predicts house prices from CSV upload")
     if st.button("Build & Run", type="primary"):
@@ -176,47 +181,67 @@ def app_builder_workspace():
             st.warning("Please give an idea.")
             return
 
-        # 1️⃣ Claude expands the idea
+        # 1️⃣ Expand idea
         expand_prompt = f"Turn this short idea into a detailed 150-word technical prompt for a single-file Streamlit app:\n\n{idea}"
         expanded = call_a4f_model(expand_prompt, "provider-7/claude-haiku-4-5-20251001")
 
-        # 2️⃣ GPT-5.1-codex generates the app
-        build_prompt = f"Write a single-file Streamlit app (save as app_generated.py) that: {expanded}\n\n- Use only public libs\n- No external assets\n- Add requirements.txt as comment at top"
+        # 2️⃣ Generate code
+        build_prompt = f"Write a single-file Streamlit app that: {expanded}\n\n- Use only public libs\n- No external assets\n- Save as app_generated.py"
         generated_code = call_a4f_model(build_prompt, "provider-5/gpt-5.1-codex")
 
-        # 3️⃣ Save & display
-        os.makedirs("generated_apps", exist_ok=True)
-        file_path = "generated_apps/app_generated.py"
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(generated_code)
+        # 3️⃣ Save & show
+        Path("generated_apps").mkdir(exist_ok=True)
+        file_path = Path("generated_apps/app_generated.py")
+        file_path.write_text(generated_code, encoding="utf-8")
 
         st.success("✅ App generated – running below")
-        st.code(generated_code, language="python")
+        with st.expander("📋 Generated code"):
+            st.code(generated_code, language="python")
 
-        # 4️⃣ Launch as subprocess and embed
-        port = 8502
-        launch_streamlit_subprocess(file_path, port)
-        st.components.v1.iframe(f"http://localhost:{port}", height=700, scrolling=True)
+        # 4️⃣ Run inline & embed
+        run_app_inline(str(file_path))
 
-# -----------------------------------------------------------
-#  SUBPROCESS LAUNCHER  (cross-platform)
-# -----------------------------------------------------------
-def launch_streamlit_subprocess(script_path: str, port: int):
-    import subprocess
-    import signal
-    import atexit
+# ---------------------------------------------------------
+#  2️⃣  INLINE RUNNER  –  no subprocess, no ports
+# ---------------------------------------------------------
+def run_app_inline(script_path: str):
+    """
+    Executes the generated Streamlit script in a separate *thread* and
+    serves it under /generated_apps so we can iframe it.
+    Works on Streamlit Cloud & local.
+    """
+    import threading
+    import streamlit as st
+    from streamlit.web.bootstrap import run
+    from pathlib import Path
 
-    # Kill any previous instance on same port
-    try:
-        subprocess.run(["pkill", "-f", f"streamlit.*{port}"], check=False)
-    except Exception:
-        pass
+    # Copy the file into the *static* folder Streamlit exposes under /app
+    static_dir = Path("static")
+    static_dir.mkdir(exist_ok=True)
+    target = static_dir / "app_generated.py"
+    target.write_text(Path(script_path).read_text(), encoding="utf-8")
 
-    cmd = [sys.executable, "-m", "streamlit", "run", script_path, "--server.port", str(port), "--server.headless", "true"]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # Start Streamlit in a daemon thread
+    t = threading.Thread(
+        target=run,
+        args=(str(target),),
+        kwargs={
+            "server_port": 8503,
+            "server_headless": True,
+            "server_address": "localhost",
+            "global_development_mode": False,
+        },
+        daemon=True,
+    )
+    t.start()
+    time.sleep(3)  # let boot
 
-    atexit.register(lambda: proc.send_signal(signal.SIGTERM))
-    time.sleep(4)  # give it a moment to boot
+    # Embed the app
+    st.components.v1.iframe(
+        src="/app/static/app_generated.py",
+        height=700,
+        scrolling=True,
+    )
 
 # Custom CSS with sidebar toggle and canvas background (removed voice assistant styles)
 st.markdown("""
