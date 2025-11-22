@@ -1062,7 +1062,7 @@ Provide a comprehensive and helpful response:"""
         else:
             error_msg += str(e)
         # Fallback to Groq
-        return call_groq_model(prompt, "groq/compound", context)
+        return call_groq_model(prompt, "moonshotai/kimi-k2-instruct-0905", context)
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
 
