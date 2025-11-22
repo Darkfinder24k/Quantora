@@ -4036,7 +4036,7 @@ if st.session_state.pro_unlocked:
         st.markdown("### 🚀 Quantora Modes")
         mode = st.radio(
             "Select Mode",
-            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", "Quantum LM", "Quantomise My Trip"],
+            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", "Quantum LM", "Quantomise My Trip", "Coding", "App Building"],
             index=0,
             key="current_mode"
         )
@@ -4310,9 +4310,9 @@ elif mode == "Quantum LM":
     quantum_lm()
 elif mode == "Quantomise My Trip":
     quantomise_my_trip()
-elif mode == "💻 Coding":
+elif mode == "Coding":
     coding_workspace()
-elif mode == "🏗️ App Building":
+elif mode == "App Building":
     app_builder_workspace()
 
 # Footer
