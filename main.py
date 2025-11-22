@@ -140,7 +140,7 @@ def quantomise_my_trip():
 
             Format it beautifully with emojis and sections.
             """
-            response = call_a4f_model(prompt, "provider-5/sonar-reasoning-pro")
+            response = call_a4f_model(prompt, "provider-5/gpt-5.1-2025-11-13")
             st.markdown("### 🎯 Your AI-Planned Trip:")
             st.markdown(response)
 
