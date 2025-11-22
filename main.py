@@ -79,6 +79,78 @@ def initialize_clients():
 
 groq_client, a4f_client = initialize_clients()
 
+# ✅ NEW: Quantomise My Trip
+def quantomise_my_trip():
+    st.title("✈️ Quantomise My Trip")
+    st.markdown("Let AI plan your perfect trip — budget, flights, hotels, and more — tailored just you.")
+
+    if "trip_data" not in st.session_state:
+        st.session_state.trip_data = {}
+
+    # ✅ Step 0: Pre-suggest destinations
+    st.subheader("🌍 Not sure where to go? Let us suggest!")
+    with st.expander("✨ Get AI Destination Suggestions"):
+        vibe = st.text_input("Describe your vibe (e.g., peaceful mountains, party beach, cultural city):", placeholder="e.g., peaceful mountains")
+        if st.button("Suggest Destinations"):
+            prompt = f"Suggest 5 best travel destinations for someone who likes: {vibe}. Include country and best time to visit."
+            response = call_a4f_model(prompt, "provider-5/sonar-reasoning-pro")
+            st.markdown("### 🎯 AI Suggestions:")
+            st.write(response)
+
+    st.markdown("---")
+
+    # ✅ Step 1: Trip Details
+    st.subheader("🧳 Tell us about your trip")
+    with st.form("trip_form"):
+        budget = st.number_input("💰 Budget (in USD)", min_value=100, max_value=50000, step=100)
+        origin = st.text_input("✈️ Flying from (City/Country):", placeholder="e.g., Delhi, India")
+        destination = st.text_input("🌴 Going to (City/Country):", placeholder="e.g., Bali, Indonesia")
+        trip_type = st.selectbox("🎯 Trip Type", ["Cheap", "Budget", "Luxury", "Ultra Luxury"])
+        days = st.number_input("📅 Number of days", min_value=1, max_value=90, step=1)
+        travelers = st.number_input("👥 Number of travelers", min_value=1, max_value=20, step=1)
+        preferences = st.text_area("✍️ Preferences (optional)", placeholder="e.g., vegetarian food, pool, near beach, pet-friendly")
+        submitted = st.form_submit_button("🔍 Find My Trip", type="primary")
+
+    if submitted:
+        st.session_state.trip_data = {
+            "budget": budget,
+            "origin": origin,
+            "destination": destination,
+            "trip_type": trip_type,
+            "days": days,
+            "travelers": travelers,
+            "preferences": preferences
+        }
+
+        with st.spinner("🧠 AI is crafting your perfect trip..."):
+            prompt = f"""
+            You are a top-tier travel planner like Agoda, MakeMyTrip, and EaseMyTrip combined.
+            Plan a {trip_type.lower()} trip for {travelers} traveler(s) from {origin} to {destination} for {days} days with a budget of ${budget}.
+            Preferences: {preferences if preferences else 'None'}.
+
+            Include:
+            1. Best flight options (with links if possible)
+            2. Top 3 hotels/resorts (with links if possible)
+            3. Must-visit places
+            4. Daily itinerary
+            5. Total estimated cost
+            6. Best booking websites for each
+            7. Money-saving tips
+            8. Hidden gems
+
+            Format it beautifully with emojis and sections.
+            """
+            response = call_a4f_model(prompt, "provider-5/sonar-reasoning-pro")
+            st.markdown("### 🎯 Your AI-Planned Trip:")
+            st.markdown(response)
+
+            st.download_button(
+                label="📥 Download Trip Plan",
+                data=response,
+                file_name=f"trip_plan_{destination.replace(' ', '_')}.txt",
+                mime="text/plain"
+            )
+
 # Custom CSS with sidebar toggle and canvas background (removed voice assistant styles)
 st.markdown("""
 <style>
@@ -3897,7 +3969,7 @@ if st.session_state.pro_unlocked:
         st.markdown("### 🚀 Quantora Modes")
         mode = st.radio(
             "Select Mode",
-            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", "Quantum LM"],
+            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", "Quantum LM", "Quantomise My Trip"],
             index=0,
             key="current_mode"
         )
@@ -4169,6 +4241,8 @@ elif mode == "Quantum CreativeStudio":
     quantum_creativestudio()
 elif mode == "Quantum LM":
     quantum_lm()
+elif mode == "Quantomise My Trip":
+    quantomise_my_trip()
 
 # Footer
 st.markdown("---")
