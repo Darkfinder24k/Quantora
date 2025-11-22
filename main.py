@@ -124,7 +124,7 @@ def quantomise_my_trip():
 
         with st.spinner("🧠 AI is crafting your perfect trip..."):
             prompt = f"""
-            You are a top-tier travel planner like Agoda, MakeMyTrip, and EaseMyTrip combined.
+            You are a top-tier travel planner like Agoda, MakeMyTrip, and EaseMyTrip combined. Suggest for the current Year, month, and the day. Everything Real No Fake Items Like Fake Hotels, Do Real Live Search To Find.
             Plan a {trip_type.lower()} trip for {travelers} traveler(s) from {origin} to {destination} for {days} days with a budget of ${budget}.
             Preferences: {preferences if preferences else 'None'}.
 
