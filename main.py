@@ -151,6 +151,73 @@ def quantomise_my_trip():
                 mime="text/plain"
             )
 
+def coding_workspace():
+    st.title("💻 AI Coding Workspace")
+    st.markdown("Generate complete, ready-to-run code with `provider-5/gpt-5.1-codex`")
+    lang = st.selectbox("Language / Framework", ["Python", "JavaScript", "C++", "Go", "Rust", "Java", "Bash", "SQL"])
+    intent = st.text_area("Describe what you need:", placeholder="e.g., FastAPI CRUD with SQLite and Pydantic models")
+    if st.button("Generate Code", type="primary"):
+        if not intent.strip():
+            st.warning("Please describe what you want to build.")
+            return
+        prompt = f"Write a single self-contained {lang} file that: {intent}\n\n- Full code, no placeholders\n- Add short usage comment at top"
+        with st.spinner("Generating…"):
+            code = call_a4f_model(prompt, "provider-5/gpt-5.1-codex")
+        st.code(code, language=lang.lower())
+        st.download_button("📥 Download file", data=code, file_name=f"code.{lang.lower()}", mime="text/plain")
+
+def app_builder_workspace():
+    st.title("🏗️ Streamlit App Builder")
+    st.markdown("Describe an app idea → Claude expands it → GPT-5.1-codex builds it → run instantly")
+
+    idea = st.text_area("Your app idea (1–2 sentences):", placeholder="e.g., an app that predicts house prices from CSV upload")
+    if st.button("Build & Run", type="primary"):
+        if not idea.strip():
+            st.warning("Please give an idea.")
+            return
+
+        # 1️⃣ Claude expands the idea
+        expand_prompt = f"Turn this short idea into a detailed 150-word technical prompt for a single-file Streamlit app:\n\n{idea}"
+        expanded = call_a4f_model(expand_prompt, "provider-7/claude-haiku-4-5-20251001")
+
+        # 2️⃣ GPT-5.1-codex generates the app
+        build_prompt = f"Write a single-file Streamlit app (save as app_generated.py) that: {expanded}\n\n- Use only public libs\n- No external assets\n- Add requirements.txt as comment at top"
+        generated_code = call_a4f_model(build_prompt, "provider-5/gpt-5.1-codex")
+
+        # 3️⃣ Save & display
+        os.makedirs("generated_apps", exist_ok=True)
+        file_path = "generated_apps/app_generated.py"
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(generated_code)
+
+        st.success("✅ App generated – running below")
+        st.code(generated_code, language="python")
+
+        # 4️⃣ Launch as subprocess and embed
+        port = 8502
+        launch_streamlit_subprocess(file_path, port)
+        st.components.v1.iframe(f"http://localhost:{port}", height=700, scrolling=True)
+
+# -----------------------------------------------------------
+#  SUBPROCESS LAUNCHER  (cross-platform)
+# -----------------------------------------------------------
+def launch_streamlit_subprocess(script_path: str, port: int):
+    import subprocess
+    import signal
+    import atexit
+
+    # Kill any previous instance on same port
+    try:
+        subprocess.run(["pkill", "-f", f"streamlit.*{port}"], check=False)
+    except Exception:
+        pass
+
+    cmd = [sys.executable, "-m", "streamlit", "run", script_path, "--server.port", str(port), "--server.headless", "true"]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    atexit.register(lambda: proc.send_signal(signal.SIGTERM))
+    time.sleep(4)  # give it a moment to boot
+
 # Custom CSS with sidebar toggle and canvas background (removed voice assistant styles)
 st.markdown("""
 <style>
@@ -4243,6 +4310,10 @@ elif mode == "Quantum LM":
     quantum_lm()
 elif mode == "Quantomise My Trip":
     quantomise_my_trip()
+elif mode == "💻 Coding":
+    coding_workspace()
+elif mode == "🏗️ App Building":
+    app_builder_workspace()
 
 # Footer
 st.markdown("---")
