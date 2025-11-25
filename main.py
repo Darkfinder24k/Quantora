@@ -26,8 +26,8 @@ API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 A4F_BASE_URL = "https://api.a4f.co/v1"
-IMAGE_MODEL = "provider-4/imagen-4"
-EDIT_MODEL = "provider-3/flux-kontext-pro"
+IMAGE_MODEL = "provider-2/nano-banana-pro"
+EDIT_MODEL = "provider-2/nano-banana-pro"
 VIDEO_MODEL = "provider-6/wan-2.1"
 
 # Replicate API for Video Generation
@@ -95,7 +95,7 @@ def quantomise_my_trip():
         vibe = st.text_input("Describe your vibe (e.g., peaceful mountains, party beach, cultural city):", placeholder="e.g., peaceful mountains")
         if st.button("Suggest Destinations"):
             prompt = f"Suggest 5 best travel destinations for someone who likes: {vibe}. Include country and best time to visit."
-            response = call_a4f_model(prompt, "provider-5/sonar-reasoning-pro")
+            response = call_a4f_model(prompt, "provider-5/gpt-5")
             st.markdown("### 🎯 AI Suggestions:")
             st.write(response)
 
