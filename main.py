@@ -33,54 +33,50 @@ os.environ["REPLICATE_API_TOKEN"] = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
 # History persistence
 HISTORY_FILE = "quantora_history.json"
 if not os.path.exists(HISTORY_FILE):
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump([], f)
+    with open(HISTORY_FILE, 'w') as f:
+        json.dump([], f)
 def load_history():
-    with open(HISTORY_FILE, 'r') as f:
-        return json.load(f)
+    with open(HISTORY_FILE, 'r') as f:
+        return json.load(f)
 def save_history(query):
-    history = load_history()
-    history.append({"query": query, "timestamp": datetime.now().isoformat()})
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump(history, f)
+    history = load_history()
+    history.append({"query": query, "timestamp": datetime.now().isoformat()})
+    with open(HISTORY_FILE, 'w') as f:
+        json.dump(history, f)
 # ✅ Page Setup
 if "pro_unlocked" not in st.session_state:
-    st.session_state.pro_unlocked = False
+    st.session_state.pro_unlocked = False
 app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
 st.set_page_config(
-    page_title=app_name,
-    layout="wide",
-    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
+    page_title=app_name,
+    layout="wide",
+    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
 )
 # Initialize API clients (removed duplicate)
-
+@st.cache_resource
 def initialize_clients():
     try:
-        groq_api_key = os.environ["Groq_API_TOKEN"] 
+        groq_api_key = os.environ["Groq_API_TOKEN"]
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-       
+      
         groq_client = Groq(api_key=groq_api_key)
-       
+      
         a4f_client = {
             "api_key": a4f_api_key,
             "api_url": "https://api.a4f.co/v1/chat/completions"
         }
-       
+      
         return groq_client, a4f_client
     except Exception as e:
         st.error(f"API Configuration Error: {e}")
         return None, None
-
 groq_client, a4f_client = initialize_clients()
-
 # ✅ NEW: Quantomise My Trip
 def quantomise_my_trip():
     st.title("✈️ Quantomise My Trip")
     st.markdown("Let AI plan your perfect trip — budget, flights, hotels, and more — tailored just you.")
-
     if "trip_data" not in st.session_state:
         st.session_state.trip_data = {}
-
     # ✅ Step 0: Pre-suggest destinations
     st.subheader("🌍 Not sure where to go? Let us suggest!")
     with st.expander("✨ Get AI Destination Suggestions"):
@@ -90,9 +86,7 @@ def quantomise_my_trip():
             response = call_a4f_model(prompt, "provider-5/gpt-5")
             st.markdown("### 🎯 AI Suggestions:")
             st.write(response)
-
     st.markdown("---")
-
     # ✅ Step 1: Trip Details
     st.subheader("🧳 Tell us about your trip")
     with st.form("trip_form"):
@@ -104,7 +98,6 @@ def quantomise_my_trip():
         travelers = st.number_input("👥 Number of travelers", min_value=1, max_value=20, step=1)
         preferences = st.text_area("✍️ Preferences (optional)", placeholder="e.g., vegetarian food, pool, near beach, pet-friendly")
         submitted = st.form_submit_button("🔍 Find My Trip", type="primary")
-
     if submitted:
         st.session_state.trip_data = {
             "budget": budget,
@@ -115,13 +108,11 @@ def quantomise_my_trip():
             "travelers": travelers,
             "preferences": preferences
         }
-
         with st.spinner("🧠 AI is crafting your perfect trip..."):
             prompt = f"""
             You are a top-tier travel planner like Agoda, MakeMyTrip, and EaseMyTrip combined. Suggest for the current Year, month, and the day. Everything Real No Fake Items Like Fake Hotels, Do Real Live Search To Find.
             Plan a {trip_type.lower()} trip for {travelers} traveler(s) from {origin} to {destination} for {days} days with a budget of ${budget}.
             Preferences: {preferences if preferences else 'None'}.
-
             Include:
             1. Best flight options (with links if possible)
             2. Top 3 hotels/resorts (with links if possible)
@@ -131,20 +122,17 @@ def quantomise_my_trip():
             6. Best booking websites for each
             7. Money-saving tips
             8. Hidden gems
-
             Format it beautifully with emojis and sections.
             """
             response = call_a4f_model(prompt, "provider-5/gpt-5.1-2025-11-13")
             st.markdown("### 🎯 Your AI-Planned Trip:")
             st.markdown(response)
-
             st.download_button(
                 label="📥 Download Trip Plan",
                 data=response,
                 file_name=f"trip_plan_{destination.replace(' ', '_')}.txt",
                 mime="text/plain"
             )
-
 def coding_workspace():
     st.title("💻 AI Coding Workspace")
     st.markdown("Generate complete, ready-to-run code with `provider-5/gpt-5.1-codex`")
@@ -159,42 +147,34 @@ def coding_workspace():
             code = call_a4f_model(prompt, "provider-5/gpt-5.1-codex")
         st.code(code, language=lang.lower())
         st.download_button("📥 Download file", data=code, file_name=f"code.{lang.lower()}", mime="text/plain")
-
 # ---------------------------------------------------------
-#  1️⃣  APP-BUILDER WORKSPACE  –  UX unchanged
+# 1️⃣ APP-BUILDER WORKSPACE – UX unchanged
 # ---------------------------------------------------------
 def app_builder_workspace():
     st.title("🏗️ Streamlit App Builder")
     st.markdown("Describe an app idea → Claude expands → GPT-5.1-codex builds → run instantly")
-
     idea = st.text_area("Your app idea (1–2 sentences):", placeholder="e.g., an app that predicts house prices from CSV upload")
     if st.button("Build & Run", type="primary"):
         if not idea.strip():
             st.warning("Please give an idea.")
             return
-
         # 1️⃣ Expand idea
         expand_prompt = f"Turn this short idea into a detailed 150-word technical prompt for a single-file Streamlit app:\n\n{idea}"
         expanded = call_a4f_model(expand_prompt, "provider-7/claude-haiku-4-5-20251001")
-
         # 2️⃣ Generate code
         build_prompt = f"Write a single-file Streamlit app that: {expanded}\n\n- Use only public libs\n- No external assets\n- Save as app_generated.py"
         generated_code = call_a4f_model(build_prompt, "provider-5/gpt-5.1-codex")
-
         # 3️⃣ Save & show
         Path("generated_apps").mkdir(exist_ok=True)
         file_path = Path("generated_apps/app_generated.py")
         file_path.write_text(generated_code, encoding="utf-8")
-
         st.success("✅ App generated – running below")
         with st.expander("📋 Generated code"):
             st.code(generated_code, language="python")
-
         # 4️⃣ Run inline & embed
         run_app_inline(str(file_path))
-
 # ---------------------------------------------------------
-#  2️⃣  INLINE RUNNER  –  no subprocess, no ports
+# 2️⃣ INLINE RUNNER – no subprocess, no ports
 # ---------------------------------------------------------
 def run_app_inline(script_path: str):
     """
@@ -206,13 +186,11 @@ def run_app_inline(script_path: str):
     import streamlit as st
     from streamlit.web.bootstrap import run
     from pathlib import Path
-
     # Copy the file into the *static* folder Streamlit exposes under /app
     static_dir = Path("static")
     static_dir.mkdir(exist_ok=True)
     target = static_dir / "app_generated.py"
     target.write_text(Path(script_path).read_text(), encoding="utf-8")
-
     # Start Streamlit in a daemon thread
     t = threading.Thread(
         target=run,
@@ -226,15 +204,13 @@ def run_app_inline(script_path: str):
         daemon=True,
     )
     t.start()
-    time.sleep(3)  # let boot
-
+    time.sleep(3) # let boot
     # Embed the app
     st.components.v1.iframe(
         src="/app/static/app_generated.py",
         height=700,
         scrolling=True,
     )
-
 # Custom CSS with sidebar toggle and canvas background (removed voice assistant styles)
 st.markdown("""
 <style>
@@ -265,7 +241,7 @@ st.markdown("""
     [data-testid="stSidebar"][aria-expanded="false"] {
         transform: translateX(-100%);
     }
-   
+  
     /* Canvas background */
     body {
         background-color: #000;
@@ -557,11 +533,11 @@ header {visibility: hidden;}
     .logo-text {
         font-size: 1.8rem;
     }
-   
+  
     .chat-message {
         padding: 1rem;
     }
-   
+  
     .welcome-container {
         padding: 1.5rem;
     }
@@ -668,13 +644,11 @@ header {visibility: hidden;}
     });
 </script>
 """, unsafe_allow_html=True)
-
 # Unlock button for trial mode
 if not st.session_state.pro_unlocked:
     if st.button("Unlock Next-Gen Pro", key="unlock_pro_btn"):
         st.session_state.pro_unlocked = True
         st.rerun()
-
 # Initialize session state variables (removed voice-related variables)
 if "chat" not in st.session_state:
     st.session_state.chat = []
@@ -710,11 +684,9 @@ if "learning_history" not in st.session_state:
     st.session_state.learning_history = [] # For simulated auto-training
 if "iq_test_score" not in st.session_state:
     st.session_state.iq_test_score = None
-
 # Force V2 in trial mode
 if not st.session_state.pro_unlocked:
     st.session_state.model_version = "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)"
-
 # --------------------------
 # NEW: AI CONTENT DETECTOR & HUMANIZER FUNCTIONS
 # --------------------------
@@ -747,7 +719,6 @@ Here is the text to analyze:
         return response
     except Exception as e:
         return f"Error in AI content detection: {str(e)}"
-
 def ai_humanizer(text):
     """Convert AI-generated text to human-like text"""
     prompt = f"""You are an advanced AI-to-human text converter.
@@ -771,14 +742,13 @@ Here is the text to humanize:
         return response
     except Exception as e:
         return f"Error in AI humanizer: {str(e)}"
-
 def ai_content_detector_mode():
     """Mode for AI content detection"""
     st.title("🔍 AI Content Detector")
     st.markdown("Analyze any text to detect if it was generated by AI using advanced ZeroGPT-like analysis.")
-   
+  
     col1, col2 = st.columns([2, 1])
-   
+  
     with col1:
         text_to_analyze = st.text_area(
             "Enter text to analyze:",
@@ -786,7 +756,7 @@ def ai_content_detector_mode():
             placeholder="Paste any text here to check if it was AI-generated...",
             key="detector_input"
         )
-   
+  
     with col2:
         st.markdown("### 📊 Analysis Options")
         analyze_button = st.button("🔍 Analyze Text", use_container_width=True)
@@ -795,11 +765,11 @@ def ai_content_detector_mode():
         st.markdown("• Analyzes perplexity & burstiness")
         st.markdown("• Compares to AI writing patterns")
         st.markdown("• Provides detailed report")
-   
+  
     if analyze_button and text_to_analyze.strip():
         with st.spinner("🤖 Analyzing text for AI patterns..."):
             result = ai_content_detector(text_to_analyze)
-           
+          
             st.markdown("### 📋 Detection Results")
             st.markdown(f"""
             <div class="detector-container">
@@ -809,30 +779,29 @@ def ai_content_detector_mode():
                 </div>
             </div>
             """, unsafe_allow_html=True)
-           
+          
             # Extract probability for visualization
             probability_match = re.search(r"AI Probability:\s*(\d+)%", result)
             if probability_match:
                 probability = int(probability_match.group(1))
                 st.progress(probability/100, text=f"AI Probability: {probability}%")
-               
+              
                 if probability > 70:
                     st.error("🚨 High probability of AI-generated content")
                 elif probability > 30:
                     st.warning("⚠️ Mixed - Possibly AI-assisted content")
                 else:
                     st.success("✅ Likely human-written content")
-   
+  
     elif analyze_button and not text_to_analyze.strip():
         st.warning("Please enter some text to analyze.")
-
 def ai_humanizer_mode():
     """Mode for AI text humanization"""
     st.title("✍️ AI Text Humanizer")
     st.markdown("Transform AI-generated text into natural, human-like content that passes AI detection tools.")
-   
+  
     col1, col2 = st.columns([2, 1])
-   
+  
     with col1:
         text_to_humanize = st.text_area(
             "Enter AI-generated text to humanize:",
@@ -840,7 +809,7 @@ def ai_humanizer_mode():
             placeholder="Paste AI-generated text here to make it sound more human...",
             key="humanizer_input"
         )
-   
+  
     with col2:
         st.markdown("### 🎯 Humanization Options")
         humanize_button = st.button("✨ Humanize Text", use_container_width=True)
@@ -850,11 +819,11 @@ def ai_humanizer_mode():
         st.markdown("• Improves sentence rhythm")
         st.markdown("• Removes AI patterns")
         st.markdown("• Maintains meaning")
-   
+  
     if humanize_button and text_to_humanize.strip():
         with st.spinner("🎨 Transforming text to sound more human..."):
             humanized_text = ai_humanizer(text_to_humanize)
-           
+          
             st.markdown("### 📝 Humanized Text")
             st.markdown(f"""
             <div class="humanizer-container">
@@ -864,7 +833,7 @@ def ai_humanizer_mode():
                 </div>
             </div>
             """, unsafe_allow_html=True)
-           
+          
             # Provide download option
             st.download_button(
                 label="📥 Download Humanized Text",
@@ -872,17 +841,16 @@ def ai_humanizer_mode():
                 file_name="humanized_text.txt",
                 mime="text/plain"
             )
-           
+          
             # Option to analyze the humanized text
             if st.button("🔍 Check Humanized Text"):
                 with st.spinner("Verifying humanization quality..."):
                     verification = ai_content_detector(humanized_text)
                     st.markdown("### ✅ Humanization Verification")
                     st.markdown(verification)
-   
+  
     elif humanize_button and not text_to_humanize.strip():
         st.warning("Please enter some text to humanize.")
-
 # IQ Tester in Sidebar
 if st.session_state.pro_unlocked:
     with st.sidebar:
@@ -900,7 +868,6 @@ if st.session_state.pro_unlocked:
                     score += 1
             st.session_state.iq_test_score = score * 33 # Simplified scoring
             st.write(f"Your IQ Score: {st.session_state.iq_test_score}")
-
 # Document Analysis Functions
 def extract_pdf_content(file):
     try:
@@ -911,7 +878,6 @@ def extract_pdf_content(file):
         return content.strip()
     except Exception as e:
         return f"Error reading PDF: {e}"
-
 def extract_docx_content(file):
     try:
         doc = docx.Document(file)
@@ -921,7 +887,6 @@ def extract_docx_content(file):
         return content.strip()
     except Exception as e:
         return f"Error reading DOCX: {e}"
-
 def extract_csv_content(file):
     try:
         df = pd.read_csv(file)
@@ -935,13 +900,12 @@ def extract_csv_content(file):
         return content
     except Exception as e:
         return f"Error reading CSV: {e}"
-
 def process_uploaded_file(uploaded_file):
     if uploaded_file is None:
         return ""
-   
+  
     file_type = uploaded_file.name.split('.')[-1].lower()
-   
+  
     try:
         if file_type == 'pdf':
             return extract_pdf_content(uploaded_file)
@@ -960,7 +924,6 @@ def process_uploaded_file(uploaded_file):
             return f"Unsupported file type: {file_type}"
     except Exception as e:
         return f"Error processing file: {e}"
-
 # Image Enhancement Functions
 def enhance_image(image, brightness=1.0, contrast=1.0, sharpness=1.0, color=1.0):
     try:
@@ -970,17 +933,16 @@ def enhance_image(image, brightness=1.0, contrast=1.0, sharpness=1.0, color=1.0)
             'sharpness': ImageEnhance.Sharpness(image),
             'color': ImageEnhance.Color(image)
         }
-       
+      
         enhanced = enhancers['brightness'].enhance(brightness)
         enhanced = enhancers['contrast'].enhance(contrast)
         enhanced = enhancers['sharpness'].enhance(sharpness)
         enhanced = enhancers['color'].enhance(color)
-       
+      
         return enhanced
     except Exception as e:
         st.error(f"Error enhancing image: {e}")
         return image
-
 def apply_image_filters(image, filter_type):
     try:
         if filter_type == 'blur':
@@ -1002,7 +964,6 @@ def apply_image_filters(image, filter_type):
     except Exception as e:
         st.error(f"Error applying filter: {e}")
         return image
-
 def parse_edit_instructions(instructions):
     """Parse text instructions to map to PIL operations"""
     instructions = instructions.lower()
@@ -1013,7 +974,7 @@ def parse_edit_instructions(instructions):
         "color": 1.0,
         "filter": "None"
     }
-   
+  
     # Simple keyword-based parsing
     if "bright" in instructions:
         enhancements["brightness"] = 1.3
@@ -1037,33 +998,31 @@ def parse_edit_instructions(instructions):
         enhancements["filter"] = "emboss"
     if "smooth" in instructions:
         enhancements["filter"] = "smooth"
-   
+  
     return enhancements
-
 def display_image_enhancement_controls(image, enhancements):
     with st.expander("🖼️ Image Enhancement Tools", expanded=True):
         st.markdown("### Adjust Image Parameters")
-       
+      
         col1, col2 = st.columns(2)
-       
+      
         with col1:
             brightness = st.slider("Brightness", 0.0, 2.0, enhancements["brightness"], 0.1)
             contrast = st.slider("Contrast", 0.0, 2.0, enhancements["contrast"], 0.1)
-       
+      
         with col2:
             sharpness = st.slider("Sharpness", 0.0, 2.0, enhancements["sharpness"], 0.1)
             color = st.slider("Color", 0.0, 2.0, enhancements["color"], 0.1)
-       
+      
         st.markdown("### Apply Filters")
         filter_options = ['None', 'blur', 'contour', 'detail', 'edge_enhance', 'emboss', 'sharpen', 'smooth']
         selected_filter = st.selectbox("Choose a filter", filter_options, index=filter_options.index(enhancements["filter"]))
-       
+      
         enhanced_image = enhance_image(image, brightness, contrast, sharpness, color)
         if selected_filter != 'None':
             enhanced_image = apply_image_filters(enhanced_image, selected_filter)
-       
+      
         return enhanced_image
-
 # Enhanced A4F Model Call with fallback
 def call_a4f_model(prompt, model_name, context="", image=None):
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
@@ -1091,12 +1050,12 @@ Provide a comprehensive and helpful response:"""
         "Authorization": f"Bearer {a4f_client['api_key']}",
         "Content-Type": "application/json"
     }
-   
+  
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": prompt}
     ]
-   
+  
     if image:
         buffered = BytesIO()
         image.save(buffered, format="PNG")
@@ -1110,7 +1069,7 @@ Provide a comprehensive and helpful response:"""
                 }
             ]
         })
-   
+  
     data = {
         "model": model_name,
         "messages": messages,
@@ -1128,7 +1087,7 @@ Provide a comprehensive and helpful response:"""
             timeout=30
         )
         response.raise_for_status()
-       
+      
         content = response.json()["choices"][0]["message"]["content"]
         if model_name == "provider-2/r1-1776":
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
@@ -1149,12 +1108,11 @@ Provide a comprehensive and helpful response:"""
         return call_groq_model(prompt, "moonshotai/kimi-k2-instruct-0905", context)
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
-
 # Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
     if not groq_client:
         return f"❌ Groq client not available"
-   
+  
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
@@ -1189,30 +1147,29 @@ User Query: {prompt}"""
         return completion.choices[0].message.content
     except Exception as e:
         return f"❌ {model_name} Error: {str(e)}"
-
 # Quantora Unified AI Model with Memory and Simulated Learning
 def call_quantora_unified(prompt, context="", image=None):
     start_time = time.time()
-   
+  
     # Build conversation history for memory
     conversation_history = ""
     for item in st.session_state.chat[-5:]: # Last 5 messages for context
         speaker, message, _ = item[:3]
         conversation_history += f"{speaker.upper()}: {message}\n\n"
-   
+  
     # Simulated learning: Append previous corrections or improvements
     learning_prompt = ""
     if st.session_state.learning_history:
         learning_prompt = "\n\nLearned from previous interactions:\n" + "\n".join(st.session_state.learning_history[-3:]) # Last 3 learnings
-   
+  
     # If prompt references previous, allow editing
     if "edit previous" in prompt.lower() or "modify last" in prompt.lower():
         if st.session_state.chat:
             last_response = st.session_state.chat[-1][1] if st.session_state.chat[-1][0] == "quantora" else ""
             prompt = f"Edit this previous response based on new instructions: {last_response}\n\nNew instructions: {prompt}"
-   
+  
     full_prompt = f"{conversation_history}{learning_prompt}\n\nCurrent Query: {prompt}"
-   
+  
     def call_groq_backend(model_name):
         try:
             response = call_groq_model(full_prompt, model_name, context)
@@ -1229,7 +1186,7 @@ def call_quantora_unified(prompt, context="", image=None):
                 "success": False,
                 "length": 0
             }
-   
+  
     def call_a4f_backend(model_name):
         try:
             response = call_a4f_model(full_prompt, model_name, context, image)
@@ -1246,9 +1203,9 @@ def call_quantora_unified(prompt, context="", image=None):
                 "success": False,
                 "length": 0
             }
-   
+  
     backend_results = []
-   
+  
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
         selected_model_version = st.session_state.get("model_version", "Quantora Prime 1 (Latest Flagship Model)")
@@ -1284,7 +1241,7 @@ def call_quantora_unified(prompt, context="", image=None):
                 futures.append(executor.submit(call_groq_backend, model))
             for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-       
+      
         elif selected_model_version == "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)":
             st.toast("⚡ Using Quantora Prime 1 Fast Engine...", icon="⚡")
             a4f_v2_models = [
@@ -1293,7 +1250,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in a4f_v2_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-               
+              
         elif selected_model_version == "Quantora V3 (Code Specialized)":
             st.toast("💻 Using Quantora V3 Code Engine...", icon="💻")
             code_models = [
@@ -1305,7 +1262,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in code_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-               
+              
         elif selected_model_version == "Quantora V4 (Long Conversation)":
             st.toast("🗣️ Using Quantora V4 Conversation Engine...", icon="🗣️")
             conversation_models = [
@@ -1316,7 +1273,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in conversation_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-               
+              
         elif selected_model_version == "Quantora V3 (Reasoning Specialized)":
             st.toast("🧠 Using Quantora V3 Reasoning Engine...", icon="🧠")
             reasoning_models = [
@@ -1327,7 +1284,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in reasoning_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-               
+              
         elif selected_model_version == "Quantora V3 (Math Specialized)":
             st.toast("🧮 Using Quantora V3 Math Engine...", icon="🧮")
             math_models = [
@@ -1343,14 +1300,14 @@ def call_quantora_unified(prompt, context="", image=None):
                 backend_results.append(result)
             except Exception as e:
                 print(f"⚠️ One processing component had an issue: {str(e)}")
-   
+  
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
-   
+  
     if not successful_responses:
         return "❌ No successful responses from backends. Please try again."
-   
+  
     responses_text = '\n\n'.join([f"Response from {r['backend']}:\n{r['response']}" for r in successful_responses])
-   
+  
     mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt.
 Combine them into one coherent, comprehensive response that maintains the best aspects of each.
 Original Prompt: {prompt}
@@ -1366,42 +1323,41 @@ Guidelines:
 7. Dont tell about any ai error
 8. Always ask a question to the user ex- that what should I(you) do next?
 Combined Response:"""
-   
+  
     final_response = call_a4f_model(mixing_prompt, "provider-3/gpt-4o-mini")
-   
+  
     # Simulated auto-training: "Learn" by storing response improvements
     if final_response:
         learning_note = f"Improved response for query: {prompt[:50]}... by combining {len(successful_responses)} backends"
         st.session_state.learning_history.append(learning_note)
-   
+  
     processing_time = time.time() - start_time
     return final_response if final_response else successful_responses[0]['response']
-   
+  
 # Code Detection and Formatting
 def format_response_with_code(response):
     code_pattern = r'```(\w+)?\n(.*?)\n```'
     parts = []
     last_end = 0
-   
+  
     for match in re.finditer(code_pattern, response, re.DOTALL):
         if match.start() > last_end:
             text_part = response[last_end:match.start()].strip()
             if text_part:
                 parts.append(('text', text_part))
-       
+      
         language = match.group(1) or 'text'
         code_content = match.group(2).strip()
         parts.append(('code', code_content, language))
-       
+      
         last_end = match.end()
-   
+  
     if last_end < len(response):
         remaining_text = response[last_end:].strip()
         if remaining_text:
             parts.append(('text', remaining_text))
-   
+  
     return parts if parts else [('text', response)]
-
 # Image Generation Functions
 def generate_image(prompt, style):
     headers = {
@@ -1433,7 +1389,6 @@ def generate_image(prompt, style):
     except Exception as e:
         st.error(f"Image generation error: {str(e)}")
         return None
-
 def edit_image(image, edit_prompt):
     headers = {
         "Authorization": f"Bearer {A4F_API_KEY}",
@@ -1467,13 +1422,12 @@ def edit_image(image, edit_prompt):
     except Exception as e:
         st.error(f"Image editing error: {str(e)}")
         return None
-
 # Video Generation Function using Replicate
 def generate_video_replicate(prompt, style):
     try:
         # ✅ Set your Replicate API key
         os.environ["REPLICATE_API_TOKEN"] = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
-        
+       
         # Run the model with original prompt only
         output = replicate.run(
             "minimax/video-01",
@@ -1482,29 +1436,23 @@ def generate_video_replicate(prompt, style):
                 "prompt_optimizer": True
             }
         )
-
         # ✅ Handle output correctly (new Replicate SDK)
         if hasattr(output, "path"):
-            video_url = output.path  # For FileOutput object
+            video_url = output.path # For FileOutput object
         else:
-            video_url = str(output)  # For string or list
-
+            video_url = str(output) # For string or list
         print("🎥 Video generated at:", video_url)
-
         # ✅ Download the file to disk
         response = requests.get(video_url)
         filename = f"generated_video_{int(time.time())}.mp4"
-
         with open(filename, "wb") as file:
             file.write(response.content)
-
         print(f"✅ Video saved successfully as {filename}")
         return filename
-        
+       
     except Exception as e:
         st.error(f"Video generation failed: {str(e)}")
         return None
-
 # Time-based greeting
 hour = datetime.now().hour
 if 6 <= hour < 12:
@@ -1515,7 +1463,6 @@ elif 18 <= hour < 24:
     greeting = "🌙 Good Evening!"
 else:
     greeting = "🌌 Good Night!"
-
 # Header with Quantora branding
 st.markdown("""
 <div class="main-header">
@@ -1527,31 +1474,30 @@ st.markdown("""
     <div style="color: var(--text-muted);">{}</div>
 </div>
 """.format(app_name, greeting), unsafe_allow_html=True)
-
 # --------------------------
 # QUANTORA TRADE CHARTS MODULE
 # --------------------------
 def quantora_trade_charts():
     st.title("📈 Quantora Trade Charts")
     st.markdown("Advanced financial analysis and visualization tools powered by Quantora AI")
-   
+  
     # Stock selection
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         ticker = st.text_input("Enter stock symbol (e.g. AAPL, MSFT, TSLA)", "AAPL")
     with col2:
         period = st.selectbox("Time period", ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y"])
-   
+  
     if st.button("Generate Analysis"):
         with st.spinner("Fetching market data..."):
             try:
                 stock = yf.Ticker(ticker)
                 hist = stock.history(period=period)
-               
+              
                 if hist.empty:
                     st.error("No data found for this symbol. Please try another.")
                     return
-               
+              
                 # Basic info
                 st.subheader(f"📊 {ticker} - {stock.info.get('longName', 'N/A')}")
                 col1, col2, col3 = st.columns(3)
@@ -1563,7 +1509,7 @@ def quantora_trade_charts():
                     st.metric("Daily Change", f"${change:.2f}", f"{change_percent:.2f}%")
                 with col3:
                     st.metric("Market Cap", f"${stock.info.get('marketCap', 'N/A'):,}")
-               
+              
                 # Candlestick chart
                 st.subheader("Candlestick Chart")
                 fig = go.Figure(data=[go.Candlestick(
@@ -1580,7 +1526,7 @@ def quantora_trade_charts():
                     template="plotly_dark"
                 )
                 st.plotly_chart(fig, use_container_width=True)
-               
+              
                 # Volume chart
                 st.subheader("Trading Volume")
                 fig2 = go.Figure(data=[go.Bar(
@@ -1595,7 +1541,7 @@ def quantora_trade_charts():
                     template="plotly_dark"
                 )
                 st.plotly_chart(fig2, use_container_width=True)
-               
+              
                 # Additional metrics
                 st.subheader("Key Metrics")
                 metrics = {
@@ -1606,7 +1552,7 @@ def quantora_trade_charts():
                     "Beta": stock.info.get('beta'),
                     "Average Volume": stock.info.get('averageVolume')
                 }
-               
+              
                 cols = st.columns(3)
                 for i, (metric, value) in enumerate(metrics.items()):
                     with cols[i % 3]:
@@ -1619,7 +1565,7 @@ def quantora_trade_charts():
                                 st.metric(metric, f"{value:.2f}")
                         else:
                             st.metric(metric, "N/A")
-               
+              
                 # AI Analysis
                 st.subheader("📈 Quantora AI Analysis")
                 analysis_prompt = f"""
@@ -1630,25 +1576,24 @@ def quantora_trade_charts():
                 - Market Cap: ${stock.info.get('marketCap', 'N/A'):,}
                 - Recent Performance:
                   {hist.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].to_string()}
-               
+              
                 Provide insights on:
                 1. Current trend
                 2. Key support/resistance levels
                 3. Volume analysis
                 4. Technical indicators summary
                 5. Short-term and long-term outlook
-               
+              
                 Keep the analysis professional but accessible to retail investors.
                 """
-               
+              
                 with st.spinner("Generating AI analysis..."):
                     st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
                     analysis = call_quantora_unified(analysis_prompt)
                     st.markdown(analysis)
-               
+              
             except Exception as e:
                 st.error(f"Error fetching data: {str(e)}")
-
 # --------------------------
 # QUANTORA NEWS MODULE
 # --------------------------
@@ -1661,7 +1606,7 @@ def quantora_news():
             <p style='font-size: 0.9em; color: #888;'>Generated by Quantora AI</p>
         </div>
     """, unsafe_allow_html=True)
-   
+  
     # Dynamically dated prompt
     prompt = f"""
     You are Quantora AI, a cutting-edge real-time news analysis system. Give the MOST Trending news for {today}. Create the top news digest for {today} based on live global and Indian events 'like' operation sindoor, using a professional journalist tone.
@@ -1696,7 +1641,6 @@ def quantora_news():
             🔹 Powered by Quantora AI • Delivering Intelligence, Not Just Information.
         </div>
     """, unsafe_allow_html=True)
-
 # --------------------------
 # QUANTORA SOCIAL MEDIA MODULE
 # --------------------------
@@ -2011,7 +1955,6 @@ def quantora_social_media():
             quantora_login_user()
         elif navigation == "Join Quantora":
             quantora_register_user()
-
 # --------------------------
 # HEART HEALTH ANALYZER
 # --------------------------
@@ -2428,7 +2371,7 @@ def heart_health_analyzer():
             </div>
             """, unsafe_allow_html=True)
             col2, col3, col4 = st.columns(3)
-           
+          
             with col2:
                 if st.button("✋ Manual Input", key="manual_btn"):
                     st.session_state.recording_method = "manual"
@@ -2438,7 +2381,7 @@ def heart_health_analyzer():
             with col4:
                 if st.button("🎤 Voice Recording", key="voice_btn"):
                     st.session_state.recording_method = "voice"
-           
+          
             if st.session_state.recording_method == "manual":
                 result = analyze_heart_rate_manual()
                 if result:
@@ -2593,7 +2536,7 @@ def heart_health_analyzer():
         """, unsafe_allow_html=True)
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                if key not in ['pro_unlocked', 'model_version', 'image_style', 'video_style']:  # Preserve essential states
+                if key not in ['pro_unlocked', 'model_version', 'image_style', 'video_style']: # Preserve essential states
                     del st.session_state[key]
             st.rerun()
     def main_heart():
@@ -2629,7 +2572,6 @@ def heart_health_analyzer():
         else:
             display_assessment_summary()
     main_heart()
-
 # --------------------------
 # BRAIN HEALTH ANALYZER
 # --------------------------
@@ -2818,7 +2760,7 @@ def brain_health_analyzer():
             **Test:** Repeat sequences of numbers in the same order.
             The test will progressively get harder with longer sequences.
             """)
-           
+          
             if st.button("Start Digit Span Test"):
                 sequences = [
                     [3, 7, 2],
@@ -2827,14 +2769,14 @@ def brain_health_analyzer():
                     [4, 1, 8, 3, 6, 9],
                     [7, 2, 5, 8, 3, 6, 1]
                 ]
-               
+              
                 score = 0
                 for seq in sequences:
                     st.write(f"Remember this sequence: {seq}")
                     time.sleep(2)
                     st.write("Sequence hidden...")
                     time.sleep(1)
-                   
+                  
                     user_input = st.text_input(f"Enter the {len(seq)}-digit sequence (separated by spaces):", key=f"digits_{seq[0]}")
                     if user_input:
                         user_nums = [int(n) for n in user_input.split() if n.isdigit()]
@@ -2844,7 +2786,7 @@ def brain_health_analyzer():
                         else:
                             st.error(f"Incorrect. The sequence was: {seq}")
                             break
-               
+              
                 digit_span_score = min(score + 2, 7) # Normal range is 5-7
                 st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
                 st.session_state.cognitive_data['digit_span'] = digit_span_score
@@ -2853,23 +2795,23 @@ def brain_health_analyzer():
             st.write("""
             **Test:** Connect numbers in order as quickly as possible.
             """)
-           
+          
             if st.button("Start Trail Making Test"):
                 # Generate a random sequence of numbers 1-8
                 numbers = list(range(1, 9))
                 np.random.shuffle(numbers)
-               
+              
                 st.write("Connect the numbers in order from 1 to 8:")
                 st.write(" → ".join([str(n) for n in numbers]))
-               
+              
                 start_time = time.time()
                 user_input = st.text_input("Enter the numbers in order separated by spaces (e.g., '1 2 3...'):")
-               
+              
                 if user_input:
                     end_time = time.time()
                     time_taken = end_time - start_time
                     user_nums = [int(n) for n in user_input.split() if n.isdigit()]
-                   
+                  
                     if user_nums == list(range(1, 9)):
                         trail_score = max(0, 100 - int(time_taken))
                         st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
@@ -2881,19 +2823,19 @@ def brain_health_analyzer():
             st.write("""
             **Test:** Name as many animals as you can in 60 seconds.
             """)
-           
+          
             if st.button("Start Verbal Fluency Test"):
                 st.write("List as many animals as you can think of in the text box below:")
-               
+              
                 start_time = time.time()
                 end_time = start_time + 60
                 animal_list = []
-               
+              
                 while time.time() < end_time:
                     animal = st.text_input(f"Time remaining: {int(end_time - time.time())} seconds", key=f"animal_{time.time()}")
                     if animal:
                         animal_list.append(animal.strip().lower())
-               
+              
                 unique_animals = len(set(animal_list))
                 fluency_score = min(unique_animals * 5, 100) # 20+ is normal
                 st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
@@ -2903,20 +2845,20 @@ def brain_health_analyzer():
             st.write("""
             **Test:** Remember and recall items.
             """)
-           
+          
             if st.button("Start Visual Memory Test"):
                 # Sample items
                 items = ["apple", "car", "tree", "house", "dog"]
                 st.write("Study these items for 10 seconds:")
                 st.write(", ".join(items))
-               
+              
                 time.sleep(10)
                 st.write("Items hidden...")
                 time.sleep(2)
-               
+              
                 recalled = st.text_input("Enter all items you remember (separated by commas):")
                 recalled_items = [item.strip().lower() for item in recalled.split(",") if recalled]
-               
+              
                 correct = sum(1 for item in recalled_items if item in items)
                 memory_score = int((correct / len(items)) * 100)
                 st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
@@ -2934,14 +2876,14 @@ def brain_health_analyzer():
             return
         data = st.session_state.cognitive_data
         overall_score = int(np.mean([v for v in data.values() if isinstance(v, int)]))
-       
+      
         st.markdown(f"""
         <div class="cognitive-display pulse-animation">
             🧠 {overall_score}/100
         </div>
         """, unsafe_allow_html=True)
         st.markdown("### Cognitive Test Results")
-       
+      
         # Risk level interpretation
         if overall_score < 70:
             interpretation = "⚠️ **Below Average Cognitive Function**"
@@ -3165,7 +3107,7 @@ def brain_health_analyzer():
         """, unsafe_allow_html=True)
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                if key not in ['pro_unlocked', 'model_version', 'image_style', 'video_style']:  # Preserve essential states
+                if key not in ['pro_unlocked', 'model_version', 'image_style', 'video_style']: # Preserve essential states
                     del st.session_state[key]
             st.rerun()
     def main_brain():
@@ -3201,7 +3143,6 @@ def brain_health_analyzer():
         else:
             display_assessment_summary()
     main_brain()
-
 # --------------------------
 # CANCER RISK ASSESSOR
 # --------------------------
@@ -3471,23 +3412,23 @@ def cancer_risk_assessor():
         uploaded_files = st.file_uploader("Upload images (max 4)",
                                         type=["jpg", "jpeg", "png"],
                                         accept_multiple_files=True)
-       
+      
         if uploaded_files:
             st.warning("""
             ⚠️ **Important Note:** This image analysis is for preliminary screening only.
             It cannot replace a professional medical examination or biopsy.
             """)
-           
+          
             cols = st.columns(min(4, len(uploaded_files)))
             for i, uploaded_file in enumerate(uploaded_files):
                 with cols[i]:
                     image = Image.open(uploaded_file)
                     st.image(image, caption=f"Image {i+1}", use_container_width=True)
-           
+          
             if st.button("Analyze Images"):
                 with st.spinner("🔍 Analyzing images with AI..."):
                     time.sleep(2)
-                   
+                  
                     analysis_results = []
                     for i, uploaded_file in enumerate(uploaded_files):
                         img_name = uploaded_file.name.lower()
@@ -3513,11 +3454,11 @@ def cancer_risk_assessor():
                                 "recommendation": "Monitor for changes"
                             }
                         analysis_results.append(result)
-                   
+                  
                     st.session_state.image_analysis = analysis_results
                     st.session_state.image_analysis_completed = True
                     st.rerun()
-       
+      
         if st.session_state.get('image_analysis_completed', False):
             display_image_results()
             if st.button("Continue with Assessment", key="continue_img_btn"):
@@ -3528,20 +3469,20 @@ def cancer_risk_assessor():
         """Display results of image analysis"""
         if not st.session_state.get('image_analysis'):
             return
-       
+      
         st.markdown("## 📷 Image Analysis Results")
-       
+      
         for i, result in enumerate(st.session_state.image_analysis):
             with st.expander(f"Image {i+1} Analysis", expanded=True):
                 col1, col2 = st.columns([1, 3])
-               
+              
                 with col1:
                     concern_color = {
                         "Low": "#4CAF50",
                         "Moderate": "#FFC107",
                         "High": "#F44336"
                     }.get(result["concern_level"], "#9E9E9E")
-                   
+                  
                     st.markdown(f"""
                     <div style="text-align: center;">
                         <div style="font-size: 2rem; color: {concern_color};">
@@ -3550,66 +3491,66 @@ def cancer_risk_assessor():
                         <div>{result["type"]}</div>
                     </div>
                     """, unsafe_allow_html=True)
-               
+              
                 with col2:
                     st.markdown(f"""
                     **Characteristics:**
                     {result["characteristics"]}
-                   
+                  
                     **Recommendation:**
                     {result["recommendation"]}
                     """)
-           
+          
             st.markdown("---")
     def calculate_risk_score():
         """Calculate preliminary cancer risk score based on answers"""
         risk_factors = 0
         total_possible = 0
         concerning_symptoms = []
-       
+      
         for q_id, answer in st.session_state.answers.items():
             question = next(q for q in CANCER_QUESTIONS if q['id'] == q_id)
-           
+          
             if question.get('risk_factor', False):
                 total_possible += 1
                 options = question['options']
                 answer_index = options.index(answer)
                 risk_level = answer_index / len(options)
-               
+              
                 if risk_level > 0.5: # Higher than middle option
                     risk_factors += 1
                     if question.get('related_to'):
                         concerning_symptoms.extend(question['related_to'])
-           
+          
             if question.get('symptom', False):
                 options = question['options']
                 answer_index = options.index(answer)
                 symptom_level = answer_index / len(options)
-               
+              
                 if symptom_level > 0.5: # Higher than middle option
                     if question.get('related_to'):
                         concerning_symptoms.extend(question['related_to'])
-       
+      
         # Calculate risk score (0-100)
         if total_possible > 0:
             risk_score = min(100, (risk_factors / total_possible) * 100 + len(set(concerning_symptoms)) * 5)
         else:
             risk_score = 0
-       
+      
         st.session_state.risk_score = risk_score
         st.session_state.concerned_areas = list(set(concerning_symptoms)) # Unique cancer types
     def display_risk_results():
         """Display cancer risk assessment results"""
         calculate_risk_score()
         risk_score = st.session_state.risk_score
-       
+      
         st.markdown(f"""
         <div class="risk-display pulse-animation">
             🩺 {int(risk_score)}/100
         </div>
         """, unsafe_allow_html=True)
         st.markdown("### Cancer Risk Assessment")
-       
+      
         # Risk level interpretation
         if risk_score < 30:
             risk_level = "Low Risk"
@@ -3646,7 +3587,7 @@ def cancer_risk_assessor():
         # Display concerned areas
         if st.session_state.concerned_areas:
             st.markdown("### 🚨 Areas of Concern")
-           
+          
             cols = st.columns(3)
             cancer_types = {
                 "Breast cancer": "👩",
@@ -3656,7 +3597,7 @@ def cancer_risk_assessor():
                 "Skin cancer": "☀️",
                 "Other": "🩺"
             }
-           
+          
             for i, area in enumerate(st.session_state.concerned_areas):
                 with cols[i % 3]:
                     emoji = cancer_types.get(area, "🩺")
@@ -3669,7 +3610,7 @@ def cancer_risk_assessor():
         st.markdown("### 🏷️ Body Map")
         st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_body_silhouette.svg/1200px-Human_body_body_silhouette.svg.png",
                  use_container_width=True, caption="Areas of concern highlighted in your assessment")
-       
+      
         st.markdown("---")
         st.subheader("📊 Detailed Risk Factors")
         # Display risk factors
@@ -3678,7 +3619,7 @@ def cancer_risk_assessor():
             options = question['options']
             answer_index = options.index(answer)
             risk_level = answer_index / len(options)
-           
+          
             if risk_level > 0.5 or question.get('symptom', False):
                 st.markdown(f"""
                 <div style="padding: 1rem; background: #f5f5f5; border-radius: 8px; margin-bottom: 0.5rem;">
@@ -3852,7 +3793,7 @@ def cancer_risk_assessor():
         """, unsafe_allow_html=True)
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
-                if key not in ['pro_unlocked', 'model_version', 'image_style', 'video_style']:  # Preserve essential states
+                if key not in ['pro_unlocked', 'model_version', 'image_style', 'video_style']: # Preserve essential states
                     del st.session_state[key]
             st.rerun()
     def main_cancer():
@@ -3888,7 +3829,6 @@ def cancer_risk_assessor():
         else:
             display_assessment_summary()
     main_cancer()
-
 # --------------------------
 # FRAMELAB MODULE
 # --------------------------
@@ -3896,7 +3836,7 @@ def framelab():
     st.title("🎬 FrameLab: AI-Powered Media Creation")
     st.markdown("Generate, edit images and videos with cutting-edge AI models.")
     tab1, tab2, tab3 = st.tabs(["🖼️ Image Generation", "✏️ Image Editing", "🎬 Video Generation"])
-    
+   
     with tab1:
         st.subheader("🖼️ Generate New Image")
         prompt = st.text_area("Describe the image you want to create:", height=100, placeholder="E.g., A futuristic cityscape at sunset with flying cars")
@@ -3911,23 +3851,23 @@ def framelab():
                         st.success("Image generated successfully!")
                     else:
                         st.error("Failed to generate image. Please try again.")
-       
+      
         if hasattr(st.session_state, 'generated_image') and st.session_state.generated_image:
             st.image(st.session_state.generated_image, caption="Generated Image", use_container_width=True)
             if st.button("🔄 Generate Another"):
                 del st.session_state.generated_image
                 st.rerun()
-    
+   
     with tab2:
         st.subheader("✏️ Edit Existing Image")
         uploaded_image = st.file_uploader("Upload an image to edit:", type=["jpg", "jpeg", "png"])
-       
+      
         if uploaded_image:
             image = Image.open(uploaded_image)
             st.image(image, caption="Original Image", use_container_width=True)
-           
+          
             edit_prompt = st.text_area("Describe the edits you want (e.g., 'add a sunset background, make the sky vibrant'):", height=100)
-           
+          
             if st.button("✏️ Apply Edits", type="primary"):
                 if edit_prompt:
                     with st.spinner("Editing your image..."):
@@ -3939,7 +3879,7 @@ def framelab():
                             st.error("Failed to edit image. Please try again.")
                 else:
                     st.warning("Please provide edit instructions.")
-       
+      
         if hasattr(st.session_state, 'edited_image') and st.session_state.edited_image:
             st.image(st.session_state.edited_image, caption="Edited Image", use_container_width=True)
             col1, col2 = st.columns(2)
@@ -3957,11 +3897,11 @@ def framelab():
                 if st.button("🔄 Edit Again"):
                     del st.session_state.edited_image
                     st.rerun()
-    
+   
     with tab3:
         st.subheader("🎬 Generate Video")
         prompt = st.text_area("Describe the video scene:", height=100, placeholder="E.g., A woman walking through a busy Tokyo street at night, wearing dark sunglasses")
-        
+       
         if st.button("🎥 Generate Video", type="primary"):
             with st.spinner("Generating your video... This may take a few minutes."):
                 video_file = generate_video_replicate(prompt, "")
@@ -3977,7 +3917,7 @@ def framelab():
                     )
                 else:
                     st.error("Failed to generate video. Please try again.")
-        
+       
         if hasattr(st.session_state, 'generated_video') and st.session_state.generated_video:
             if st.button("🔄 Generate Another Video"):
                 # Clean up the file
@@ -3991,14 +3931,14 @@ def framelab():
 def quantum_creativestudio():
     st.title("🎨 Quantum CreativeStudio")
     st.markdown("Advanced creative AI studio for multimedia generation and editing")
-    
+   
     # Display the CreativeStudio in an iframe
     st.components.v1.iframe(
         "https://creativestudio-3ata6gv6.manus.space",
         height=800,
         scrolling=True
     )
-    
+   
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -4007,21 +3947,20 @@ def quantum_creativestudio():
         st.info("**Tools:**\n- AI-powered design\n- Real-time collaboration\n- Cloud rendering")
     with col3:
         st.info("**Support:**\n- Multi-format export\n- Team workspace\n- Version control")
-
 # --------------------------
 # QUANTUM LM MODULE
 # --------------------------
 def quantum_lm():
     st.title("🧠 Quantum LM")
     st.markdown("Advanced language model with quantum-inspired architecture")
-    
+   
     # Display the Quantum LM in an iframe
     st.components.v1.iframe(
         "https://quantumlm-w2cjzzsd.manus.space",
         height=800,
         scrolling=True
     )
-    
+   
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -4030,7 +3969,6 @@ def quantum_lm():
         st.info("**Features:**\n- Contextual memory\n- Emotional intelligence\n- Creative writing")
     with col3:
         st.info("**Applications:**\n- Research assistance\n- Code generation\n- Content creation")
-
 # --------------------------
 # HISTORY DISPLAY
 # --------------------------
@@ -4044,7 +3982,6 @@ def show_history():
             st.markdown(f"**{item['timestamp']}**")
             st.write(item['query'])
             st.markdown("---")
-
 # --------------------------
 # MAIN APP NAVIGATION
 # --------------------------
@@ -4057,7 +3994,7 @@ if st.session_state.pro_unlocked:
             index=0,
             key="current_mode"
         )
-       
+      
         st.markdown("---")
         st.markdown("### 📁 Document & Image Analysis")
         uploaded_file = st.file_uploader(
@@ -4066,20 +4003,20 @@ if st.session_state.pro_unlocked:
             help="Upload documents or images for AI analysis and enhancement",
             key="document_uploader"
         )
-       
+      
         if uploaded_file:
             with st.spinner("🔍 Analyzing content..."):
                 content = process_uploaded_file(uploaded_file)
                 st.session_state.uploaded_content = content
                 st.success(f"✅ {uploaded_file.name} processed!")
-               
+              
                 if uploaded_file.type.startswith('image/'):
                     display_image_enhancement_controls(st.session_state.uploaded_image, st.session_state.enhancement_values)
                 else:
                     with st.expander("📄 Preview Content"):
                         preview_content = content[:1000] + "..." if len(content) > 1000 else content
                         st.text_area("Document Content", preview_content, height=200, disabled=True)
-   
+  
         if st.button("🗑️ Clear Uploads", use_container_width=True):
             st.session_state.uploaded_content = ""
             st.session_state.uploaded_image = None
@@ -4105,7 +4042,6 @@ else:
         else:
             for item in history[::-1]: # Recent first
                 st.write(f"{item['timestamp']}: {item['query']}")
-
 # Main Content Area
 if mode == "AI":
     if not st.session_state.chat:
@@ -4116,9 +4052,9 @@ if mode == "AI":
                 <p>Where knowledge ends.</p>
             </div>
             """.format(app_name), unsafe_allow_html=True)
-           
+          
             col1, col2, col3, col4 = st.columns(4)
-           
+          
             with col1:
                 if st.button("💠 Simulate a quantum network"):
                     prompt = "Simulate a quantum network"
@@ -4129,7 +4065,7 @@ if mode == "AI":
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
                     save_history(prompt)
                     st.rerun()
-           
+          
             with col2:
                 if st.button("🧬 Simulate a molecular model"):
                     prompt = "Simulate a molecular model"
@@ -4140,7 +4076,7 @@ if mode == "AI":
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
                     save_history(prompt)
                     st.rerun()
-           
+          
             with col3:
                 if st.button("🌍 Predict climate patterns"):
                     prompt = "Predict climate patterns"
@@ -4151,7 +4087,7 @@ if mode == "AI":
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
                     save_history(prompt)
                     st.rerun()
-           
+          
             with col4:
                 if st.button("📜 Draft AI ethics code"):
                     prompt = "Draft AI ethics code"
@@ -4162,14 +4098,14 @@ if mode == "AI":
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
                     save_history(prompt)
                     st.rerun()
-           
+          
             st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>Ask Quantora anything...</strong></p>",
                         unsafe_allow_html=True)
     for i, chat_item in enumerate(st.session_state.chat):
         if len(chat_item) >= 3:
             speaker, message, timestamp = chat_item[:3]
             response_time = chat_item[3] if len(chat_item) > 3 else None
-           
+          
             if speaker == "user":
                 st.markdown(f"""
                 <div class="chat-message user-message">
@@ -4180,10 +4116,10 @@ if mode == "AI":
                     <div>{message}</div>
                 </div>
                 """, unsafe_allow_html=True)
-           
+          
             elif speaker in ["quantora", "ai"]:
                 formatted_parts = format_response_with_code(message)
-               
+              
                 st.markdown(f"""
                 <div class="chat-message ai-message">
                     <div class="message-header">
@@ -4191,13 +4127,13 @@ if mode == "AI":
                         <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
                     </div>
                 """, unsafe_allow_html=True)
-               
+              
                 for part in formatted_parts:
                     if part[0] == 'text':
                         st.markdown(f"<div>{part[1]}</div>", unsafe_allow_html=True)
                     elif part[0] == 'code':
                         st.code(part[1], language=part[2])
-               
+              
                 st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("---")
     col1, col2 = st.columns([0.85, 0.15])
@@ -4215,12 +4151,12 @@ if mode == "AI":
     if send_button and user_input.strip():
         start_time = time.time()
         st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
-       
+      
         with st.spinner("⚛️ Quantumizing Through Timeless Refinement Toward the Ultimate Answer."):
             context = st.session_state.uploaded_content
             image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
             response = call_quantora_unified(user_input.strip(), context, image)
-       
+      
         response_time = time.time() - start_time
         st.session_state.last_response_time = response_time
         st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
@@ -4231,12 +4167,12 @@ if mode == "AI":
         for item in st.session_state.chat:
             if len(item) > 3 and item[0] == "quantora" and isinstance(item[3], (int, float)):
                 response_times.append(item[3])
-       
+      
         if response_times:
             avg_time = sum(response_times) / len(response_times)
             min_time = min(response_times)
             max_time = max(response_times)
-           
+          
             st.markdown(f"""
             <div style="background: rgba(30, 41, 59, 0.6); border-radius: 12px; padding: 1rem; margin: 1rem 0; text-align: center;">
                 📊 <strong>Performance Metrics:</strong>
@@ -4263,7 +4199,7 @@ if mode == "AI":
                         "Timestamp": item[2].strftime('%Y-%m-%d %H:%M:%S'),
                         "Response_Time": item[3] if len(item) > 3 else None
                     })
-               
+              
                 chat_json = json.dumps(chat_data, indent=2, default=str)
                 st.download_button(
                     label="💾 Download Chat JSON",
@@ -4277,7 +4213,7 @@ if mode == "AI":
         if st.button("ℹ️ About", use_container_width=True):
             st.info("""
             **Quantora AI Elite** v2.4
-           
+          
             Features:
             ✅ Document analysis
             ✅ Image enhancement
@@ -4331,7 +4267,6 @@ elif mode == "Coding":
     coding_workspace()
 elif mode == "App Building":
     app_builder_workspace()
-
 # Footer
 st.markdown("---")
 st.markdown(
