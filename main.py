@@ -21,7 +21,6 @@ import replicate  # Added for video generation
 import sys
 from pathlib import Path
 
-# API Configuration (YOUR ORIGINAL — UNTOUCHED)
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -29,11 +28,9 @@ A4F_BASE_URL = "https://api.a4f.co/v1"
 IMAGE_MODEL = "provider-2/nano-banana-pro"
 EDIT_MODEL = "provider-2/nano-banana-pro"
 VIDEO_MODEL = "provider-6/wan-2.1"
-
-# Replicate API for Video Generation
 os.environ["REPLICATE_API_TOKEN"] = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
 
-# History persistence
+# ==================== HISTORY ====================
 HISTORY_FILE = "quantora_history.json"
 if not os.path.exists(HISTORY_FILE):
     with open(HISTORY_FILE, 'w') as f:
@@ -49,54 +46,46 @@ def save_history(query):
     with open(HISTORY_FILE, 'w') as f:
         json.dump(history, f)
 
-# Page Setup
+# ==================== PAGE SETUP ====================
 if "pro_unlocked" not in st.session_state:
     st.session_state.pro_unlocked = False
 
 app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
-st.set_page_config(
-    page_title=app_name,
-    layout="wide",
-    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
-)
+st.set_page_config(page_title=app_name, layout="wide", initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed")
 
-# ==================== MOODPULSE™ ENGINE (ADDED BELOW — WORKS IN BACKGROUND) ====================
-
-# Mood → Color Map (subtle but powerful)
+# ==================== MOODPULSE™ — FIXED & FLAWLESS ====================
 MOOD_COLORS = {
-    "angry": "#4a0e0e",     # Deep blood red
-    "sad": "#0f1b3d",       # Cold midnight blue
-    "love": "#5d1a3a",      # Romantic deep rose
-    "excited": "#662d0d",   # Fiery orange-red
-    "calm": "#0f172a",      # Original calm dark
-    "default": "#0f172a"    # Fallback
+    "angry": "#4a0000",     # Blood red
+    "sad": "#0f1b3d",       # Cold blue
+    "love": "#5d1a3a",      # Deep rose
+    "excited": "#662d0d",   # Fiery orange
+    "calm": "#0f172a",      # Original zen
+    "default": "#0f172a"
 }
 
-# Emotion keywords
 def detect_mood(text):
     text = text.lower()
-    if any(word in text for word in ["fuck", "shit", "hate", "angry", "pissed", "damn", "stupid", "idiot", "asshole"]):
+    if any(w in text for w in ["fuck", "shit", "hate", "angry", "pissed", "damn", "stupid", "idiot", "asshole"]):
         return "angry"
-    if any(word in text for word in ["sad", "depressed", "lonely", "cry", "miss you", "heartbroken", "hurt", "down"]):
+    if any(w in text for w in ["sad", "depressed", "lonely", "cry", "miss you", "heartbroken", "hurt", "down"]):
         return "sad"
-    if any(word in text for word in ["love", "beautiful", "perfect", "gorgeous", "baby", "❤️", "adore", "cute"]):
+    if any(w in text for w in ["love", "beautiful", "perfect", "gorgeous", "baby", "heart", "adore", "cute"]):
         return "love"
-    if any(word in text for word in ["wow", "amazing", "yes", "finally", "yay", "let's go", "incredible", "epic"]):
+    if any(w in text for w in ["wow", "amazing", "yes", "finally", "yay", "epic", "incredible"]):
         return "excited"
-    if any(word in text for word in ["peace", "calm", "relax", "chill", "zen", "quiet", "breathe", "serene"]):
+    if any(w in text for w in ["peace", "calm", "relax", "chill", "zen", "quiet", "breathe"]):
         return "calm"
     return "default"
 
-# Apply background color based on current mood
+# Initialize mood
 if "current_mood" not in st.session_state:
     st.session_state.current_mood = "default"
 
-current_color = MOOD_COLORS.get(st.session_state.current_mood, MOOD_COLORS["default"])
-
+# Apply current mood color
 st.markdown(f"""
 <style>
     .stApp {{
-        background: {current_color};
+        background: {MOOD_COLORS[st.session_state.current_mood]} !important;
         background-size: 400% 400%;
         animation: gradient 20s ease infinite;
         transition: background 1.8s ease;
@@ -109,47 +98,61 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# Subtle mood feedback (optional — you can remove if you want 100% silent)
-MOOD_EMOJIS = {
-    "angry": "Feeling intense",
-    "sad": "Feeling blue",
-    "love": "Love detected",
-    "excited": "High energy",
-    "calm": "Zen mode"
-}
+# ==================== HEADER ====================
+st.markdown("<h1 style='text-align:center; background: linear-gradient(90deg, #8b5cf6, #a78bfa, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 3.5rem; font-weight: 900;'>Quantora Prime X</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#94a3b8; font-size:1.3rem;'>Feels your emotions • Changes with your mood</p>", unsafe_allow_html=True)
 
-# ==================== YOUR REST OF THE CODE GOES BELOW (unchanged) ====================
-# (All your existing functions, sidebar, chat, etc. remain exactly the same)
+# ==================== CHAT DISPLAY ====================
+if "chat" not in st.session_state:
+    st.session_state.chat = []
 
-# Example: In your AI chat input section, just add this tiny snippet:
-# (Find where you have user_input = st.text_area(...) or st.chat_input(...))
+for msg in st.session_state.chat:
+    if msg["role"] == "user":
+        st.markdown(f"<div style='background:rgba(139,92,246,0.15); padding:1.2rem; border-radius:16px; margin:1rem 0; border:1px solid rgba(139,92,246,0.3);'>You: {msg['content']}</div>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<div style='background:rgba(59,130,246,0.15); padding:1.2rem; border-radius:16px; margin:1rem 0; border:1px solid rgba(59,130,246,0.3);'>Quantora: {msg['content']}</div>", unsafe_allow_html=True)
 
-# Replace your current input with this:
-user_input = st.chat_input("Say something...")
+# ==================== SINGLE INPUT + MOODPULSE + RESPONSE ====================
+user_input = st.chat_input("Ask Quantora anything...")
 
 if user_input:
+    # Detect mood and change background
     mood = detect_mood(user_input)
     st.session_state.current_mood = mood
     
-    # Apply mood color instantly
-    new_color = MOOD_COLORS.get(mood, MOOD_COLORS["default"])
     st.markdown(f"""
     <style>
-        .stApp {{
-            background: {new_color} !important;
-            transition: background 1.8s ease !important;
-        }}
+        .stApp {{ background: {MOOD_COLORS[mood]} !important; transition: background 1.8s ease !important; }}
     </style>
     """, unsafe_allow_html=True)
-    
-    # Optional: Tiny silent toast (remove if you want zero UI feedback)
-    if mood != "default":
-        st.toast(f"{MOOD_EMOJIS.get(mood, '')}", icon="ghost")
 
-    # Then continue with your normal chat logic...
-    # st.session_state.chat.append(...)
-    # response = call_quantora_unified(...)
-# Initialize API clients (removed duplicate)
+    # Show user message
+    st.session_state.chat.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # Generate response
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            try:
+                headers = {"Authorization": f"Bearer {A4F_API_KEY}", "Content-Type": "application/json"}
+                data = {
+                    "model": "provider-5/sonar-reasoning-pro",
+                    "messages": [{"role": "user", "content": user_input}],
+                    "temperature": 0.7,
+                    "max_tokens": 2000
+                }
+                resp = requests.post(API_URL, headers=headers, json=data, timeout=60)
+                response = resp.json()["choices"][0]["message"]["content"]
+            except:
+                response = "I'm having a moment... please try again."
+
+        st.markdown(response)
+        st.session_state.chat.append({"role": "assistant", "content": response})
+
+    save_history(user_input)
+    st.rerun()
+    
 @st.cache_resource
 def initialize_clients():
     try:
