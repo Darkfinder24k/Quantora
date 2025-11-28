@@ -135,7 +135,7 @@ def quantomise_my_trip():
             )
 def coding_workspace():
     st.title("💻 AI Coding Workspace")
-    st.markdown("Generate complete, ready-to-run code with `provider-5/gpt-5.1-codex`")
+    st.markdown("Generate complete, ready-to-run code with `provider-2/gemini-3-pro-preview`")
     lang = st.selectbox("Language / Framework", ["Python", "JavaScript", "C++", "Go", "Rust", "Java", "Bash", "SQL"])
     intent = st.text_area("Describe what you need:", placeholder="e.g., FastAPI CRUD with SQLite and Pydantic models")
     if st.button("Generate Code", type="primary"):
@@ -144,7 +144,7 @@ def coding_workspace():
             return
         prompt = f"Write a single self-contained {lang} file that: {intent}\n\n- Full code, no placeholders\n- Add short usage comment at top"
         with st.spinner("Generating…"):
-            code = call_a4f_model(prompt, "provider-5/gpt-5.1-codex")
+            code = call_a4f_model(prompt, "provider-2/gemini-3-pro-preview")
         st.code(code, language=lang.lower())
         st.download_button("📥 Download file", data=code, file_name=f"code.{lang.lower()}", mime="text/plain")
 # ---------------------------------------------------------
@@ -163,7 +163,7 @@ def app_builder_workspace():
         expanded = call_a4f_model(expand_prompt, "provider-7/claude-haiku-4-5-20251001")
         # 2️⃣ Generate code
         build_prompt = f"Write a single-file Streamlit app that: {expanded}\n\n- Use only public libs\n- No external assets\n- Save as app_generated.py"
-        generated_code = call_a4f_model(build_prompt, "provider-5/gpt-5.1-codex")
+        generated_code = call_a4f_model(build_prompt, "provider-2/gemini-3-pro-preview")
         # 3️⃣ Save & show
         Path("generated_apps").mkdir(exist_ok=True)
         file_path = Path("generated_apps/app_generated.py")
