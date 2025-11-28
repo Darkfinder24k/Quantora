@@ -17,10 +17,10 @@ import base64
 import yfinance as yf
 import plotly.graph_objects as go
 import numpy as np
-import replicate  # Added for video generation
+import replicate # Added for video generation
 import sys
 from pathlib import Path
-
+# ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -28,132 +28,32 @@ A4F_BASE_URL = "https://api.a4f.co/v1"
 IMAGE_MODEL = "provider-2/nano-banana-pro"
 EDIT_MODEL = "provider-2/nano-banana-pro"
 VIDEO_MODEL = "provider-6/wan-2.1"
+# Replicate API for Video Generation
 os.environ["REPLICATE_API_TOKEN"] = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
-
-# ==================== HISTORY ====================
+# History persistence
 HISTORY_FILE = "quantora_history.json"
 if not os.path.exists(HISTORY_FILE):
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump([], f)
-
+    with open(HISTORY_FILE, 'w') as f:
+        json.dump([], f)
 def load_history():
-    with open(HISTORY_FILE, 'r') as f:
-        return json.load(f)
-
+    with open(HISTORY_FILE, 'r') as f:
+        return json.load(f)
 def save_history(query):
-    history = load_history()
-    history.append({"query": query, "timestamp": datetime.now().isoformat()})
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump(history, f)
-
-# ==================== PAGE SETUP ====================
+    history = load_history()
+    history.append({"query": query, "timestamp": datetime.now().isoformat()})
+    with open(HISTORY_FILE, 'w') as f:
+        json.dump(history, f)
+# ✅ Page Setup
 if "pro_unlocked" not in st.session_state:
-    st.session_state.pro_unlocked = False
-
+    st.session_state.pro_unlocked = False
 app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
-st.set_page_config(page_title=app_name, layout="wide", initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed")
+st.set_page_config(
+    page_title=app_name,
+    layout="wide",
+    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
+)
+# Initialize API clients (removed duplicate)
 
-# ==================== MOODPULSE™ — FIXED & FLAWLESS ====================
-MOOD_COLORS = {
-    "angry": "#4a0000",     # Blood red
-    "sad": "#0f1b3d",       # Cold blue
-    "love": "#5d1a3a",      # Deep rose
-    "excited": "#662d0d",   # Fiery orange
-    "calm": "#0f172a",      # Original zen
-    "default": "#0f172a"
-}
-
-def detect_mood(text):
-    text = text.lower()
-    if any(w in text for w in ["fuck", "shit", "hate", "angry", "pissed", "damn", "stupid", "idiot", "asshole"]):
-        return "angry"
-    if any(w in text for w in ["sad", "depressed", "lonely", "cry", "miss you", "heartbroken", "hurt", "down"]):
-        return "sad"
-    if any(w in text for w in ["love", "beautiful", "perfect", "gorgeous", "baby", "heart", "adore", "cute"]):
-        return "love"
-    if any(w in text for w in ["wow", "amazing", "yes", "finally", "yay", "epic", "incredible"]):
-        return "excited"
-    if any(w in text for w in ["peace", "calm", "relax", "chill", "zen", "quiet", "breathe"]):
-        return "calm"
-    return "default"
-
-# Initialize mood
-if "current_mood" not in st.session_state:
-    st.session_state.current_mood = "default"
-
-# Apply current mood color
-st.markdown(f"""
-<style>
-    .stApp {{
-        background: {MOOD_COLORS[st.session_state.current_mood]} !important;
-        background-size: 400% 400%;
-        animation: gradient 20s ease infinite;
-        transition: background 1.8s ease;
-    }}
-    @keyframes gradient {{
-        0% {{ background-position: 0% 50%; }}
-        50% {{ background-position: 100% 50%; }}
-        100% {{ background-position: 0% 50%; }}
-    }}
-</style>
-""", unsafe_allow_html=True)
-
-# ==================== HEADER ====================
-st.markdown("<h1 style='text-align:center; background: linear-gradient(90deg, #8b5cf6, #a78bfa, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 3.5rem; font-weight: 900;'>Quantora Prime X</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#94a3b8; font-size:1.3rem;'>Feels your emotions • Changes with your mood</p>", unsafe_allow_html=True)
-
-# ==================== CHAT DISPLAY ====================
-if "chat" not in st.session_state:
-    st.session_state.chat = []
-
-for msg in st.session_state.chat:
-    if msg["role"] == "user":
-        st.markdown(f"<div style='background:rgba(139,92,246,0.15); padding:1.2rem; border-radius:16px; margin:1rem 0; border:1px solid rgba(139,92,246,0.3);'>You: {msg['content']}</div>", unsafe_allow_html=True)
-    else:
-        st.markdown(f"<div style='background:rgba(59,130,246,0.15); padding:1.2rem; border-radius:16px; margin:1rem 0; border:1px solid rgba(59,130,246,0.3);'>Quantora: {msg['content']}</div>", unsafe_allow_html=True)
-
-# ==================== SINGLE INPUT + MOODPULSE + RESPONSE ====================
-user_input = st.chat_input("Ask Quantora anything...")
-
-if user_input:
-    # Detect mood and change background
-    mood = detect_mood(user_input)
-    st.session_state.current_mood = mood
-    
-    st.markdown(f"""
-    <style>
-        .stApp {{ background: {MOOD_COLORS[mood]} !important; transition: background 1.8s ease !important; }}
-    </style>
-    """, unsafe_allow_html=True)
-
-    # Show user message
-    st.session_state.chat.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.markdown(user_input)
-
-    # Generate response
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            try:
-                headers = {"Authorization": f"Bearer {A4F_API_KEY}", "Content-Type": "application/json"}
-                data = {
-                    "model": "provider-5/sonar-reasoning-pro",
-                    "messages": [{"role": "user", "content": user_input}],
-                    "temperature": 0.7,
-                    "max_tokens": 2000
-                }
-                resp = requests.post(API_URL, headers=headers, json=data, timeout=60)
-                response = resp.json()["choices"][0]["message"]["content"]
-            except:
-                response = "I'm having a moment... please try again."
-
-        st.markdown(response)
-        st.session_state.chat.append({"role": "assistant", "content": response})
-
-    save_history(user_input)
-    st.rerun()
-    
-@st.cache_resource
 def initialize_clients():
     try:
         groq_api_key = os.environ["Groq_API_TOKEN"] 
