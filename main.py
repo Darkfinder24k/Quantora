@@ -1154,8 +1154,14 @@ def call_quantora_unified(prompt, context="", image=None):
     # Build conversation history for memory
     conversation_history = ""
     for item in st.session_state.chat[-5:]: # Last 5 messages for context
-        speaker, message, _ = item[:3]
-        conversation_history += f"{speaker.upper()}: {message}\n\n"
+        # Safe unpacking with validation
+        if len(item) >= 3:
+            speaker, message, _ = item[:3]
+            conversation_history += f"{speaker.upper()}: {message}\n\n"
+        elif len(item) >= 2:
+            speaker, message = item[:2]
+            conversation_history += f"{speaker.upper()}: {message}\n\n"
+        # Skip items with insufficient data
   
     # Simulated learning: Append previous corrections or improvements
     learning_prompt = ""
@@ -1165,11 +1171,16 @@ def call_quantora_unified(prompt, context="", image=None):
     # If prompt references previous, allow editing
     if "edit previous" in prompt.lower() or "modify last" in prompt.lower():
         if st.session_state.chat:
-            last_response = st.session_state.chat[-1][1] if st.session_state.chat[-1][0] == "quantora" else ""
+            # Safe access to last response
+            last_item = st.session_state.chat[-1]
+            if len(last_item) >= 2 and last_item[0] == "quantora":
+                last_response = last_item[1]
+            else:
+                last_response = ""
             prompt = f"Edit this previous response based on new instructions: {last_response}\n\nNew instructions: {prompt}"
   
     full_prompt = f"{conversation_history}{learning_prompt}\n\nCurrent Query: {prompt}"
-  
+    
     def call_groq_backend(model_name):
         try:
             response = call_groq_model(full_prompt, model_name, context)
