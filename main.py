@@ -21,7 +21,7 @@ import replicate  # Added for video generation
 import sys
 from pathlib import Path
 
-# ✅ API Configuration
+# API Configuration (YOUR ORIGINAL — UNTOUCHED)
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -49,7 +49,7 @@ def save_history(query):
     with open(HISTORY_FILE, 'w') as f:
         json.dump(history, f)
 
-# ✅ Page Setup
+# Page Setup
 if "pro_unlocked" not in st.session_state:
     st.session_state.pro_unlocked = False
 
@@ -60,6 +60,95 @@ st.set_page_config(
     initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
 )
 
+# ==================== MOODPULSE™ ENGINE (ADDED BELOW — WORKS IN BACKGROUND) ====================
+
+# Mood → Color Map (subtle but powerful)
+MOOD_COLORS = {
+    "angry": "#4a0e0e",     # Deep blood red
+    "sad": "#0f1b3d",       # Cold midnight blue
+    "love": "#5d1a3a",      # Romantic deep rose
+    "excited": "#662d0d",   # Fiery orange-red
+    "calm": "#0f172a",      # Original calm dark
+    "default": "#0f172a"    # Fallback
+}
+
+# Emotion keywords
+def detect_mood(text):
+    text = text.lower()
+    if any(word in text for word in ["fuck", "shit", "hate", "angry", "pissed", "damn", "stupid", "idiot", "asshole"]):
+        return "angry"
+    if any(word in text for word in ["sad", "depressed", "lonely", "cry", "miss you", "heartbroken", "hurt", "down"]):
+        return "sad"
+    if any(word in text for word in ["love", "beautiful", "perfect", "gorgeous", "baby", "❤️", "adore", "cute"]):
+        return "love"
+    if any(word in text for word in ["wow", "amazing", "yes", "finally", "yay", "let's go", "incredible", "epic"]):
+        return "excited"
+    if any(word in text for word in ["peace", "calm", "relax", "chill", "zen", "quiet", "breathe", "serene"]):
+        return "calm"
+    return "default"
+
+# Apply background color based on current mood
+if "current_mood" not in st.session_state:
+    st.session_state.current_mood = "default"
+
+current_color = MOOD_COLORS.get(st.session_state.current_mood, MOOD_COLORS["default"])
+
+st.markdown(f"""
+<style>
+    .stApp {{
+        background: {current_color};
+        background-size: 400% 400%;
+        animation: gradient 20s ease infinite;
+        transition: background 1.8s ease;
+    }}
+    @keyframes gradient {{
+        0% {{ background-position: 0% 50%; }}
+        50% {{ background-position: 100% 50%; }}
+        100% {{ background-position: 0% 50%; }}
+    }}
+</style>
+""", unsafe_allow_html=True)
+
+# Subtle mood feedback (optional — you can remove if you want 100% silent)
+MOOD_EMOJIS = {
+    "angry": "Feeling intense",
+    "sad": "Feeling blue",
+    "love": "Love detected",
+    "excited": "High energy",
+    "calm": "Zen mode"
+}
+
+# ==================== YOUR REST OF THE CODE GOES BELOW (unchanged) ====================
+# (All your existing functions, sidebar, chat, etc. remain exactly the same)
+
+# Example: In your AI chat input section, just add this tiny snippet:
+# (Find where you have user_input = st.text_area(...) or st.chat_input(...))
+
+# Replace your current input with this:
+user_input = st.chat_input("Say something...")
+
+if user_input:
+    mood = detect_mood(user_input)
+    st.session_state.current_mood = mood
+    
+    # Apply mood color instantly
+    new_color = MOOD_COLORS.get(mood, MOOD_COLORS["default"])
+    st.markdown(f"""
+    <style>
+        .stApp {{
+            background: {new_color} !important;
+            transition: background 1.8s ease !important;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Optional: Tiny silent toast (remove if you want zero UI feedback)
+    if mood != "default":
+        st.toast(f"{MOOD_EMOJIS.get(mood, '')}", icon="ghost")
+
+    # Then continue with your normal chat logic...
+    # st.session_state.chat.append(...)
+    # response = call_quantora_unified(...)
 # Initialize API clients (removed duplicate)
 @st.cache_resource
 def initialize_clients():
