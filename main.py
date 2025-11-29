@@ -1265,11 +1265,7 @@ def call_quantora_unified(prompt, context="", image=None):
         elif selected_model_version == "Quantora V3 (Code Specialized)":
             st.toast("💻 Using Quantora V3 Code Engine...", icon="💻")
             code_models = [
-                "provider-6/claude-opus-4-20250514",
-                "provider-3/qwen-2.5-coder-32b",
-                "provider-2/codestral",
-                "provider-1/sonar-pro",
-                "provider-1/sonar-reasoning-pro"
+                "provider-5/gpt-5.1-chat-latest",
             ]
             for model in code_models:
                 futures.append(executor.submit(call_a4f_backend, model))
