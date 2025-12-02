@@ -25,3 +25,4 @@ scikit-learn==1.6.0
 seaborn==0.13.2
 plotly-express==0.4.1
 replicate==1.0.0
+folium
