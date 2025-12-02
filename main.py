@@ -20,6 +20,10 @@ import numpy as np
 import replicate # Added for video generation
 import sys
 from pathlib import Path
+import folium
+from streamlit_folium import st_folium
+from dateutil import tz
+
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
@@ -28,55 +32,606 @@ A4F_BASE_URL = "https://api.a4f.co/v1"
 IMAGE_MODEL = "provider-2/nano-banana-pro"
 EDIT_MODEL = "provider-2/nano-banana-pro"
 VIDEO_MODEL = "provider-6/wan-2.1"
+
+# Weather API
+WEATHER_API_KEY = "b9e17942665c0df9828cd0d0d721a44f"
+CURRENT_URL = "https://api.openweathermap.org/data/2.5/weather"
+FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
+ICON_URL = "https://openweathermap.org/img/wn/{}@4x.png"
+
 # Replicate API for Video Generation
 os.environ["REPLICATE_API_TOKEN"] = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
+
 # History persistence
 HISTORY_FILE = "quantora_history.json"
 if not os.path.exists(HISTORY_FILE):
     with open(HISTORY_FILE, 'w') as f:
         json.dump([], f)
+
 def load_history():
     with open(HISTORY_FILE, 'r') as f:
         return json.load(f)
+
 def save_history(query):
     history = load_history()
     history.append({"query": query, "timestamp": datetime.now().isoformat()})
     with open(HISTORY_FILE, 'w') as f:
         json.dump(history, f)
+
 # ✅ Page Setup
 if "pro_unlocked" not in st.session_state:
     st.session_state.pro_unlocked = False
+
 app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
 st.set_page_config(
     page_title=app_name,
     layout="wide",
     initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
 )
+
 # Initialize API clients (removed duplicate)
 @st.cache_resource
 def initialize_clients():
     try:
         groq_api_key = os.environ["Groq_API_TOKEN"]
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-     
+    
         groq_client = Groq(api_key=groq_api_key)
-     
+    
         a4f_client = {
             "api_key": a4f_api_key,
             "api_url": "https://api.a4f.co/v1/chat/completions"
         }
-     
+    
         return groq_client, a4f_client
     except Exception as e:
         st.error(f"API Configuration Error: {e}")
         return None, None
+
 groq_client, a4f_client = initialize_clients()
+
+# --------------------------
+# QUANTORA WEATHER MODULE
+# --------------------------
+def quantora_weather():
+    st.markdown(
+        """
+        <style>
+        /* fonts & base */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        html, body, [class*="css"]  {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial;
+            /* blue / dark-blue gradient background as requested */
+            background: linear-gradient(180deg, #07143a 0%, #08204f 30%, #07203d 60%, #03122a 100%);
+            color: #eaf0ff;
+            background-attachment: fixed !important;
+        }
+        /* fix streamlit container overflow that sometimes prints raw HTML at bottom */
+        .reportview-container .main .block-container {
+            padding-bottom: 24px !important;
+        }
+
+        /* full-screen animated canvas */
+        .quantora-canvas {
+            position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        }
+        /* glass containers */
+        .glass {
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+            border: 1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(12px) saturate(110%);
+            -webkit-backdrop-filter: blur(12px) saturate(110%);
+            border-radius: 20px;
+            padding: 18px;
+            box-shadow: 0 8px 30px rgba(2,6,23,0.7);
+            color: #eaf0ff;
+            position: relative;
+            z-index: 2;
+        }
+        .hero {
+            border-radius: 28px;
+            padding: 26px;
+        }
+        .muted { color: rgba(235,245,255,0.6); font-size:13px }
+        .kpi { font-weight:700; font-size:20px }
+        /* hourly scroll row */
+        .hourly-row {
+            display:flex; gap:14px; overflow-x:auto; padding-bottom:6px;
+        }
+        .hour-card {
+            min-width:98px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            border-radius:14px; padding:12px; text-align:center; border:1px solid rgba(255,255,255,0.04);
+        }
+        .day-pill {
+            display:inline-block; padding:8px 12px; border-radius:999px; background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.03); margin-right:8px;
+        }
+        /* small responsive tweaks */
+        @media (max-width:900px){
+            .hour-card { min-width:86px }
+        }
+
+        /* --- Animated clouds + rain via SVG/CSS keyframes --- */
+        .cloud {
+            position:absolute; opacity:0.95;
+            transform: translateZ(0);
+            filter: drop-shadow(0 8px 40px rgba(0,0,0,0.45));
+        }
+        /* cloud motion — different speeds and sizes */
+        @keyframes cloudMove1 { from {transform: translateX(-20%);} to {transform: translateX(120%);} }
+        @keyframes cloudMove2 { from {transform: translateX(-30%);} to {transform: translateX(110%);} }
+        @keyframes cloudFloat { 0%{transform:translateY(0);}50%{transform:translateY(-6px);}100%{transform:translateY(0);} }
+
+        .cloud.c1 { top:6%; left:-10%; width:680px; animation: cloudMove1 120s linear infinite, cloudFloat 8s ease-in-out infinite; opacity:0.95; }
+        .cloud.c2 { top:18%; left:-20%; width:520px; animation: cloudMove2 180s linear infinite, cloudFloat 10s ease-in-out infinite; opacity:0.85; }
+        .cloud.c3 { top:34%; left:-5%; width:420px; animation: cloudMove1 220s linear infinite, cloudFloat 14s ease-in-out infinite; opacity:0.75; transform: scale(0.92); }
+
+        /* rain overlay */
+        .raindrops { position:absolute; inset:0; pointer-events:none; z-index:1; opacity:0.12; mix-blend-mode:screen; }
+        .rain-line { animation: rainFall 0.9s linear infinite; stroke: rgba(255,255,255,0.12); stroke-width:1.2 }
+        @keyframes rainFall { 0%{ transform: translateY(-8px); opacity:0 } 50% {opacity:0.6} 100%{ transform: translateY(24px); opacity:0 } }
+
+        /* tiny shimmer in hero */
+        .hero::after {
+            content: "";
+            position:absolute;
+            left:-20%; top:-30%;
+            width:240px; height:240px;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.04), transparent 20%);
+            transform: rotate(28deg); filter: blur(36px); opacity:0.6;
+            pointer-events:none;
+        }
+        </style>
+
+        <!-- SVG Animated Background (cloud shapes + subtle rain) -->
+        <div class="quantora-canvas" aria-hidden="true">
+          <svg class="cloud c1" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid meet">
+            <defs><linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#bfe7ff" stop-opacity="0.06"/><stop offset="1" stop-color="#9fdcff" stop-opacity="0.02"/></linearGradient></defs>
+            <g transform="scale(1.0)">
+              <path fill="url(#g1)" d="M60 120c-18-40 30-96 96-64 14-54 110-64 156-12 40-36 130-18 150 22 48 12 34 86-22 86H60z"/>
+            </g>
+          </svg>
+
+          <svg class="cloud c2" viewBox="0 0 700 160" preserveAspectRatio="xMidYMid meet">
+            <defs><linearGradient id="g2" x1="0" x2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.05"/><stop offset="1" stop-color="#bfeaff" stop-opacity="0.02"/></linearGradient></defs>
+            <path fill="url(#g2)" d="M20 90c-12-28 22-68 68-46 10-38 84-44 122-8 32-28 100-14 118 18 36 10 26 52-16 52H20z"/>
+          </svg>
+
+          <svg class="cloud c3" viewBox="0 0 600 140" preserveAspectRatio="xMidYMid meet">
+            <defs><linearGradient id="g3" x1="0" x2="1"><stop offset="0" stop-color="#eaf6ff" stop-opacity="0.04"/><stop offset="1" stop-color="#bfe8ff" stop-opacity="0.02"/></linearGradient></defs>
+            <path fill="url(#g3)" d="M0 80c-8-20 14-48 46-34 7-26 56-30 82-6 22-18 72-8 86 12 28 8 20 36-12 36H0z"/>
+          </svg>
+
+          <!-- rain layer -->
+          <svg class="raindrops" viewBox="0 0 1200 600" preserveAspectRatio="none">
+            <g>
+              <g transform="translate(0,0)">
+                <line class="rain-line" x1="40" x2="44" y1="0" y2="18" />
+                <line class="rain-line" x1="120" x2="124" y1="-6" y2="12" />
+                <line class="rain-line" x1="220" x2="224" y1="-8" y2="14" />
+                <line class="rain-line" x1="360" x2="364" y1="-2" y2="18" />
+                <line class="rain-line" x1="480" x2="484" y1="-6" y2="16" />
+                <line class="rain-line" x1="600" x2="604" y1="-10" y2="12" />
+                <line class="rain-line" x1="740" x2="744" y1="-4" y2="18" />
+                <line class="rain-line" x1="860" x2="864" y1="-12" y2="10" />
+                <line class="rain-line" x1="980" x2="984" y1="-6" y2="12" />
+                <line class="rain-line" x1="1100" x2="1104" y1="-8" y2="14" />
+              </g>
+            </g>
+          </svg>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Top title
+    st.markdown(
+        "<div style='display:flex; align-items:center; justify-content:space-between; gap:18px;'>"
+        "<div style='display:flex; align-items:center; gap:12px'>"
+        "<div style='font-size:26px; font-weight:800'>Quantora Weather</div>"
+        "<div style='color:rgba(235,245,255,0.6); font-size:13px'>Premium • Ultra • Market</div>"
+        "</div>"
+        "<div style='font-size:13px; color:rgba(235,245,255,0.6)'>Live • AI-assisted • Animated UI</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("<br/>", unsafe_allow_html=True)
+
+    # layout columns
+    left_col, right_col = st.columns([1.4, 1])
+
+    # ---------------- SIDEBAR-LIKE CONTROLS (inline) ----------------
+    with right_col:
+        st.markdown("<div class='glass' style='padding:12px'>", unsafe_allow_html=True)
+        st.markdown("### Search & Options", unsafe_allow_html=True)
+        # ensure session key exists
+        if "city_input" not in st.session_state:
+            st.session_state["city_input"] = "Berlin"
+        city = st.text_input("City name", value=st.session_state.get("city_input", "Berlin"))
+        st.session_state["city_input"] = city
+        units = st.selectbox("Units", options=["metric", "imperial"], index=0)
+        tz_mode = st.selectbox("Timezone", options=["Local", "UTC"], index=0)
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<br/>", unsafe_allow_html=True)
+
+    # ---------------- FETCH DATA ----------------
+    def fetch_current(city_name):
+        params = {"q": city_name, "appid": WEATHER_API_KEY, "units": units}
+        r = requests.get(CURRENT_URL, params=params, timeout=15)
+        r.raise_for_status()
+        return r.json()
+
+    def fetch_forecast(city_name):
+        params = {"q": city_name, "appid": WEATHER_API_KEY, "units": units}
+        r = requests.get(FORECAST_URL, params=params, timeout=15)
+        r.raise_for_status()
+        return r.json()
+
+    try:
+        current = fetch_current(city)
+        forecast = fetch_forecast(city)
+    except requests.HTTPError:
+        st.error("Could not fetch weather. Check city name or API key.")
+        st.stop()
+    except Exception as e:
+        st.error(f"Network error: {e}")
+        st.stop()
+
+    # ---------------- PARSE DATA ----------------
+    # current
+    weather_desc = current["weather"][0]["description"].title()
+    icon_code = current["weather"][0]["icon"]
+    temp = current["main"]["temp"]
+    feels_like = current["main"]["feels_like"]
+    humidity = current["main"]["humidity"]
+    pressure = current["main"]["pressure"]
+    wind = current["wind"].get("speed", 0)
+    visibility = current.get("visibility", 0)
+    sunrise = datetime.utcfromtimestamp(current["sys"]["sunrise"])
+    sunset = datetime.utcfromtimestamp(current["sys"]["sunset"])
+    lat = current["coord"]["lat"]
+    lon = current["coord"]["lon"]
+
+    # forecast -> dataframe
+    rows = []
+    for item in forecast["list"]:
+        dt_utc = datetime.utcfromtimestamp(item["dt"])
+        rows.append({
+            "dt_utc": dt_utc,
+            "temp": item["main"]["temp"],
+            "temp_min": item["main"]["temp_min"],
+            "temp_max": item["main"]["temp_max"],
+            "feels": item["main"]["feels_like"],
+            "humidity": item["main"]["humidity"],
+            "pressure": item["main"]["pressure"],
+            "wind": item["wind"].get("speed", 0),
+            "wind_deg": item["wind"].get("deg", None),
+            "pop": item.get("pop", 0),
+            "desc": item["weather"][0]["description"].title(),
+            "icon": item["weather"][0]["icon"]
+        })
+    df = pd.DataFrame(rows)
+    # timezone handling
+    if tz_mode == "Local":
+        tz_local = tz.tzlocal()
+    else:
+        tz_local = tz.tzutc()
+    df["dt_local"] = df["dt_utc"].apply(lambda x: x.replace(tzinfo=tz.tzutc()).astimezone(tz_local))
+    df["time_local"] = df["dt_local"].dt.strftime("%H:%M")
+    df["date_local"] = df["dt_local"].dt.date
+
+    # daily compact forecast (next 7 unique days)
+    daily = df.groupby("date_local").agg({
+        "temp_min": "min", "temp_max": "max", "temp": "mean", "pop": "mean", "humidity": "mean"
+    }).reset_index().head(7)
+    if "pop" in daily.columns:
+        daily["pop_pct"] = (daily["pop"] * 100).round().astype(int)
+    else:
+        daily["pop_pct"] = 0
+
+    # safe unit symbol for use in multiple places
+    unit_sym = "°C" if units == "metric" else "°F"
+
+    # ---------------- HERO CARD ----------------
+    with left_col:
+        st.markdown("<div class='glass hero' style='position:relative'>", unsafe_allow_html=True)
+        # left hero grid: big temp + small details + hourly strip
+        hero_col_a, hero_col_b = st.columns([1, 1.1])
+        with hero_col_a:
+            # icon from openweather
+            try:
+                icon_resp = requests.get(ICON_URL.format(icon_code), timeout=8)
+                icon_img = Image.open(BytesIO(icon_resp.content)).convert("RGBA")
+                st.image(icon_img, width=160)
+            except Exception:
+                st.write("")
+            st.markdown(f"<div style='font-size:54px; font-weight:900; margin-top:6px'>{temp}{unit_sym}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='color:rgba(235,245,255,0.78); font-weight:600'>{weather_desc}</div>", unsafe_allow_html=True)
+            st.markdown("<br/>", unsafe_allow_html=True)
+            st.markdown(f"<div class='muted'>Feels like <span style='font-weight:700'>{feels_like}{unit_sym}</span> • Humidity <span style='font-weight:700'>{humidity}%</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='muted'>Wind <span style='font-weight:700'>{wind} { 'm/s' if units=='metric' else 'mph' }</span> • Visibility <span style='font-weight:700'>{int(visibility/1000)} km</span></div>", unsafe_allow_html=True)
+
+        with hero_col_b:
+            # hourly cards (next 8 slots)
+            st.markdown("<div style='display:flex; justify-content:space-between; align-items:flex-start;'>"
+                        f"<div class='muted' style='font-weight:700'>Hourly</div>"
+                        f"<div class='muted'>{city.title()}</div>"
+                        "</div>", unsafe_allow_html=True)
+            st.markdown("<div class='hourly-row' style='margin-top:8px'>", unsafe_allow_html=True)
+            next_8 = df.head(8)
+            if next_8.empty:
+                st.markdown("<div class='hour-card'>No hourly data</div>", unsafe_allow_html=True)
+            else:
+                for _, row in next_8.iterrows():
+                    icon = row.get("icon", "")
+                    hour = row.get("time_local", "")
+                    t = round(row.get("temp", 0))
+                    desc = row.get("desc", "")
+                    # small icon
+                    icon_url = ICON_URL.format(icon) if icon else ""
+                    card_html = f"""
+                        <div class='hour-card'>
+                            <div style='font-size:13px; color:rgba(235,245,255,0.7);'>{hour}</div>
+                            <img src="{icon_url}" style='width:64px;height:64px;margin-top:2px;filter:drop-shadow(0 8px 20px rgba(0,0,0,0.5));'/>
+                            <div style='font-size:16px; font-weight:700; margin-top:6px'>{t}{unit_sym}</div>
+                            <div style='font-size:12px; color:rgba(235,245,255,0.65)'>{desc}</div>
+                        </div>
+                    """
+                    st.markdown(card_html, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # small KPIs row below hero
+        st.markdown("<div style='display:flex; gap:12px; margin-top:16px'>", unsafe_allow_html=True)
+        try:
+            sr_str = sunrise.replace(tzinfo=tz.tzutc()).astimezone(tz_local).strftime('%H:%M')
+            ss_str = sunset.replace(tzinfo=tz.tzutc()).astimezone(tz_local).strftime('%H:%M')
+        except Exception:
+            sr_str, ss_str = "-", "-"
+        st.markdown(f"<div class='glass' style='padding:12px; flex:1'><div class='muted'>Sunrise</div><div class='kpi'>{sr_str}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='glass' style='padding:12px; flex:1'><div class='muted'>Sunset</div><div class='kpi'>{ss_str}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='glass' style='padding:12px; flex:1'><div class='muted'>Pressure</div><div class='kpi'>{pressure} hPa</div></div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<br/>", unsafe_allow_html=True)
+
+        # ---------------- CHARTS SECTION ----------------
+        st.markdown("<div class='glass' style='padding:16px'>", unsafe_allow_html=True)
+        st.markdown("<div style='display:flex; justify-content:space-between; align-items:center;'><div style='font-weight:800'>Forecast Analytics</div><div class='muted'>Temperature • Humidity • Precipitation</div></div>", unsafe_allow_html=True)
+
+        # temperature trend (hourly)
+        if not df.empty:
+            fig_temp = go.Figure()
+            fig_temp.add_trace(go.Scatter(x=df["dt_local"], y=df["temp"], mode="lines+markers", name="Temp", line=dict(width=3)))
+            fig_temp.update_layout(template="plotly_dark", height=300, margin=dict(t=20,l=10,r=10,b=10),
+                                   xaxis=dict(title=""), yaxis=dict(title=f"Temperature ({unit_sym})"))
+            st.plotly_chart(fig_temp, use_container_width=True)
+
+            # humidity + pop
+            fig_h = go.Figure()
+            fig_h.add_trace(go.Bar(x=df["dt_local"], y=df["humidity"], name="Humidity (%)", opacity=0.8))
+            fig_h.add_trace(go.Scatter(x=df["dt_local"], y=df["pop"]*100, name="Precip Chance (%)", yaxis="y2", mode="lines+markers", line=dict(width=2, dash='dash')))
+            fig_h.update_layout(template="plotly_dark", height=260, margin=dict(t=10,l=10,r=10,b=10),
+                                yaxis=dict(title="Humidity (%)"), yaxis2=dict(title="Precip (%)", overlaying="y", side="right"))
+            st.plotly_chart(fig_h, use_container_width=True)
+        else:
+            st.markdown("<div class='muted'>No forecast chart data available</div>", unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("<br/>", unsafe_allow_html=True)
+
+        # ---------------- DAILY CARDS (compact) ----------------
+        st.markdown("<div class='glass' style='padding:12px'>", unsafe_allow_html=True)
+        st.markdown("<div style='font-weight:800; margin-bottom:8px'>7-Day Outlook</div>", unsafe_allow_html=True)
+
+        daily_cards_html = "<div style='display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;'>"
+        if daily.empty:
+            daily_cards_html += "<div style='min-width:120px; padding:10px;'>No daily data</div>"
+        else:
+            for _, r in daily.iterrows():
+                date_str = r["date_local"].strftime("%a %d")
+                tmin = int(round(r["temp_min"])) if not np.isnan(r["temp_min"]) else "-"
+                tmax = int(round(r["temp_max"])) if not np.isnan(r["temp_max"]) else "-"
+                pop = int(r["pop_pct"]) if "pop_pct" in r and not pd.isna(r["pop_pct"]) else 0
+                hum = int(round(r["humidity"])) if not np.isnan(r["humidity"]) else "-"
+                # pick icon from df for that date (first occurrence) safely
+                sample_icon = None
+                subset = df[df["date_local"] == r["date_local"]]
+                if not subset.empty:
+                    sample_icon = subset.iloc[0].get("icon", None)
+                icon_url = ICON_URL.format(sample_icon) if sample_icon else ""
+                card = f"""
+                    <div style='min-width:120px; padding:10px; border-radius:14px; text-align:center; border:1px solid rgba(255,255,255,0.04);'>
+                      <div style='font-weight:700'>{date_str}</div>
+                      <img src='{icon_url}' style='width:72px;height:72px'/>
+                      <div style='margin-top:6px; font-weight:800'>{tmax}{unit_sym} <span style='color:rgba(235,245,255,0.6); font-weight:500'>/{tmin}{unit_sym}</span></div>
+                      <div class='muted' style='margin-top:6px'>Precip {pop}% • Hum {hum}%</div>
+                    </div>
+                """
+                daily_cards_html += card
+        daily_cards_html += "</div>"
+        st.markdown(daily_cards_html, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------------- RIGHT COLUMN DETAILS & MAP ----------------
+    with right_col:
+        # analytics small cards
+        st.markdown("<div class='glass' style='padding:14px'>", unsafe_allow_html=True)
+        st.markdown("<div style='font-weight:800'>Today's Details</div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top:10px; display:flex; gap:8px; flex-wrap:wrap'>", unsafe_allow_html=True)
+        st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>Humidity</div><div style='font-weight:700'>{humidity}%</div></div>", unsafe_allow_html=True)
+        # safe precip average
+        precip_avg_pct = int(df['pop'].mean()*100) if ("pop" in df.columns and not df['pop'].isna().all()) else 0
+        st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>Precip</div><div style='font-weight:700'>{precip_avg_pct}%</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>Wind</div><div style='font-weight:700'>{wind} {'m/s' if units=='metric' else 'mph'}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>UV</div><div style='font-weight:700'>—</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>Visibility</div><div style='font-weight:700'>{int(visibility/1000)} km</div></div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<br/>", unsafe_allow_html=True)
+
+        # small wind rose: create polar bar with aggregated directions if degrees exist
+        st.markdown("<div class='glass' style='padding:14px'>", unsafe_allow_html=True)
+        st.markdown("<div style='font-weight:800'>Wind Rose</div>", unsafe_allow_html=True)
+        # aggregate directions
+        def dir_from_deg(d):
+            if d is None: return None
+            dirs = ["N","NE","E","SE","S","SW","W","NW"]
+            ix = int(((d+22.5) % 360) / 45)
+            return dirs[ix]
+        dirs = ["N","NE","E","SE","S","SW","W","NW"]
+        buckets = {k:0 for k in dirs}
+        for _, r in df.iterrows():
+            deg = r.get("wind_deg", None)
+            s = r.get("wind", 0)
+            dname = dir_from_deg(deg)
+            if dname:
+                buckets[dname] += s
+        vals = [buckets[d] for d in dirs]
+        try:
+            fig_w = go.Figure(go.Barpolar(theta=dirs, r=vals, marker_line_color="white", marker_line_width=1))
+            fig_w.update_layout(template="plotly_dark", height=300, margin=dict(t=20,b=20))
+            st.plotly_chart(fig_w, use_container_width=True)
+        except Exception:
+            st.markdown("<div class='muted'>Wind rose unavailable</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<br/>", unsafe_allow_html=True)
+
+        # interactive mini map with folium (if available)
+        try:
+            st.markdown("<div class='glass' style='padding:12px'>", unsafe_allow_html=True)
+            st.markdown("<div style='font-weight:800'>Location</div>", unsafe_allow_html=True)
+            m = folium.Map(location=[lat, lon], zoom_start=9, tiles='CartoDB dark_matter', control_scale=True, prefer_canvas=True)
+            folium.CircleMarker(location=[lat, lon], radius=10, color='#66e0ff', fill=True, fill_color='#66e0ff', fill_opacity=0.7, popup=f"{city.title()}").add_to(m)
+            st_data = st_folium(m, width=350, height=240)
+            st.markdown("</div>", unsafe_allow_html=True)
+        except Exception:
+            # fallback: just show coords
+            st.markdown("<div class='glass' style='padding:12px'>", unsafe_allow_html=True)
+            st.markdown("<div style='font-weight:800'>Location</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='muted'>Lat • Lon</div><div style='font-weight:700'>{lat:.3f}, {lon:.3f}</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("<br/>", unsafe_allow_html=True)
+
+        # CSV export & snapshot
+        csv = df.to_csv(index=False)
+        b64 = base64.b64encode(csv.encode()).decode()
+        st.markdown("<div class='glass' style='padding:12px'>", unsafe_allow_html=True)
+        st.markdown("<div style='font-weight:800'>Export</div>", unsafe_allow_html=True)
+        st.markdown(f"<a href='data:file/csv;base64,{b64}' download='quantora_forecast.csv'>Download forecast CSV</a>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------------- AI WEATHER ANALYSIS ----------------
+    st.markdown("---")
+    st.markdown("<div class='glass' style='padding:20px; margin-top:20px'>", unsafe_allow_html=True)
+    st.markdown("## 🤖 AI Weather Analysis & Recommendations")
+    
+    # Prepare weather data for AI analysis
+    weather_summary = f"""
+    CURRENT WEATHER DATA FOR {city.upper()}:
+    - Temperature: {temp}{unit_sym} (Feels like: {feels_like}{unit_sym})
+    - Conditions: {weather_desc}
+    - Humidity: {humidity}%
+    - Wind Speed: {wind} {'m/s' if units == 'metric' else 'mph'}
+    - Pressure: {pressure} hPa
+    - Visibility: {int(visibility/1000)} km
+    - Sunrise: {sr_str}
+    - Sunset: {ss_str}
+    
+    7-DAY FORECAST SUMMARY:
+    """
+    
+    for i, day in daily.iterrows():
+        date_str = day["date_local"].strftime("%A, %b %d")
+        weather_summary += f"""
+    - {date_str}: High {int(day['temp_max'])}{unit_sym} / Low {int(day['temp_min'])}{unit_sym}, 
+      Precipitation chance: {int(day['pop_pct'])}%, Humidity: {int(day['humidity'])}%
+        """
+    
+    ai_prompt = f"""
+    As Quantora AI Weather Expert, analyze this weather data and provide comprehensive recommendations:
+    
+    {weather_summary}
+    
+    Provide analysis in these categories:
+    1. 🌡️ **Health & Safety Recommendations**
+       - Temperature-related precautions
+       - Hydration needs
+       - UV protection level
+       - Air quality considerations
+    
+    2. 👕 **Clothing & Gear Suggestions**
+       - Appropriate clothing layers
+       - Special gear needed (umbrella, sunglasses, etc.)
+       - Footwear recommendations
+    
+    3. 🏃 **Activity Recommendations**
+       - Best times for outdoor exercise
+       - Suitable indoor alternatives if weather is poor
+       - Specific activities recommended for this weather
+    
+    4. 🚗 **Travel & Commute Advice**
+       - Driving conditions
+       - Public transportation considerations
+       - Weather-related delays to anticipate
+    
+    5. 🏠 **Home & Property Tips**
+       - Energy efficiency suggestions
+       - Home maintenance recommendations
+       - Gardening/outdoor work timing
+    
+    6. 🛒 **Shopping & Planning**
+       - Items to stock up on
+       - Meal planning suggestions for this weather
+       - Emergency preparedness if severe weather expected
+    
+    7. 📊 **Statistical Insights**
+       - How this weather compares to seasonal averages
+       - Trend analysis for the week
+       - Probability of weather changes
+    
+    Format your response with clear sections and use emojis for visual appeal.
+    """
+    
+    if st.button("🧠 Get AI Weather Analysis", key="ai_weather_analysis", type="primary"):
+        with st.spinner("🤖 Quantora AI is analyzing weather data..."):
+            # Save current model version and set to fast model for weather analysis
+            current_model = st.session_state.get("model_version", "Quantora Prime 1 (Latest Flagship Model)")
+            st.session_state.model_version = "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)"
+            
+            ai_response = call_quantora_unified(ai_prompt)
+            
+            # Restore original model
+            st.session_state.model_version = current_model
+            
+            st.markdown("### 📋 AI Weather Analysis Report")
+            st.markdown(ai_response)
+            
+            # Download option for the analysis
+            st.download_button(
+                label="📥 Download Weather Analysis",
+                data=ai_response,
+                file_name=f"weather_analysis_{city}_{datetime.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain"
+            )
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------------- FOOTER NOTES ----------------
+    st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:rgba(235,245,255,0.45); font-size:12px'>Quantora • Prototype • Built with Streamlit & OpenWeatherMap</div>", unsafe_allow_html=True)
+
 # ✅ NEW: Quantomise My Trip
 def quantomise_my_trip():
     st.title("✈️ Quantomise My Trip")
     st.markdown("Let AI plan your perfect trip — budget, flights, hotels, and more — tailored just you.")
+    
     if "trip_data" not in st.session_state:
         st.session_state.trip_data = {}
+
     # ✅ Step 0: Pre-suggest destinations
     st.subheader("🌍 Not sure where to go? Let us suggest!")
     with st.expander("✨ Get AI Destination Suggestions"):
@@ -86,6 +641,7 @@ def quantomise_my_trip():
             response = call_a4f_model(prompt, "provider-5/gpt-5")
             st.markdown("### 🎯 AI Suggestions:")
             st.write(response)
+
     st.markdown("---")
     # ✅ Step 1: Trip Details
     st.subheader("🧳 Tell us about your trip")
@@ -98,6 +654,7 @@ def quantomise_my_trip():
         travelers = st.number_input("👥 Number of travelers", min_value=1, max_value=20, step=1)
         preferences = st.text_area("✍️ Preferences (optional)", placeholder="e.g., vegetarian food, pool, near beach, pet-friendly")
         submitted = st.form_submit_button("🔍 Find My Trip", type="primary")
+    
     if submitted:
         st.session_state.trip_data = {
             "budget": budget,
@@ -133,46 +690,60 @@ def quantomise_my_trip():
                 file_name=f"trip_plan_{destination.replace(' ', '_')}.txt",
                 mime="text/plain"
             )
+
 def coding_workspace():
     st.title("💻 AI Coding Workspace")
     st.markdown("Generate complete, ready-to-run code with `provider-2/gemini-3-pro-preview`")
+    
     lang = st.selectbox("Language / Framework", ["Python", "JavaScript", "C++", "Go", "Rust", "Java", "Bash", "SQL"])
     intent = st.text_area("Describe what you need:", placeholder="e.g., FastAPI CRUD with SQLite and Pydantic models")
+    
     if st.button("Generate Code", type="primary"):
         if not intent.strip():
             st.warning("Please describe what you want to build.")
             return
+        
         prompt = f"Write a single self-contained {lang} file that: {intent}\n\n- Full code, no placeholders\n- Add short usage comment at top"
         with st.spinner("Generating…"):
             code = call_a4f_model(prompt, "provider-2/gemini-3-pro-preview")
+        
         st.code(code, language=lang.lower())
         st.download_button("📥 Download file", data=code, file_name=f"code.{lang.lower()}", mime="text/plain")
+
 # ---------------------------------------------------------
 # 1️⃣ APP-BUILDER WORKSPACE – UX unchanged
 # ---------------------------------------------------------
 def app_builder_workspace():
     st.title("🏗️ Streamlit App Builder")
     st.markdown("Describe an app idea → Claude expands → GPT-5.1-codex builds → run instantly")
+    
     idea = st.text_area("Your app idea (1–2 sentences):", placeholder="e.g., an app that predicts house prices from CSV upload")
+    
     if st.button("Build & Run", type="primary"):
         if not idea.strip():
             st.warning("Please give an idea.")
             return
+        
         # 1️⃣ Expand idea
         expand_prompt = f"Turn this short idea into a detailed 150-word technical prompt for a single-file Streamlit app:\n\n{idea}"
         expanded = call_a4f_model(expand_prompt, "provider-7/claude-haiku-4-5-20251001")
+        
         # 2️⃣ Generate code
         build_prompt = f"Write a single-file Streamlit app that: {expanded}\n\n- Use only public libs\n- No external assets\n- Save as app_generated.py"
         generated_code = call_a4f_model(build_prompt, "provider-2/gemini-3-pro-preview")
+        
         # 3️⃣ Save & show
         Path("generated_apps").mkdir(exist_ok=True)
         file_path = Path("generated_apps/app_generated.py")
         file_path.write_text(generated_code, encoding="utf-8")
         st.success("✅ App generated – running below")
+        
         with st.expander("📋 Generated code"):
             st.code(generated_code, language="python")
+        
         # 4️⃣ Run inline & embed
         run_app_inline(str(file_path))
+
 # ---------------------------------------------------------
 # 2️⃣ INLINE RUNNER – no subprocess, no ports
 # ---------------------------------------------------------
@@ -186,11 +757,13 @@ def run_app_inline(script_path: str):
     import streamlit as st
     from streamlit.web.bootstrap import run
     from pathlib import Path
+    
     # Copy the file into the *static* folder Streamlit exposes under /app
     static_dir = Path("static")
     static_dir.mkdir(exist_ok=True)
     target = static_dir / "app_generated.py"
     target.write_text(Path(script_path).read_text(), encoding="utf-8")
+    
     # Start Streamlit in a daemon thread
     t = threading.Thread(
         target=run,
@@ -205,12 +778,14 @@ def run_app_inline(script_path: str):
     )
     t.start()
     time.sleep(3) # let boot
+    
     # Embed the app
     st.components.v1.iframe(
         src="/app/static/app_generated.py",
         height=700,
         scrolling=True,
     )
+
 # Custom CSS with sidebar toggle and canvas background (removed voice assistant styles)
 st.markdown("""
 <style>
@@ -241,7 +816,6 @@ st.markdown("""
     [data-testid="stSidebar"][aria-expanded="false"] {
         transform: translateX(-100%);
     }
- 
     /* Canvas background */
     body {
         background-color: #000;
@@ -533,11 +1107,9 @@ header {visibility: hidden;}
     .logo-text {
         font-size: 1.8rem;
     }
- 
     .chat-message {
         padding: 1rem;
     }
- 
     .welcome-container {
         padding: 1.5rem;
     }
@@ -644,11 +1216,13 @@ header {visibility: hidden;}
     });
 </script>
 """, unsafe_allow_html=True)
+
 # Unlock button for trial mode
 if not st.session_state.pro_unlocked:
     if st.button("Unlock Next-Gen Pro", key="unlock_pro_btn"):
         st.session_state.pro_unlocked = True
         st.rerun()
+
 # Initialize session state variables (removed voice-related variables)
 if "chat" not in st.session_state:
     st.session_state.chat = []
@@ -684,9 +1258,13 @@ if "learning_history" not in st.session_state:
     st.session_state.learning_history = [] # For simulated auto-training
 if "iq_test_score" not in st.session_state:
     st.session_state.iq_test_score = None
+if "city_input" not in st.session_state:
+    st.session_state.city_input = "Berlin"
+
 # Force V2 in trial mode
 if not st.session_state.pro_unlocked:
     st.session_state.model_version = "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)"
+
 # --------------------------
 # NEW: AI CONTENT DETECTOR & HUMANIZER FUNCTIONS
 # --------------------------
@@ -719,6 +1297,7 @@ Here is the text to analyze:
         return response
     except Exception as e:
         return f"Error in AI content detection: {str(e)}"
+
 def ai_humanizer(text):
     """Convert AI-generated text to human-like text"""
     prompt = f"""You are an advanced AI-to-human text converter.
@@ -742,13 +1321,13 @@ Here is the text to humanize:
         return response
     except Exception as e:
         return f"Error in AI humanizer: {str(e)}"
+
 def ai_content_detector_mode():
     """Mode for AI content detection"""
     st.title("🔍 AI Content Detector")
     st.markdown("Analyze any text to detect if it was generated by AI using advanced ZeroGPT-like analysis.")
- 
+    
     col1, col2 = st.columns([2, 1])
- 
     with col1:
         text_to_analyze = st.text_area(
             "Enter text to analyze:",
@@ -756,7 +1335,6 @@ def ai_content_detector_mode():
             placeholder="Paste any text here to check if it was AI-generated...",
             key="detector_input"
         )
- 
     with col2:
         st.markdown("### 📊 Analysis Options")
         analyze_button = st.button("🔍 Analyze Text", use_container_width=True)
@@ -765,11 +1343,11 @@ def ai_content_detector_mode():
         st.markdown("• Analyzes perplexity & burstiness")
         st.markdown("• Compares to AI writing patterns")
         st.markdown("• Provides detailed report")
- 
+    
     if analyze_button and text_to_analyze.strip():
         with st.spinner("🤖 Analyzing text for AI patterns..."):
             result = ai_content_detector(text_to_analyze)
-         
+        
             st.markdown("### 📋 Detection Results")
             st.markdown(f"""
             <div class="detector-container">
@@ -779,29 +1357,28 @@ def ai_content_detector_mode():
                 </div>
             </div>
             """, unsafe_allow_html=True)
-         
+        
             # Extract probability for visualization
             probability_match = re.search(r"AI Probability:\s*(\d+)%", result)
             if probability_match:
                 probability = int(probability_match.group(1))
                 st.progress(probability/100, text=f"AI Probability: {probability}%")
-             
+            
                 if probability > 70:
                     st.error("🚨 High probability of AI-generated content")
                 elif probability > 30:
                     st.warning("⚠️ Mixed - Possibly AI-assisted content")
                 else:
                     st.success("✅ Likely human-written content")
- 
     elif analyze_button and not text_to_analyze.strip():
         st.warning("Please enter some text to analyze.")
+
 def ai_humanizer_mode():
     """Mode for AI text humanization"""
     st.title("✍️ AI Text Humanizer")
     st.markdown("Transform AI-generated text into natural, human-like content that passes AI detection tools.")
- 
+    
     col1, col2 = st.columns([2, 1])
- 
     with col1:
         text_to_humanize = st.text_area(
             "Enter AI-generated text to humanize:",
@@ -809,7 +1386,6 @@ def ai_humanizer_mode():
             placeholder="Paste AI-generated text here to make it sound more human...",
             key="humanizer_input"
         )
- 
     with col2:
         st.markdown("### 🎯 Humanization Options")
         humanize_button = st.button("✨ Humanize Text", use_container_width=True)
@@ -819,11 +1395,11 @@ def ai_humanizer_mode():
         st.markdown("• Improves sentence rhythm")
         st.markdown("• Removes AI patterns")
         st.markdown("• Maintains meaning")
- 
+    
     if humanize_button and text_to_humanize.strip():
         with st.spinner("🎨 Transforming text to sound more human..."):
             humanized_text = ai_humanizer(text_to_humanize)
-         
+        
             st.markdown("### 📝 Humanized Text")
             st.markdown(f"""
             <div class="humanizer-container">
@@ -833,7 +1409,7 @@ def ai_humanizer_mode():
                 </div>
             </div>
             """, unsafe_allow_html=True)
-         
+        
             # Provide download option
             st.download_button(
                 label="📥 Download Humanized Text",
@@ -841,16 +1417,16 @@ def ai_humanizer_mode():
                 file_name="humanized_text.txt",
                 mime="text/plain"
             )
-         
+        
             # Option to analyze the humanized text
             if st.button("🔍 Check Humanized Text"):
                 with st.spinner("Verifying humanization quality..."):
                     verification = ai_content_detector(humanized_text)
                     st.markdown("### ✅ Humanization Verification")
                     st.markdown(verification)
- 
     elif humanize_button and not text_to_humanize.strip():
         st.warning("Please enter some text to humanize.")
+
 # IQ Tester in Sidebar
 if st.session_state.pro_unlocked:
     with st.sidebar:
@@ -868,6 +1444,7 @@ if st.session_state.pro_unlocked:
                     score += 1
             st.session_state.iq_test_score = score * 33 # Simplified scoring
             st.write(f"Your IQ Score: {st.session_state.iq_test_score}")
+
 # Document Analysis Functions
 def extract_pdf_content(file):
     try:
@@ -878,6 +1455,7 @@ def extract_pdf_content(file):
         return content.strip()
     except Exception as e:
         return f"Error reading PDF: {e}"
+
 def extract_docx_content(file):
     try:
         doc = docx.Document(file)
@@ -887,6 +1465,7 @@ def extract_docx_content(file):
         return content.strip()
     except Exception as e:
         return f"Error reading DOCX: {e}"
+
 def extract_csv_content(file):
     try:
         df = pd.read_csv(file)
@@ -900,12 +1479,11 @@ def extract_csv_content(file):
         return content
     except Exception as e:
         return f"Error reading CSV: {e}"
+
 def process_uploaded_file(uploaded_file):
     if uploaded_file is None:
         return ""
- 
     file_type = uploaded_file.name.split('.')[-1].lower()
- 
     try:
         if file_type == 'pdf':
             return extract_pdf_content(uploaded_file)
@@ -924,6 +1502,7 @@ def process_uploaded_file(uploaded_file):
             return f"Unsupported file type: {file_type}"
     except Exception as e:
         return f"Error processing file: {e}"
+
 # Image Enhancement Functions
 def enhance_image(image, brightness=1.0, contrast=1.0, sharpness=1.0, color=1.0):
     try:
@@ -933,16 +1512,17 @@ def enhance_image(image, brightness=1.0, contrast=1.0, sharpness=1.0, color=1.0)
             'sharpness': ImageEnhance.Sharpness(image),
             'color': ImageEnhance.Color(image)
         }
-     
+    
         enhanced = enhancers['brightness'].enhance(brightness)
         enhanced = enhancers['contrast'].enhance(contrast)
         enhanced = enhancers['sharpness'].enhance(sharpness)
         enhanced = enhancers['color'].enhance(color)
-     
+    
         return enhanced
     except Exception as e:
         st.error(f"Error enhancing image: {e}")
         return image
+
 def apply_image_filters(image, filter_type):
     try:
         if filter_type == 'blur':
@@ -964,6 +1544,7 @@ def apply_image_filters(image, filter_type):
     except Exception as e:
         st.error(f"Error applying filter: {e}")
         return image
+
 def parse_edit_instructions(instructions):
     """Parse text instructions to map to PIL operations"""
     instructions = instructions.lower()
@@ -974,7 +1555,6 @@ def parse_edit_instructions(instructions):
         "color": 1.0,
         "filter": "None"
     }
- 
     # Simple keyword-based parsing
     if "bright" in instructions:
         enhancements["brightness"] = 1.3
@@ -998,37 +1578,38 @@ def parse_edit_instructions(instructions):
         enhancements["filter"] = "emboss"
     if "smooth" in instructions:
         enhancements["filter"] = "smooth"
- 
     return enhancements
+
 def display_image_enhancement_controls(image, enhancements):
     with st.expander("🖼️ Image Enhancement Tools", expanded=True):
         st.markdown("### Adjust Image Parameters")
-     
+    
         col1, col2 = st.columns(2)
-     
+    
         with col1:
             brightness = st.slider("Brightness", 0.0, 2.0, enhancements["brightness"], 0.1)
             contrast = st.slider("Contrast", 0.0, 2.0, enhancements["contrast"], 0.1)
-     
+    
         with col2:
             sharpness = st.slider("Sharpness", 0.0, 2.0, enhancements["sharpness"], 0.1)
             color = st.slider("Color", 0.0, 2.0, enhancements["color"], 0.1)
-     
+    
         st.markdown("### Apply Filters")
         filter_options = ['None', 'blur', 'contour', 'detail', 'edge_enhance', 'emboss', 'sharpen', 'smooth']
         selected_filter = st.selectbox("Choose a filter", filter_options, index=filter_options.index(enhancements["filter"]))
-     
+    
         enhanced_image = enhance_image(image, brightness, contrast, sharpness, color)
         if selected_filter != 'None':
             enhanced_image = apply_image_filters(enhanced_image, selected_filter)
-     
+    
         return enhanced_image
+
 # Enhanced A4F Model Call with fallback
 def call_a4f_model(prompt, model_name, context="", image=None):
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
-2. Use clear and simple words that sound highly professional. Respond in a way that matches the user’s thinking style, creating replies that feel smooth, engaging, and truly mesmerising..
+2. Use clear and simple words that sound highly professional. Respond in a way that matches the user's thinking style, creating replies that feel smooth, engaging, and truly mesmerising..
 3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
@@ -1046,16 +1627,17 @@ Key Instructions:
 {f"Document Context: {context}" if context else ""}
 User Query: {prompt}
 Provide a comprehensive and helpful response:"""
+    
     headers = {
         "Authorization": f"Bearer {a4f_client['api_key']}",
         "Content-Type": "application/json"
     }
- 
+    
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": prompt}
     ]
- 
+    
     if image:
         buffered = BytesIO()
         image.save(buffered, format="PNG")
@@ -1069,7 +1651,7 @@ Provide a comprehensive and helpful response:"""
                 }
             ]
         })
- 
+    
     data = {
         "model": model_name,
         "messages": messages,
@@ -1079,6 +1661,7 @@ Provide a comprehensive and helpful response:"""
         "frequency_penalty": 0.1,
         "presence_penalty": 0.1
     }
+    
     try:
         response = requests.post(
             a4f_client['api_url'],
@@ -1087,7 +1670,7 @@ Provide a comprehensive and helpful response:"""
             timeout=30
         )
         response.raise_for_status()
-     
+    
         content = response.json()["choices"][0]["message"]["content"]
         if model_name == "provider-2/r1-1776":
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
@@ -1108,15 +1691,16 @@ Provide a comprehensive and helpful response:"""
         return call_groq_model(prompt, "moonshotai/kimi-k2-instruct-0905", context)
     except Exception as e:
         return f"❌ Unexpected A4F Error ({model_name}): {str(e)}"
+
 # Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
     if not groq_client:
         return f"❌ Groq client not available"
- 
+    
     system_prompt = f"""You are Quantora, an advanced AI assistant. Respond intelligently and comprehensively. You are made by The company Quantora And the name of your designer, or maker is Kushagra
 Key Instructions:
 1. Provide detailed, thorough, and accurate responses
-2. Use clear and simple words that sound highly professional. Respond in a way that matches the user’s thinking style, creating replies that feel smooth, engaging, and truly mesmerising.
+2. Use clear and simple words that sound highly professional. Respond in a way that matches the user's thinking style, creating replies that feel smooth, engaging, and truly mesmerising.
 3. If providing code, ALWAYS provide the COMPLETE code with proper markdown formatting
 4. Support all languages including mixed languages like Hinglish
 5. Be friendly, professional, and engaging
@@ -1133,6 +1717,7 @@ Key Instructions:
 16. Give very short consise answers, when personally the user asks for explanaton of elaboration, make the answer explaining every topic.
 {f"Document Context: {context}" if context else ""}
 User Query: {prompt}"""
+    
     try:
         completion = groq_client.chat.completions.create(
             model=model_name,
@@ -1147,10 +1732,11 @@ User Query: {prompt}"""
         return completion.choices[0].message.content
     except Exception as e:
         return f"❌ {model_name} Error: {str(e)}"
+
 # Quantora Unified AI Model with Memory and Simulated Learning
 def call_quantora_unified(prompt, context="", image=None):
     start_time = time.time()
- 
+    
     # Build conversation history for memory
     conversation_history = ""
     for item in st.session_state.chat[-5:]: # Last 5 messages for context
@@ -1162,12 +1748,12 @@ def call_quantora_unified(prompt, context="", image=None):
             speaker, message = item[:2]
             conversation_history += f"{speaker.upper()}: {message}\n\n"
         # Skip items with insufficient data
- 
+    
     # Simulated learning: Append previous corrections or improvements
     learning_prompt = ""
     if st.session_state.learning_history:
         learning_prompt = "\n\nLearned from previous interactions:\n" + "\n".join(st.session_state.learning_history[-3:]) # Last 3 learnings
- 
+    
     # If prompt references previous, allow editing
     if "edit previous" in prompt.lower() or "modify last" in prompt.lower():
         if st.session_state.chat:
@@ -1178,9 +1764,9 @@ def call_quantora_unified(prompt, context="", image=None):
             else:
                 last_response = ""
             prompt = f"Edit this previous response based on new instructions: {last_response}\n\nNew instructions: {prompt}"
- 
+    
     full_prompt = f"{conversation_history}{learning_prompt}\n\nCurrent Query: {prompt}"
-   
+  
     def call_groq_backend(model_name):
         try:
             response = call_groq_model(full_prompt, model_name, context)
@@ -1197,7 +1783,7 @@ def call_quantora_unified(prompt, context="", image=None):
                 "success": False,
                 "length": 0
             }
- 
+
     def call_a4f_backend(model_name):
         try:
             response = call_a4f_model(full_prompt, model_name, context, image)
@@ -1214,12 +1800,12 @@ def call_quantora_unified(prompt, context="", image=None):
                 "success": False,
                 "length": 0
             }
- 
+
     backend_results = []
- 
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
         selected_model_version = st.session_state.get("model_version", "Quantora Prime 1 (Latest Flagship Model)")
+        
         if selected_model_version == "Quantora Prime 1 (Latest Flagship Model)":
             st.toast("🚀 Using Quantora Prime 1 Engine...", icon="🚀")
             groq_models = []
@@ -1243,16 +1829,16 @@ def call_quantora_unified(prompt, context="", image=None):
                 "provider-2/llama-4-maverick",
                 "provider-3/qwen-2.5-72b",
                 "provider-3/gpt-5-nano",
-                "provider-1/deepseek-v3.1"
-                "provider-5/gpt-5.1"
-                "provider-2/gemini-3-pro-preview"
+                "provider-1/deepseek-v3.1",
+                "provider-5/gpt-5.1",
+                "provider-2/gemini-3-pro-preview",
                 "provider-7/claude-sonnet-4-5-20250929"
             ]
             for model in groq_models:
                 futures.append(executor.submit(call_groq_backend, model))
             for model in a4f_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-     
+    
         elif selected_model_version == "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)":
             st.toast("⚡ Using Quantora Prime 1 Fast Engine...", icon="⚡")
             a4f_v2_models = [
@@ -1261,7 +1847,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in a4f_v2_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-             
+            
         elif selected_model_version == "Quantora V3 (Code Specialized)":
             st.toast("💻 Using Quantora V3 Code Engine...", icon="💻")
             code_models = [
@@ -1269,7 +1855,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in code_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-             
+            
         elif selected_model_version == "Quantora V4 (Long Conversation)":
             st.toast("🗣️ Using Quantora V4 Conversation Engine...", icon="🗣️")
             conversation_models = [
@@ -1280,7 +1866,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in conversation_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-             
+            
         elif selected_model_version == "Quantora V3 (Reasoning Specialized)":
             st.toast("🧠 Using Quantora V3 Reasoning Engine...", icon="🧠")
             reasoning_models = [
@@ -1291,7 +1877,7 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in reasoning_models:
                 futures.append(executor.submit(call_a4f_backend, model))
-             
+            
         elif selected_model_version == "Quantora V3 (Math Specialized)":
             st.toast("🧮 Using Quantora V3 Math Engine...", icon="🧮")
             math_models = [
@@ -1301,20 +1887,21 @@ def call_quantora_unified(prompt, context="", image=None):
             ]
             for model in math_models:
                 futures.append(executor.submit(call_a4f_backend, model))
+        
         for future in concurrent.futures.as_completed(futures):
             try:
                 result = future.result()
                 backend_results.append(result)
             except Exception as e:
                 print(f"⚠️ One processing component had an issue: {str(e)}")
- 
+    
     successful_responses = [r for r in backend_results if r['success'] and r['response'] and not r['response'].startswith("Backend error")]
- 
+    
     if not successful_responses:
         return "❌ No successful responses from backends. Please try again."
- 
+    
     responses_text = '\n\n'.join([f"Response from {r['backend']}:\n{r['response']}" for r in successful_responses])
- 
+    
     mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt.
 Combine them into one coherent, comprehensive response that maintains the best aspects of each.
 Original Prompt: {prompt}
@@ -1330,47 +1917,49 @@ Guidelines:
 7. Dont tell about any ai error
 8. Always ask a question to the user ex- that what should I(you) do next?
 Combined Response:"""
- 
+    
     final_response = call_a4f_model(mixing_prompt, "provider-3/gpt-4o-mini")
- 
+    
     # Simulated auto-training: "Learn" by storing response improvements
     if final_response:
         learning_note = f"Improved response for query: {prompt[:50]}... by combining {len(successful_responses)} backends"
         st.session_state.learning_history.append(learning_note)
- 
+    
     processing_time = time.time() - start_time
     return final_response if final_response else successful_responses[0]['response']
- 
+
 # Code Detection and Formatting
 def format_response_with_code(response):
     code_pattern = r'```(\w+)?\n(.*?)\n```'
     parts = []
     last_end = 0
- 
+    
     for match in re.finditer(code_pattern, response, re.DOTALL):
         if match.start() > last_end:
             text_part = response[last_end:match.start()].strip()
             if text_part:
                 parts.append(('text', text_part))
-     
+    
         language = match.group(1) or 'text'
         code_content = match.group(2).strip()
         parts.append(('code', code_content, language))
-     
+    
         last_end = match.end()
- 
+    
     if last_end < len(response):
         remaining_text = response[last_end:].strip()
         if remaining_text:
             parts.append(('text', remaining_text))
- 
+    
     return parts if parts else [('text', response)]
+
 # Image Generation Functions
 def generate_image(prompt, style):
     headers = {
         "Authorization": f"Bearer {A4F_API_KEY}",
         "Content-Type": "application/json"
     }
+    
     enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
     payload = {
         "model": IMAGE_MODEL,
@@ -1379,6 +1968,7 @@ def generate_image(prompt, style):
         "width": 1024,
         "height": 1024
     }
+    
     try:
         response = requests.post(
             f"{A4F_BASE_URL}/images/generations",
@@ -1396,14 +1986,17 @@ def generate_image(prompt, style):
     except Exception as e:
         st.error(f"Image generation error: {str(e)}")
         return None
+
 def edit_image(image, edit_prompt):
     headers = {
         "Authorization": f"Bearer {A4F_API_KEY}",
         "Content-Type": "application/json"
     }
+    
     buffered = BytesIO()
     image.save(buffered, format="PNG")
     img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    
     payload = {
         "model": EDIT_MODEL,
         "prompt": edit_prompt,
@@ -1412,6 +2005,7 @@ def edit_image(image, edit_prompt):
         "width": 1024,
         "height": 1024
     }
+    
     try:
         response = requests.post(
             f"{A4F_BASE_URL}/images/edits",
@@ -1429,12 +2023,13 @@ def edit_image(image, edit_prompt):
     except Exception as e:
         st.error(f"Image editing error: {str(e)}")
         return None
+
 # Video Generation Function using Replicate
 def generate_video_replicate(prompt, style):
     try:
         # ✅ Set your Replicate API key
         os.environ["REPLICATE_API_TOKEN"] = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
-      
+     
         # Run the model with original prompt only
         output = replicate.run(
             "minimax/video-01",
@@ -1449,6 +2044,7 @@ def generate_video_replicate(prompt, style):
         else:
             video_url = str(output) # For string or list
         print("🎥 Video generated at:", video_url)
+        
         # ✅ Download the file to disk
         response = requests.get(video_url)
         filename = f"generated_video_{int(time.time())}.mp4"
@@ -1456,10 +2052,11 @@ def generate_video_replicate(prompt, style):
             file.write(response.content)
         print(f"✅ Video saved successfully as {filename}")
         return filename
-      
+     
     except Exception as e:
         st.error(f"Video generation failed: {str(e)}")
         return None
+
 # Time-based greeting
 hour = datetime.now().hour
 if 6 <= hour < 12:
@@ -1470,6 +2067,7 @@ elif 18 <= hour < 24:
     greeting = "🌙 Good Evening!"
 else:
     greeting = "🌌 Good Night!"
+
 # Header with Quantora branding
 st.markdown("""
 <div class="main-header">
@@ -1481,30 +2079,31 @@ st.markdown("""
     <div style="color: var(--text-muted);">{}</div>
 </div>
 """.format(app_name, greeting), unsafe_allow_html=True)
+
 # --------------------------
 # QUANTORA TRADE CHARTS MODULE
 # --------------------------
 def quantora_trade_charts():
     st.title("📈 Quantora Trade Charts")
     st.markdown("Advanced financial analysis and visualization tools powered by Quantora AI")
- 
+    
     # Stock selection
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
         ticker = st.text_input("Enter stock symbol (e.g. AAPL, MSFT, TSLA)", "AAPL")
     with col2:
         period = st.selectbox("Time period", ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y"])
- 
+    
     if st.button("Generate Analysis"):
         with st.spinner("Fetching market data..."):
             try:
                 stock = yf.Ticker(ticker)
                 hist = stock.history(period=period)
-             
+            
                 if hist.empty:
                     st.error("No data found for this symbol. Please try another.")
                     return
-             
+            
                 # Basic info
                 st.subheader(f"📊 {ticker} - {stock.info.get('longName', 'N/A')}")
                 col1, col2, col3 = st.columns(3)
@@ -1516,7 +2115,7 @@ def quantora_trade_charts():
                     st.metric("Daily Change", f"${change:.2f}", f"{change_percent:.2f}%")
                 with col3:
                     st.metric("Market Cap", f"${stock.info.get('marketCap', 'N/A'):,}")
-             
+            
                 # Candlestick chart
                 st.subheader("Candlestick Chart")
                 fig = go.Figure(data=[go.Candlestick(
@@ -1533,7 +2132,7 @@ def quantora_trade_charts():
                     template="plotly_dark"
                 )
                 st.plotly_chart(fig, use_container_width=True)
-             
+            
                 # Volume chart
                 st.subheader("Trading Volume")
                 fig2 = go.Figure(data=[go.Bar(
@@ -1548,7 +2147,7 @@ def quantora_trade_charts():
                     template="plotly_dark"
                 )
                 st.plotly_chart(fig2, use_container_width=True)
-             
+            
                 # Additional metrics
                 st.subheader("Key Metrics")
                 metrics = {
@@ -1559,7 +2158,7 @@ def quantora_trade_charts():
                     "Beta": stock.info.get('beta'),
                     "Average Volume": stock.info.get('averageVolume')
                 }
-             
+            
                 cols = st.columns(3)
                 for i, (metric, value) in enumerate(metrics.items()):
                     with cols[i % 3]:
@@ -1572,7 +2171,7 @@ def quantora_trade_charts():
                                 st.metric(metric, f"{value:.2f}")
                         else:
                             st.metric(metric, "N/A")
-             
+            
                 # AI Analysis
                 st.subheader("📈 Quantora AI Analysis")
                 analysis_prompt = f"""
@@ -1583,24 +2182,25 @@ def quantora_trade_charts():
                 - Market Cap: ${stock.info.get('marketCap', 'N/A'):,}
                 - Recent Performance:
                   {hist.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].to_string()}
-             
+            
                 Provide insights on:
                 1. Current trend
                 2. Key support/resistance levels
                 3. Volume analysis
                 4. Technical indicators summary
                 5. Short-term and long-term outlook
-             
+            
                 Keep the analysis professional but accessible to retail investors.
                 """
-             
+            
                 with st.spinner("Generating AI analysis..."):
                     st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
                     analysis = call_quantora_unified(analysis_prompt)
                     st.markdown(analysis)
-             
+            
             except Exception as e:
                 st.error(f"Error fetching data: {str(e)}")
+
 # --------------------------
 # QUANTORA NEWS MODULE
 # --------------------------
@@ -1613,7 +2213,7 @@ def quantora_news():
             <p style='font-size: 0.9em; color: #888;'>Generated by Quantora AI</p>
         </div>
     """, unsafe_allow_html=True)
- 
+    
     # Dynamically dated prompt
     prompt = f"""
     You are Quantora AI, a cutting-edge real-time news analysis system. Give the MOST Trending news for {today}. Create the top news digest for {today} based on live global and Indian events 'like' operation sindoor, using a professional journalist tone.
@@ -1626,11 +2226,13 @@ def quantora_news():
     6. 🌍 Topic - 6 (1 paragraph)
     Only include realistic and relevant news that would appear on Aaj Tak, ABP News, Zee News, and BBC for {today}.
     """
+    
     # Generate news
     with st.spinner("🔍 Quantora AI is gathering and analyzing today's global news..."):
         st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
         response = call_quantora_unified(prompt)
         news = response
+    
     # Display news with black text (no images)
     news_lines = news.split('\n\n')
     for line in news_lines:
@@ -1641,6 +2243,7 @@ def quantora_news():
                 <p>{line}</p>
             </div>
             """, unsafe_allow_html=True)
+    
     # Footer
     st.markdown("---")
     st.markdown("""
@@ -1648,6 +2251,7 @@ def quantora_news():
             🔹 Powered by Quantora AI • Delivering Intelligence, Not Just Information.
         </div>
     """, unsafe_allow_html=True)
+
 # --------------------------
 # QUANTORA SOCIAL MEDIA MODULE
 # --------------------------
@@ -1658,22 +2262,29 @@ def quantora_social_media():
     QUANTORA_IMAGES_DIR = "quantora_social_images"
     QUANTORA_PROFILE_PICS_DIR = "quantora_social_profile_pics"
     DEFAULT_PROFILE_PIC = "default_profile.png"
+    
     if not os.path.exists(QUANTORA_POSTS_CSV):
         quantora_df_posts = pd.DataFrame(columns=['quantora_username', 'quantora_timestamp', 'quantora_text', 'quantora_image_path', 'quantora_likes', 'quantora_comments'])
         quantora_df_posts.to_csv(QUANTORA_POSTS_CSV, index=False)
+    
     if not os.path.exists(QUANTORA_USERS_CSV):
         quantora_df_users = pd.DataFrame(columns=['quantora_email', 'quantora_username', 'quantora_password', 'quantora_profile_pic', 'bio'])
         quantora_df_users.to_csv(QUANTORA_USERS_CSV, index=False)
+    
     if not os.path.exists(QUANTORA_FOLLOWS_CSV):
         quantora_df_follows = pd.DataFrame(columns=['follower', 'followed'])
         quantora_df_follows.to_csv(QUANTORA_FOLLOWS_CSV, index=False)
+    
     if not os.path.exists(QUANTORA_IMAGES_DIR):
         os.makedirs(QUANTORA_IMAGES_DIR)
+    
     if not os.path.exists(QUANTORA_PROFILE_PICS_DIR):
         os.makedirs(QUANTORA_PROFILE_PICS_DIR)
+
     # Helper Functions
     def handle_hashtags(text):
         return text
+
     def quantora_user_info_header(username, show_follow=False):
         quantora_users_df = pd.read_csv(QUANTORA_USERS_CSV)
         try:
@@ -1683,6 +2294,7 @@ def quantora_social_media():
                 quantora_profile_pic_path = DEFAULT_PROFILE_PIC
         except IndexError:
             quantora_profile_pic_path = DEFAULT_PROFILE_PIC
+        
         col1, col2 = st.columns([0.08, 0.92])
         with col1:
             st.markdown(f'<img src="{quantora_profile_pic_path}" width="36" style="border-radius: 50%; object-fit: cover;">', unsafe_allow_html=True)
@@ -1694,12 +2306,14 @@ def quantora_social_media():
                 if st.button(follow_text, key=f"follow_{username}", use_container_width=True):
                     update_follow(st.session_state.quantora_username, username, not is_following)
                     st.rerun()
+
     def quantora_post_actions(row, index):
         quantora_username = row['quantora_username']
         quantora_timestamp = row['quantora_timestamp']
         quantora_likes = int(row.get('quantora_likes', 0))
         quantora_post_key = f"{quantora_username}_{quantora_timestamp}"
         liked = quantora_post_key in st.session_state.quantora_liked_posts
+        
         col1, col2, _ = st.columns([0.15, 0.15, 0.7])
         with col1:
             like_button_label = f"{'❤️' if liked else '🤍'} {quantora_likes}"
@@ -1713,15 +2327,18 @@ def quantora_social_media():
                     st.session_state.quantora_liked_posts.add(quantora_post_key)
                 quantora_df.to_csv(QUANTORA_POSTS_CSV, index=False)
                 st.rerun()
+        
         with col2:
             with st.expander("💬 Comments", expanded=False):
                 quantora_comment_section(row, index)
+
     def quantora_comment_section(row, index):
         quantora_username = row['quantora_username']
         quantora_comments_raw = row.get('quantora_comments', '')
         if pd.isna(quantora_comments_raw):
             quantora_comments_raw = ""
         quantora_comments = quantora_comments_raw.split("|") if quantora_comments_raw else []
+        
         for c in quantora_comments:
             if c:
                 parts = c.split(": ", 1)
@@ -1739,6 +2356,7 @@ def quantora_social_media():
                         f"<div style='margin-bottom: 5px; width: 100%; box-sizing: border-box;'>- {colored_c}</div>",
                         unsafe_allow_html=True
                     )
+        
         with st.container():
             comment_input_col, comment_button_col = st.columns([0.95, 0.05])
             with comment_input_col:
@@ -1761,12 +2379,14 @@ def quantora_social_media():
                         quantora_df.at[index, 'quantora_comments'] = quantora_combined_comments
                         quantora_df.to_csv(QUANTORA_POSTS_CSV, index=False)
                         st.rerun()
+
     def is_user_following(follower, followed):
         try:
             follows_df = pd.read_csv(QUANTORA_FOLLOWS_CSV)
             return ((follows_df['follower'] == follower) & (follows_df['followed'] == followed)).any()
         except FileNotFoundError:
             return False
+
     def update_follow(follower, followed, follow=True):
         follows_df = pd.read_csv(QUANTORA_FOLLOWS_CSV) if os.path.exists(QUANTORA_FOLLOWS_CSV) else pd.DataFrame(columns=['follower', 'followed'])
         if follow:
@@ -1776,19 +2396,24 @@ def quantora_social_media():
         else:
             follows_df = follows_df[~((follows_df['follower'] == follower) & (follows_df['followed'] == followed))]
             follows_df.to_csv(QUANTORA_FOLLOWS_CSV, index=False)
+
     def search_users(query):
         users_df = pd.read_csv(QUANTORA_USERS_CSV)
         results = users_df[users_df['quantora_username'].str.contains(query, case=False)]
         return results
+
     def get_user_posts(username):
         posts_df = pd.read_csv(QUANTORA_POSTS_CSV)
         return posts_df[posts_df['quantora_username'] == username].sort_values(by='quantora_timestamp', ascending=False)
+
     def get_followers(username):
         follows_df = pd.read_csv(QUANTORA_FOLLOWS_CSV) if os.path.exists(QUANTORA_FOLLOWS_CSV) else pd.DataFrame(columns=['follower', 'followed'])
         return follows_df[follows_df['followed'] == username]['follower'].tolist()
+
     def get_following(username):
         follows_df = pd.read_csv(QUANTORA_FOLLOWS_CSV) if os.path.exists(QUANTORA_FOLLOWS_CSV) else pd.DataFrame(columns=['follower', 'followed'])
         return follows_df[follows_df['follower'] == username]['followed'].tolist()
+
     # User Auth
     def quantora_register_user():
         st.subheader("Join the Quantora Universe!")
@@ -1797,6 +2422,7 @@ def quantora_social_media():
         quantora_password = st.text_input("Create a Password", type="password")
         quantora_bio = st.text_area("Tell us about yourself (optional)")
         quantora_profile_pic_upload = st.file_uploader("Add a Profile Picture (optional)", type=["jpg", "jpeg", "png"])
+        
         if st.button("Embark on Your Quantora Journey"):
             quantora_users_df = pd.read_csv(QUANTORA_USERS_CSV)
             if quantora_username in quantora_users_df['quantora_username'].values:
@@ -1812,14 +2438,17 @@ def quantora_social_media():
                     quantora_profile_pic_path = os.path.join(QUANTORA_PROFILE_PICS_DIR, pic_filename)
                     with open(quantora_profile_pic_path, "wb") as f:
                         f.write(quantora_profile_pic_upload.getbuffer())
+                
                 quantora_new_user = pd.DataFrame([[quantora_email, quantora_username, quantora_password, quantora_profile_pic_path, quantora_bio]],
                                             columns=['quantora_email', 'quantora_username', 'quantora_password', 'quantora_profile_pic', 'bio'])
                 quantora_new_user.to_csv(QUANTORA_USERS_CSV, mode='a', header=False, index=False)
                 st.success("Welcome to Quantora! Log in to begin your adventure.")
+
     def quantora_login_user():
         st.subheader("Re-enter the Quantora Universe")
         quantora_username = st.text_input("Username")
         quantora_password = st.text_input("Password", type="password")
+        
         if st.button("Unlock Quantora"):
             quantora_users_df = pd.read_csv(QUANTORA_USERS_CSV)
             user_match = quantora_users_df[
@@ -1833,11 +2462,13 @@ def quantora_social_media():
                 st.rerun()
             else:
                 st.error("Incorrect username or password. Double-check your credentials to rejoin Quantora.")
+
     # Post Creation
     def quantora_new_post():
         st.subheader("Share Your Moment on Quantora")
         quantora_post_text = st.text_area("What's happening?", height=150)
         quantora_uploaded_file = st.file_uploader("Add a Photo or Video (optional)", type=["jpg", "jpeg", "png"])
+        
         if st.button("Post to Quantora"):
             quantora_image_path = ""
             if quantora_uploaded_file is not None:
@@ -1845,11 +2476,13 @@ def quantora_social_media():
                 quantora_image_path = os.path.join(QUANTORA_IMAGES_DIR, image_filename)
                 with open(quantora_image_path, "wb") as f:
                     f.write(quantora_uploaded_file.getbuffer())
+            
             quantora_new_data = pd.DataFrame([[st.session_state.quantora_username, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), quantora_post_text, quantora_image_path, 0, ""]],
                                         columns=['quantora_username', 'quantora_timestamp', 'quantora_text', 'quantora_image_path', 'quantora_likes', 'quantora_comments'])
             quantora_new_data.to_csv(QUANTORA_POSTS_CSV, mode='a', header=False, index=False)
             st.success("Your post has been shared with the Quantora community!")
             st.rerun()
+
     # Social Feed
     def quantora_social_feed():
         st.subheader("Your Quantora Feed")
@@ -1868,10 +2501,12 @@ def quantora_social_media():
                 st.markdown("</div>", unsafe_allow_html=True)
         except Exception as e:
             st.error(f"Error loading feed: {e}")
+
     # Profile Page
     def quantora_profile(view_username=None):
         username_to_view = view_username if view_username else st.session_state.quantora_username
         st.subheader(f"@{username_to_view}")
+        
         try:
             user_data = pd.read_csv(QUANTORA_USERS_CSV)
             user_profile = user_data[user_data['quantora_username'] == username_to_view].iloc[0]
@@ -1879,9 +2514,11 @@ def quantora_social_media():
             profile_pic = user_profile.get('quantora_profile_pic', DEFAULT_PROFILE_PIC)
             if not isinstance(profile_pic, str):
                 profile_pic = DEFAULT_PROFILE_PIC
+            
             followers = get_followers(username_to_view)
             following = get_following(username_to_view)
             posts = get_user_posts(username_to_view)
+            
             col1, col2 = st.columns([0.2, 0.8])
             with col1:
                 st.markdown(f'<img src="{profile_pic}" width="80" style="border-radius: 50%; object-fit: cover;">', unsafe_allow_html=True)
@@ -1889,12 +2526,14 @@ def quantora_social_media():
                 st.markdown(f"<strong style='font-size: 1.5em;'>{username_to_view}</strong>", unsafe_allow_html=True)
                 st.markdown(f"<span style='color: #777;'>{len(posts)} posts | {len(followers)} followers | {len(following)} following</span>", unsafe_allow_html=True)
                 st.markdown(f"<p style='margin-top: 5px;'>{bio}</p>", unsafe_allow_html=True)
+                
                 if username_to_view != st.session_state.quantora_username:
                     is_following = is_user_following(st.session_state.quantora_username, username_to_view)
                     follow_text = "Following" if is_following else "Follow"
                     if st.button(follow_text, key=f"profile_follow_{username_to_view}", use_container_width=True):
                         update_follow(st.session_state.quantora_username, username_to_view, not is_following)
                         st.rerun()
+            
             st.subheader("Posts")
             if not posts.empty:
                 cols = st.columns(3)
@@ -1912,6 +2551,7 @@ def quantora_social_media():
             st.error("User data file not found.")
         except Exception as e:
             st.error(f"An error occurred while loading the profile: {e}")
+
     # Search
     def quantora_search():
         st.subheader("Search Users")
@@ -1925,11 +2565,13 @@ def quantora_social_media():
                         st.rerun()
             else:
                 st.info("No users found matching your search.")
+        
         if 'view_profile' in st.session_state:
             quantora_profile(st.session_state.view_profile)
             if st.button("Back to Search"):
                 del st.session_state.view_profile
                 st.rerun()
+
     # Navigation
     def quantora_sidebar():
         st.sidebar.title("✨ The Quantora Universe")
@@ -1941,8 +2583,10 @@ def quantora_social_media():
             st.sidebar.info("Embark on a new social journey with Quantora!")
             auth_action = st.sidebar.radio("Your Gateway", ["Log In", "Join Quantora"])
             return auth_action
+
     # Main App Logic
     navigation = quantora_sidebar()
+    
     if st.session_state.quantora_logged_in:
         if navigation == "Your Feed":
             quantora_social_feed()
@@ -1962,6 +2606,7 @@ def quantora_social_media():
             quantora_login_user()
         elif navigation == "Join Quantora":
             quantora_register_user()
+
 # --------------------------
 # HEART HEALTH ANALYZER
 # --------------------------
@@ -1970,6 +2615,7 @@ def heart_health_analyzer():
     @st.cache_resource
     def initialize_model():
         return "provider-5/gpt-4o" # Use A4F model
+    
     # Define comprehensive health questions
     HEALTH_QUESTIONS = [
         {
@@ -2102,6 +2748,7 @@ def heart_health_analyzer():
             "options": ["Yes, record my heartbeat", "No, skip heartbeat recording"]
         }
     ]
+    
     def initialize_session_state():
         """Initialize session state variables"""
         if 'current_question' not in st.session_state:
@@ -2120,6 +2767,7 @@ def heart_health_analyzer():
             st.session_state.heart_rate_recorded = False
         if 'show_heartbeat_section' not in st.session_state:
             st.session_state.show_heartbeat_section = False
+
     def display_progress():
         """Display progress bar"""
         progress = (st.session_state.current_question / len(HEALTH_QUESTIONS)) * 100
@@ -2132,6 +2780,7 @@ def heart_health_analyzer():
         </p>
         """
         st.markdown(progress_html, unsafe_allow_html=True)
+
     def analyze_heart_rate_manual():
         """Manual heart rate input and analysis"""
         st.markdown("""
@@ -2161,6 +2810,7 @@ def heart_health_analyzer():
             st.success("Heart rate recorded successfully!")
             return heart_rate_data
         return None
+
     def analyze_heartbeat_upload():
         """Allow users to upload recorded heartbeat for AI analysis"""
         st.markdown("""
@@ -2181,10 +2831,12 @@ def heart_health_analyzer():
                 heart_rate = np.random.randint(60, 100)
                 rhythm = np.random.choice(["Regular", "Slightly irregular", "Irregular"])
                 quality = "Good" if 60 <= heart_rate <= 100 else "Needs review"
+                
                 if uploaded_file.type.startswith('audio'):
                     st.audio(uploaded_file)
                 elif uploaded_file.type.startswith('video'):
                     st.video(uploaded_file)
+                
                 model_name = initialize_model()
                 prompt = f"""
                 Analyze this heartbeat recording and provide:
@@ -2209,6 +2861,7 @@ def heart_health_analyzer():
                 st.success("Heartbeat analysis complete!")
                 return st.session_state.heart_rate_data
         return None
+
     def analyze_voice_recording():
         """Handle voice recording upload and analysis"""
         st.markdown("""
@@ -2230,6 +2883,7 @@ def heart_health_analyzer():
                 heart_rate = np.random.randint(60, 100)
                 rhythm = np.random.choice(["Regular", "Slightly irregular"])
                 quality = "Good" if 60 <= heart_rate <= 100 else "Needs review"
+                
                 model_name = initialize_model()
                 prompt = f"""
                 Analyze this heart sound recording and provide:
@@ -2255,21 +2909,25 @@ def heart_health_analyzer():
                 st.success("Voice recording analysis complete!")
                 return st.session_state.heart_rate_data
         return None
+
     def display_heart_rate_analysis(heart_rate_data):
         """Enhanced heart rate analysis analysis display with detailed medical insights"""
         if not heart_rate_data:
             return
+        
         st.markdown(f"""
         <div class="heart-rate-display pulse-animation">
             💓 {heart_rate_data['heart_rate']} BPM
         </div>
         """, unsafe_allow_html=True)
+        
         method_icons = {
             "Manual": "✋",
             "Uploaded Recording": "📁",
             "Voice Recording": "🎤"
         }
         method_icon = method_icons.get(heart_rate_data.get('method', ''), "📊")
+        
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Heart Rate", f"{heart_rate_data['heart_rate']} BPM",
@@ -2278,6 +2936,7 @@ def heart_health_analyzer():
             st.metric("Method", f"{method_icon} {heart_rate_data['method']}")
         with col3:
             st.metric("Data Quality", heart_rate_data['quality'])
+        
         hr = heart_rate_data['heart_rate']
         if hr < 60:
             interpretation = "⚠️ **Bradycardia** (Slow Heart Rate)"
@@ -2303,15 +2962,18 @@ def heart_health_analyzer():
             - Regular rhythm suggests normal electrical activity
             - Maintain with regular exercise and stress management
             """
+        
         st.markdown(f"""
         <div style="background-color: {color}20; padding: 1.5rem; border-radius: 8px; border-left: 4px solid {color}; margin: 1rem 0;">
             <h4>{interpretation}</h4>
             <div style="margin-left: 1rem;">{details}</div>
         </div>
         """, unsafe_allow_html=True)
+        
         if any(key in heart_rate_data for key in ['hrv_score', 'rhythm', 'audio_analysis', 'ai_analysis']):
             st.markdown("---")
             st.subheader("📊 Detailed Analysis")
+            
             if 'hrv_score' in heart_rate_data or 'rhythm' in heart_rate_data:
                 cols = st.columns(2)
                 if 'hrv_score' in heart_rate_data:
@@ -2322,6 +2984,7 @@ def heart_health_analyzer():
                 if 'rhythm' in heart_rate_data:
                     with cols[1]:
                         st.metric("Rhythm Pattern", heart_rate_data['rhythm'])
+            
             if heart_rate_data.get('method') == "Voice Recording" and 'audio_analysis' in heart_rate_data:
                 st.markdown("""
                 <div style="margin-top: 1rem; padding: 1.5rem; background: #f0f8ff; border-radius: 10px;">
@@ -2340,6 +3003,7 @@ def heart_health_analyzer():
                     </div>
                 </div>
                 """.format(analysis=heart_rate_data['ai_analysis']), unsafe_allow_html=True)
+        
         st.markdown("---")
         action_col1, action_col2 = st.columns(2)
         with action_col1:
@@ -2368,6 +3032,7 @@ def heart_health_analyzer():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+
     def record_heartbeat_section():
         """Handle heartbeat recording section"""
         st.markdown("## 💓 Heart Rate Recording")
@@ -2377,8 +3042,9 @@ def heart_health_analyzer():
                 <h3>Choose recording method:</h3>
             </div>
             """, unsafe_allow_html=True)
+            
             col2, col3, col4 = st.columns(3)
-         
+        
             with col2:
                 if st.button("✋ Manual Input", key="manual_btn"):
                     st.session_state.recording_method = "manual"
@@ -2388,7 +3054,7 @@ def heart_health_analyzer():
             with col4:
                 if st.button("🎤 Voice Recording", key="voice_btn"):
                     st.session_state.recording_method = "voice"
-         
+        
             if st.session_state.recording_method == "manual":
                 result = analyze_heart_rate_manual()
                 if result:
@@ -2407,6 +3073,7 @@ def heart_health_analyzer():
                 st.session_state.show_heartbeat_section = False
                 st.session_state.current_question += 1
                 st.rerun()
+
     def display_question():
         """Display current question"""
         if st.session_state.current_question < len(HEALTH_QUESTIONS):
@@ -2416,6 +3083,7 @@ def heart_health_analyzer():
                 if st.session_state.current_question >= len(HEALTH_QUESTIONS):
                     st.session_state.assessment_complete = True
                 st.rerun()
+            
             question_html = f"""
             <div class="question-container">
                 <h3>Question {question['id']}</h3>
@@ -2423,6 +3091,7 @@ def heart_health_analyzer():
             </div>
             """
             st.markdown(question_html, unsafe_allow_html=True)
+            
             if question['type'] == 'number':
                 answer = st.number_input(
                     "Your answer:",
@@ -2437,6 +3106,7 @@ def heart_health_analyzer():
                     question['options'],
                     key=f"q_{question['id']}"
                 )
+            
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
                 if st.session_state.current_question > 0:
@@ -2454,16 +3124,19 @@ def heart_health_analyzer():
                             st.session_state.current_question += 1
                     else:
                         st.session_state.current_question += 1
+                    
                     if st.session_state.current_question >= len(HEALTH_QUESTIONS):
                         st.session_state.assessment_complete = True
                     st.rerun()
         return st.session_state.current_question >= len(HEALTH_QUESTIONS)
+
     def format_answers():
         """Format answers for AI analysis"""
         formatted_answers = []
         for q_id, answer in st.session_state.answers.items():
             question = next(q for q in HEALTH_QUESTIONS if q['id'] == q_id)
             formatted_answers.append(f"Q{question['id']}: {question['question']}\nA: {answer}\n")
+        
         if st.session_state.heart_rate_data:
             hr_data = st.session_state.heart_rate_data
             formatted_answers.append("\nHEART RATE DATA:")
@@ -2478,7 +3151,9 @@ def heart_health_analyzer():
                 formatted_answers.append(f"- Audio Analysis: {hr_data['audio_analysis']}")
             elif 'ai_analysis' in hr_data:
                 formatted_answers.append(f"- AI Analysis: {hr_data['ai_analysis']}")
+        
         return "\n".join(formatted_answers)
+
     def get_ai_assessment(answers_text):
         """Get AI assessment from A4F"""
         try:
@@ -2511,22 +3186,27 @@ def heart_health_analyzer():
         except Exception as e:
             st.error(f"Error generating assessment: {str(e)}")
             return f"Error generating assessment: {str(e)}"
+
     def display_assessment_summary():
         """Display assessment summary and get AI response"""
         st.markdown('<h2 style="color: black;">Assessment Summary</h2>', unsafe_allow_html=True)
+        
         with st.expander("📋 View Your Responses", expanded=True):
             for q_id, answer in st.session_state.answers.items():
                 question = next(q for q in HEALTH_QUESTIONS if q['id'] == q_id)
                 st.markdown(f"**{question['question']}** \n{answer}")
+        
         if st.session_state.heart_rate_data:
             hr_data = st.session_state.heart_rate_data
             with st.expander("💓 View Heart Rate Analysis"):
                 display_heart_rate_analysis(hr_data)
+        
         if st.session_state.ai_response is None:
             with st.spinner("🧠 Analyzing your responses with AI..."):
                 answers_text = format_answers()
                 st.session_state.ai_response = get_ai_assessment(answers_text)
                 st.rerun()
+        
         if st.session_state.ai_response:
             st.markdown("## 🔍 AI Health Assessment")
             st.markdown(st.session_state.ai_response)
@@ -2535,17 +3215,20 @@ def heart_health_analyzer():
                 ⚠️ **Urgent Medical Attention Recommended**
                 Based on your responses, we recommend seeking immediate medical evaluation.
                 """)
+        
         st.markdown("""
         <div style="margin-top: 2rem; padding: 1.5rem; background: #f5f5f5; border-radius: 10px;">
             💡 <strong>Remember:</strong> This is a preliminary assessment tool. Always consult with qualified healthcare
             professionals for proper diagnosis and treatment. Regular check-ups are essential for maintaining good heart health.
         </div>
         """, unsafe_allow_html=True)
+        
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
                 if key not in ['pro_unlocked', 'model_version', 'image_style', 'video_style']: # Preserve essential states
                     del st.session_state[key]
             st.rerun()
+
     def main_heart():
         """Main application function"""
         initialize_session_state()
@@ -2563,6 +3246,7 @@ def heart_health_analyzer():
             </ul>
         </div>
         """, unsafe_allow_html=True)
+        
         st.markdown("""
         <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only.
@@ -2570,6 +3254,7 @@ def heart_health_analyzer():
             Always consult with qualified healthcare professionals for medical concerns.
         </div>
         """, unsafe_allow_html=True)
+        
         if not st.session_state.assessment_complete:
             display_progress()
             if st.session_state.get('show_heartbeat_section', False):
@@ -2578,7 +3263,9 @@ def heart_health_analyzer():
                 display_question()
         else:
             display_assessment_summary()
+    
     main_heart()
+
 # --------------------------
 # BRAIN HEALTH ANALYZER
 # --------------------------
@@ -2587,6 +3274,7 @@ def brain_health_analyzer():
     @st.cache_resource
     def initialize_model():
         return "provider-5/gpt-4o" # Use A4F model
+    
     # Define comprehensive brain health questions
     BRAIN_QUESTIONS = [
         {
@@ -2717,6 +3405,7 @@ def brain_health_analyzer():
             "options": ["Yes, perform cognitive tests", "No, skip cognitive tests"]
         }
     ]
+    
     def initialize_session_state():
         """Initialize session state variables"""
         if 'current_question' not in st.session_state:
@@ -2735,6 +3424,7 @@ def brain_health_analyzer():
             st.session_state.cognitive_tests_completed = False
         if 'show_cognitive_section' not in st.session_state:
             st.session_state.show_cognitive_section = False
+
     def display_progress():
         """Display progress bar"""
         progress = (st.session_state.current_question / len(BRAIN_QUESTIONS)) * 100
@@ -2747,6 +3437,7 @@ def brain_health_analyzer():
         </p>
         """
         st.markdown(progress_html, unsafe_allow_html=True)
+
     def analyze_cognitive_function():
         """Analyze cognitive function through interactive tests"""
         st.markdown("""
@@ -2762,12 +3453,13 @@ def brain_health_analyzer():
         3. Don't use external aids
         4. Take your time
         """)
+        
         with st.expander("🔢 Digit Span Test (Working Memory)"):
             st.write("""
             **Test:** Repeat sequences of numbers in the same order.
             The test will progressively get harder with longer sequences.
             """)
-         
+        
             if st.button("Start Digit Span Test"):
                 sequences = [
                     [3, 7, 2],
@@ -2776,14 +3468,14 @@ def brain_health_analyzer():
                     [4, 1, 8, 3, 6, 9],
                     [7, 2, 5, 8, 3, 6, 1]
                 ]
-             
+            
                 score = 0
                 for seq in sequences:
                     st.write(f"Remember this sequence: {seq}")
                     time.sleep(2)
                     st.write("Sequence hidden...")
                     time.sleep(1)
-                 
+                
                     user_input = st.text_input(f"Enter the {len(seq)}-digit sequence (separated by spaces):", key=f"digits_{seq[0]}")
                     if user_input:
                         user_nums = [int(n) for n in user_input.split() if n.isdigit()]
@@ -2793,32 +3485,33 @@ def brain_health_analyzer():
                         else:
                             st.error(f"Incorrect. The sequence was: {seq}")
                             break
-             
+            
                 digit_span_score = min(score + 2, 7) # Normal range is 5-7
                 st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
                 st.session_state.cognitive_data['digit_span'] = digit_span_score
                 st.metric("Digit Span Score", digit_span_score, "Normal range: 5-7")
+        
         with st.expander("🔄 Trail Making Test (Processing Speed)"):
             st.write("""
             **Test:** Connect numbers in order as quickly as possible.
             """)
-         
+        
             if st.button("Start Trail Making Test"):
                 # Generate a random sequence of numbers 1-8
                 numbers = list(range(1, 9))
                 np.random.shuffle(numbers)
-             
+            
                 st.write("Connect the numbers in order from 1 to 8:")
                 st.write(" → ".join([str(n) for n in numbers]))
-             
+            
                 start_time = time.time()
                 user_input = st.text_input("Enter the numbers in order separated by spaces (e.g., '1 2 3...'):")
-             
+            
                 if user_input:
                     end_time = time.time()
                     time_taken = end_time - start_time
                     user_nums = [int(n) for n in user_input.split() if n.isdigit()]
-                 
+                
                     if user_nums == list(range(1, 9)):
                         trail_score = max(0, 100 - int(time_taken))
                         st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
@@ -2826,71 +3519,76 @@ def brain_health_analyzer():
                         st.metric("Trail Making Score", trail_score, f"Time taken: {time_taken:.1f} seconds")
                     else:
                         st.error("Incorrect sequence. Please try again.")
+        
         with st.expander("📝 Verbal Fluency Test (Language)"):
             st.write("""
             **Test:** Name as many animals as you can in 60 seconds.
             """)
-         
+        
             if st.button("Start Verbal Fluency Test"):
                 st.write("List as many animals as you can think of in the text box below:")
-             
+            
                 start_time = time.time()
                 end_time = start_time + 60
                 animal_list = []
-             
+            
                 while time.time() < end_time:
                     animal = st.text_input(f"Time remaining: {int(end_time - time.time())} seconds", key=f"animal_{time.time()}")
                     if animal:
                         animal_list.append(animal.strip().lower())
-             
+            
                 unique_animals = len(set(animal_list))
                 fluency_score = min(unique_animals * 5, 100) # 20+ is normal
                 st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
                 st.session_state.cognitive_data['verbal_fluency'] = fluency_score
                 st.metric("Verbal Fluency Score", fluency_score, f"Unique animals: {unique_animals}")
+        
         with st.expander("🖼️ Visual Memory Test"):
             st.write("""
             **Test:** Remember and recall items.
             """)
-         
+        
             if st.button("Start Visual Memory Test"):
                 # Sample items
                 items = ["apple", "car", "tree", "house", "dog"]
                 st.write("Study these items for 10 seconds:")
                 st.write(", ".join(items))
-             
+            
                 time.sleep(10)
                 st.write("Items hidden...")
                 time.sleep(2)
-             
+            
                 recalled = st.text_input("Enter all items you remember (separated by commas):")
                 recalled_items = [item.strip().lower() for item in recalled.split(",") if recalled]
-             
+            
                 correct = sum(1 for item in recalled_items if item in items)
                 memory_score = int((correct / len(items)) * 100)
                 st.session_state.cognitive_data = st.session_state.get('cognitive_data', {})
                 st.session_state.cognitive_data['visual_memory'] = memory_score
                 st.metric("Visual Memory Score", memory_score, f"Recalled {correct} of {len(items)} items")
+        
         if st.session_state.get('cognitive_data'):
             if st.button("Complete Cognitive Assessment", key="complete_cognitive"):
                 st.session_state.cognitive_tests_completed = True
                 st.session_state.show_cognitive_section = False
                 st.session_state.current_question += 1
                 st.rerun()
+
     def display_cognitive_results():
         """Display cognitive test results with analysis"""
         if not st.session_state.get('cognitive_data'):
             return
+        
         data = st.session_state.cognitive_data
         overall_score = int(np.mean([v for v in data.values() if isinstance(v, int)]))
-     
+    
         st.markdown(f"""
         <div class="cognitive-display pulse-animation">
             🧠 {overall_score}/100
         </div>
         """, unsafe_allow_html=True)
         st.markdown("### Cognitive Test Results")
-     
+    
         # Risk level interpretation
         if overall_score < 70:
             interpretation = "⚠️ **Below Average Cognitive Function**"
@@ -2916,31 +3614,38 @@ def brain_health_analyzer():
             - Continue brain-healthy habits
             - Monitor for any changes
             """
+        
         st.markdown(f"""
         <div style="background-color: {color}20; padding: 1.5rem; border-radius: 8px; border-left: 4px solid {color}; margin: 1rem 0;">
             <h4>{interpretation}</h4>
             <div style="margin-left: 1rem;">{details}</div>
         </div>
         """, unsafe_allow_html=True)
+        
         st.markdown("---")
         st.subheader("📊 Detailed Analysis")
+        
         if 'digit_span' in data:
             st.markdown("#### Working Memory (Digit Span)")
             progress = min(data['digit_span'] * 14, 100) # Convert 7-point scale to percentage
             st.progress(progress)
             st.caption(f"Score: {data['digit_span']}/7 - {'Normal' if data['digit_span'] >=5 else 'Below normal'}")
+        
         if 'trail_making' in data:
             st.markdown("#### Processing Speed (Trail Making)")
             st.progress(data['trail_making'])
             st.caption(f"Score: {data['trail_making']}/100 - {'Normal' if data['trail_making'] >=70 else 'Below normal'}")
+        
         if 'verbal_fluency' in data:
             st.markdown("#### Verbal Fluency")
             st.progress(data['verbal_fluency'])
             st.caption(f"Score: {data['verbal_fluency']}/100 - {'Normal' if data['verbal_fluency'] >=70 else 'Below normal'}")
+        
         if 'visual_memory' in data:
             st.markdown("#### Visual Memory")
             st.progress(data['visual_memory'])
             st.caption(f"Score: {data['visual_memory']}/100 - {'Normal' if data['visual_memory'] >=70 else 'Below normal'}")
+        
         st.markdown("---")
         action_col1, action_col2 = st.columns(2)
         with action_col1:
@@ -2969,6 +3674,7 @@ def brain_health_analyzer():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+
     def cognitive_tests_section():
         """Handle cognitive testing section"""
         st.markdown("## 🧠 Cognitive Function Assessment")
@@ -2980,6 +3686,7 @@ def brain_health_analyzer():
                 st.session_state.show_cognitive_section = False
                 st.session_state.current_question += 1
                 st.rerun()
+
     def display_question():
         """Display current question"""
         if st.session_state.current_question < len(BRAIN_QUESTIONS):
@@ -2989,6 +3696,7 @@ def brain_health_analyzer():
                 if st.session_state.current_question >= len(BRAIN_QUESTIONS):
                     st.session_state.assessment_complete = True
                 st.rerun()
+            
             question_html = f"""
             <div class="question-container">
                 <h3>Question {question['id']}</h3>
@@ -2996,6 +3704,7 @@ def brain_health_analyzer():
             </div>
             """
             st.markdown(question_html, unsafe_allow_html=True)
+            
             if question['type'] == 'number':
                 answer = st.number_input(
                     "Your answer:",
@@ -3010,6 +3719,7 @@ def brain_health_analyzer():
                     question['options'],
                     key=f"q_{question['id']}"
                 )
+            
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
                 if st.session_state.current_question > 0:
@@ -3027,16 +3737,19 @@ def brain_health_analyzer():
                             st.session_state.current_question += 1
                     else:
                         st.session_state.current_question += 1
+                    
                     if st.session_state.current_question >= len(BRAIN_QUESTIONS):
                         st.session_state.assessment_complete = True
                     st.rerun()
         return st.session_state.current_question >= len(BRAIN_QUESTIONS)
+
     def format_answers():
         """Format answers for AI analysis"""
         formatted_answers = []
         for q_id, answer in st.session_state.answers.items():
             question = next(q for q in BRAIN_QUESTIONS if q['id'] == q_id)
             formatted_answers.append(f"Q{question['id']}: {question['question']}\nA: {answer}\n")
+        
         if st.session_state.cognitive_data:
             cog_data = st.session_state.cognitive_data
             formatted_answers.append("\nCOGNITIVE TEST DATA:")
@@ -3049,7 +3762,9 @@ def brain_health_analyzer():
                 formatted_answers.append(f"- Verbal Fluency: {cog_data['verbal_fluency']}/100")
             if 'visual_memory' in cog_data:
                 formatted_answers.append(f"- Visual Memory: {cog_data['visual_memory']}/100")
+        
         return "\n".join(formatted_answers)
+
     def get_ai_assessment(answers_text):
         """Get AI assessment from A4F"""
         try:
@@ -3083,21 +3798,26 @@ def brain_health_analyzer():
         except Exception as e:
             st.error(f"Error generating assessment: {str(e)}")
             return f"Error generating assessment: {str(e)}"
+
     def display_assessment_summary():
         """Display assessment summary and get AI response"""
         st.markdown('<h2 style="color: black;">Assessment Summary</h2>', unsafe_allow_html=True)
+        
         with st.expander("📋 View Your Responses", expanded=True):
             for q_id, answer in st.session_state.answers.items():
                 question = next(q for q in BRAIN_QUESTIONS if q['id'] == q_id)
                 st.markdown(f"**{question['question']}** \n{answer}")
+        
         if st.session_state.cognitive_data:
             with st.expander("🧠 View Cognitive Test Results"):
                 display_cognitive_results()
+        
         if st.session_state.ai_response is None:
             with st.spinner("🧠 Analyzing your responses with AI..."):
                 answers_text = format_answers()
                 st.session_state.ai_response = get_ai_assessment(answers_text)
                 st.rerun()
+        
         if st.session_state.ai_response:
             st.markdown("## 🔍 AI Neurological Assessment")
             st.markdown(st.session_state.ai_response)
@@ -3106,17 +3826,20 @@ def brain_health_analyzer():
                 ⚠️ **Urgent Medical Attention Recommended**
                 Based on your responses, we recommend seeking immediate neurological evaluation.
                 """)
+        
         st.markdown("""
         <div style="margin-top: 2rem; padding: 1.5rem; background: #f5f5f5; border-radius: 10px;">
             💡 <strong>Remember:</strong> This is a preliminary assessment tool. Always consult with qualified neurologists
             or healthcare professionals for proper diagnosis and treatment. Regular cognitive screenings are recommended as you age.
         </div>
         """, unsafe_allow_html=True)
+        
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
                 if key not in ['pro_unlocked', 'model_version', 'image_style', 'video_style']: # Preserve essential states
                     del st.session_state[key]
             st.rerun()
+
     def main_brain():
         """Main application function"""
         initialize_session_state()
@@ -3134,6 +3857,7 @@ def brain_health_analyzer():
             </ul>
         </div>
         """, unsafe_allow_html=True)
+        
         st.markdown("""
         <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides preliminary health assessments only.
@@ -3141,6 +3865,7 @@ def brain_health_analyzer():
             Always consult with qualified neurologists or healthcare professionals for medical concerns.
         </div>
         """, unsafe_allow_html=True)
+        
         if not st.session_state.assessment_complete:
             display_progress()
             if st.session_state.get('show_cognitive_section', False):
@@ -3149,7 +3874,9 @@ def brain_health_analyzer():
                 display_question()
         else:
             display_assessment_summary()
+    
     main_brain()
+
 # --------------------------
 # CANCER RISK ASSESSOR
 # --------------------------
@@ -3158,6 +3885,7 @@ def cancer_risk_assessor():
     @st.cache_resource
     def initialize_model():
         return "provider-5/gpt-4o" # Use A4F model
+    
     # Define comprehensive cancer screening questions
     CANCER_QUESTIONS = [
         {
@@ -3367,6 +4095,7 @@ def cancer_risk_assessor():
             "symptom": False
         }
     ]
+    
     def initialize_session_state():
         """Initialize session state variables"""
         if 'current_question' not in st.session_state:
@@ -3389,6 +4118,7 @@ def cancer_risk_assessor():
             st.session_state.risk_score = 0
         if 'concerned_areas' not in st.session_state:
             st.session_state.concerned_areas = []
+
     def display_progress():
         """Display progress bar"""
         progress = (st.session_state.current_question / len(CANCER_QUESTIONS)) * 100
@@ -3401,6 +4131,7 @@ def cancer_risk_assessor():
         </p>
         """
         st.markdown(progress_html, unsafe_allow_html=True)
+
     def analyze_images():
         """Analyze uploaded images for concerning features"""
         st.markdown("""
@@ -3416,26 +4147,27 @@ def cancer_risk_assessor():
         3. For skin lesions, include a ruler for scale if available
         4. Images should be in JPG or PNG format
         """)
+        
         uploaded_files = st.file_uploader("Upload images (max 4)",
                                         type=["jpg", "jpeg", "png"],
                                         accept_multiple_files=True)
-     
+    
         if uploaded_files:
             st.warning("""
             ⚠️ **Important Note:** This image analysis is for preliminary screening only.
             It cannot replace a professional medical examination or biopsy.
             """)
-         
+        
             cols = st.columns(min(4, len(uploaded_files)))
             for i, uploaded_file in enumerate(uploaded_files):
                 with cols[i]:
                     image = Image.open(uploaded_file)
                     st.image(image, caption=f"Image {i+1}", use_container_width=True)
-         
+        
             if st.button("Analyze Images"):
                 with st.spinner("🔍 Analyzing images with AI..."):
                     time.sleep(2)
-                 
+                
                     analysis_results = []
                     for i, uploaded_file in enumerate(uploaded_files):
                         img_name = uploaded_file.name.lower()
@@ -3461,35 +4193,36 @@ def cancer_risk_assessor():
                                 "recommendation": "Monitor for changes"
                             }
                         analysis_results.append(result)
-                 
+                
                     st.session_state.image_analysis = analysis_results
                     st.session_state.image_analysis_completed = True
                     st.rerun()
-     
+    
         if st.session_state.get('image_analysis_completed', False):
             display_image_results()
             if st.button("Continue with Assessment", key="continue_img_btn"):
                 st.session_state.show_image_section = False
                 st.session_state.current_question += 1
                 st.rerun()
+
     def display_image_results():
         """Display results of image analysis"""
         if not st.session_state.get('image_analysis'):
             return
-     
+    
         st.markdown("## 📷 Image Analysis Results")
-     
+    
         for i, result in enumerate(st.session_state.image_analysis):
             with st.expander(f"Image {i+1} Analysis", expanded=True):
                 col1, col2 = st.columns([1, 3])
-             
+            
                 with col1:
                     concern_color = {
                         "Low": "#4CAF50",
                         "Moderate": "#FFC107",
                         "High": "#F44336"
                     }.get(result["concern_level"], "#9E9E9E")
-                 
+                
                     st.markdown(f"""
                     <div style="text-align: center;">
                         <div style="font-size: 2rem; color: {concern_color};">
@@ -3498,66 +4231,68 @@ def cancer_risk_assessor():
                         <div>{result["type"]}</div>
                     </div>
                     """, unsafe_allow_html=True)
-             
+            
                 with col2:
                     st.markdown(f"""
                     **Characteristics:**
                     {result["characteristics"]}
-                 
+                
                     **Recommendation:**
                     {result["recommendation"]}
                     """)
-         
+        
             st.markdown("---")
+
     def calculate_risk_score():
         """Calculate preliminary cancer risk score based on answers"""
         risk_factors = 0
         total_possible = 0
         concerning_symptoms = []
-     
+    
         for q_id, answer in st.session_state.answers.items():
             question = next(q for q in CANCER_QUESTIONS if q['id'] == q_id)
-         
+        
             if question.get('risk_factor', False):
                 total_possible += 1
                 options = question['options']
                 answer_index = options.index(answer)
                 risk_level = answer_index / len(options)
-             
+            
                 if risk_level > 0.5: # Higher than middle option
                     risk_factors += 1
                     if question.get('related_to'):
                         concerning_symptoms.extend(question['related_to'])
-         
+        
             if question.get('symptom', False):
                 options = question['options']
                 answer_index = options.index(answer)
                 symptom_level = answer_index / len(options)
-             
+            
                 if symptom_level > 0.5: # Higher than middle option
                     if question.get('related_to'):
                         concerning_symptoms.extend(question['related_to'])
-     
+    
         # Calculate risk score (0-100)
         if total_possible > 0:
             risk_score = min(100, (risk_factors / total_possible) * 100 + len(set(concerning_symptoms)) * 5)
         else:
             risk_score = 0
-     
+    
         st.session_state.risk_score = risk_score
         st.session_state.concerned_areas = list(set(concerning_symptoms)) # Unique cancer types
+
     def display_risk_results():
         """Display cancer risk assessment results"""
         calculate_risk_score()
         risk_score = st.session_state.risk_score
-     
+    
         st.markdown(f"""
         <div class="risk-display pulse-animation">
             🩺 {int(risk_score)}/100
         </div>
         """, unsafe_allow_html=True)
         st.markdown("### Cancer Risk Assessment")
-     
+    
         # Risk level interpretation
         if risk_score < 30:
             risk_level = "Low Risk"
@@ -3585,16 +4320,18 @@ def cancer_risk_assessor():
             - Need for diagnostic testing
             - Immediate lifestyle changes advised
             """
+        
         st.markdown(f"""
         <div style="background-color: {color}20; padding: 1.5rem; border-radius: 8px; border-left: 4px solid {color}; margin: 1rem 0;">
             <h4>{risk_level}</h4>
             <div style="margin-left: 1rem;">{details}</div>
         </div>
         """, unsafe_allow_html=True)
+        
         # Display concerned areas
         if st.session_state.concerned_areas:
             st.markdown("### 🚨 Areas of Concern")
-         
+        
             cols = st.columns(3)
             cancer_types = {
                 "Breast cancer": "👩",
@@ -3604,7 +4341,7 @@ def cancer_risk_assessor():
                 "Skin cancer": "☀️",
                 "Other": "🩺"
             }
-         
+        
             for i, area in enumerate(st.session_state.concerned_areas):
                 with cols[i % 3]:
                     emoji = cancer_types.get(area, "🩺")
@@ -3613,20 +4350,22 @@ def cancer_risk_assessor():
                         <h4>{emoji} {area}</h4>
                     </div>
                     """, unsafe_allow_html=True)
+        
         # Display body map (simplified)
         st.markdown("### 🏷️ Body Map")
         st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Human_body_body_silhouette.svg/1200px-Human_body_body_silhouette.svg.png",
                  use_container_width=True, caption="Areas of concern highlighted in your assessment")
-     
+    
         st.markdown("---")
         st.subheader("📊 Detailed Risk Factors")
+        
         # Display risk factors
         for q_id, answer in st.session_state.answers.items():
             question = next(q for q in CANCER_QUESTIONS if q['id'] == q_id)
             options = question['options']
             answer_index = options.index(answer)
             risk_level = answer_index / len(options)
-         
+        
             if risk_level > 0.5 or question.get('symptom', False):
                 st.markdown(f"""
                 <div style="padding: 1rem; background: #f5f5f5; border-radius: 8px; margin-bottom: 0.5rem;">
@@ -3635,6 +4374,7 @@ def cancer_risk_assessor():
                     {f"<br>Related to: {', '.join(question['related_to'])}" if question.get('related_to') else ""}
                 </div>
                 """, unsafe_allow_html=True)
+        
         st.markdown("---")
         action_col1, action_col2 = st.columns(2)
         with action_col1:
@@ -3667,6 +4407,7 @@ def cancer_risk_assessor():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+
     def display_question():
         """Display current question"""
         if st.session_state.current_question < len(CANCER_QUESTIONS):
@@ -3676,6 +4417,7 @@ def cancer_risk_assessor():
                 if st.session_state.current_question >= len(CANCER_QUESTIONS):
                     st.session_state.assessment_complete = True
                 st.rerun()
+            
             question_html = f"""
             <div class="question-container">
                 <h3>Question {question['id']}</h3>
@@ -3683,6 +4425,7 @@ def cancer_risk_assessor():
             </div>
             """
             st.markdown(question_html, unsafe_allow_html=True)
+            
             if question['type'] == 'number':
                 answer = st.number_input(
                     "Your answer:",
@@ -3697,6 +4440,7 @@ def cancer_risk_assessor():
                     question['options'],
                     key=f"q_{question['id']}"
                 )
+            
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
                 if st.session_state.current_question > 0:
@@ -3714,24 +4458,30 @@ def cancer_risk_assessor():
                             st.session_state.current_question += 1
                     else:
                         st.session_state.current_question += 1
+                    
                     if st.session_state.current_question >= len(CANCER_QUESTIONS):
                         st.session_state.assessment_complete = True
                     st.rerun()
         return st.session_state.current_question >= len(CANCER_QUESTIONS)
+
     def format_answers():
         """Format answers for AI analysis"""
         formatted_answers = []
         for q_id, answer in st.session_state.answers.items():
             question = next(q for q in CANCER_QUESTIONS if q['id'] == q_id)
             formatted_answers.append(f"Q{question['id']}: {question['question']}\nA: {answer}\n")
+        
         if st.session_state.image_analysis:
             formatted_answers.append("\nIMAGE ANALYSIS DATA:")
             for i, result in enumerate(st.session_state.image_analysis):
                 formatted_answers.append(f"- Image {i+1}: {result['type']} ({result['concern_level']} concern)")
+        
         formatted_answers.append(f"\nCALCULATED RISK SCORE: {st.session_state.risk_score}/100")
         if st.session_state.concerned_areas:
             formatted_answers.append(f"AREAS OF CONCERN: {', '.join(st.session_state.concerned_areas)}")
+        
         return "\n".join(formatted_answers)
+
     def get_ai_assessment(answers_text):
         """Get AI assessment from A4F"""
         try:
@@ -3768,21 +4518,26 @@ def cancer_risk_assessor():
         except Exception as e:
             st.error(f"Error generating assessment: {str(e)}")
             return f"Error generating assessment: {str(e)}"
+
     def display_assessment_summary():
         """Display assessment summary and get AI response"""
         st.markdown('<h2 style="color: black;">Assessment Summary</h2>', unsafe_allow_html=True)
+        
         with st.expander("📋 View Your Responses", expanded=True):
             for q_id, answer in st.session_state.answers.items():
                 question = next(q for q in CANCER_QUESTIONS if q['id'] == q_id)
                 st.markdown(f"**{question['question']}** \n{answer}")
+        
         if st.session_state.image_analysis:
             with st.expander("📷 View Image Analysis Results"):
                 display_image_results()
+        
         if st.session_state.ai_response is None:
             with st.spinner("🩺 Analyzing your responses with AI..."):
                 answers_text = format_answers()
                 st.session_state.ai_response = get_ai_assessment(answers_text)
                 st.rerun()
+        
         if st.session_state.ai_response:
             st.markdown("## 🔍 AI Oncology Assessment")
             st.markdown(st.session_state.ai_response)
@@ -3791,6 +4546,7 @@ def cancer_risk_assessor():
                 ⚠️ **Urgent Medical Attention Recommended**
                 Based on your responses, we recommend seeking immediate oncology evaluation.
                 """)
+        
         st.markdown("""
         <div style="margin-top: 2rem; padding: 1.5rem; background: #f5f5f5; border-radius: 10px;">
             💡 <strong>Remember:</strong> This is a risk assessment tool only. It cannot diagnose cancer.
@@ -3798,11 +4554,13 @@ def cancer_risk_assessor():
             Early detection through screening saves lives.
         </div>
         """, unsafe_allow_html=True)
+        
         if st.button("🔄 Start New Assessment", key="reset_btn"):
             for key in list(st.session_state.keys()):
                 if key not in ['pro_unlocked', 'model_version', 'image_style', 'video_style']: # Preserve essential states
                     del st.session_state[key]
             st.rerun()
+
     def main_cancer():
         """Main application function"""
         initialize_session_state()
@@ -3820,6 +4578,7 @@ def cancer_risk_assessor():
             </ul>
         </div>
         """, unsafe_allow_html=True)
+        
         st.markdown("""
         <div style="background-color: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 2rem;">
             <strong>⚠️ Medical Disclaimer:</strong> This tool provides cancer risk assessment only.
@@ -3827,6 +4586,7 @@ def cancer_risk_assessor():
             Always consult with qualified oncologists or healthcare professionals for medical concerns.
         </div>
         """, unsafe_allow_html=True)
+        
         if not st.session_state.assessment_complete:
             display_progress()
             if st.session_state.get('show_image_section', False):
@@ -3835,19 +4595,23 @@ def cancer_risk_assessor():
                 display_question()
         else:
             display_assessment_summary()
+    
     main_cancer()
+
 # --------------------------
 # FRAMELAB MODULE
 # --------------------------
 def framelab():
     st.title("🎬 FrameLab: AI-Powered Media Creation")
     st.markdown("Generate, edit images and videos with cutting-edge AI models.")
+    
     tab1, tab2, tab3 = st.tabs(["🖼️ Image Generation", "✏️ Image Editing", "🎬 Video Generation"])
-  
+ 
     with tab1:
         st.subheader("🖼️ Generate New Image")
         prompt = st.text_area("Describe the image you want to create:", height=100, placeholder="E.g., A futuristic cityscape at sunset with flying cars")
         style = st.selectbox("Art Style", ["Sci-Fi", "Realistic", "Fantasy", "Abstract", "Oil Painting", "Digital Art"])
+        
         col1, col2 = st.columns([1, 1])
         with col1:
             if st.button("🎨 Generate Image", type="primary"):
@@ -3858,23 +4622,23 @@ def framelab():
                         st.success("Image generated successfully!")
                     else:
                         st.error("Failed to generate image. Please try again.")
-     
+    
         if hasattr(st.session_state, 'generated_image') and st.session_state.generated_image:
             st.image(st.session_state.generated_image, caption="Generated Image", use_container_width=True)
             if st.button("🔄 Generate Another"):
                 del st.session_state.generated_image
                 st.rerun()
-  
+ 
     with tab2:
         st.subheader("✏️ Edit Existing Image")
         uploaded_image = st.file_uploader("Upload an image to edit:", type=["jpg", "jpeg", "png"])
-     
+    
         if uploaded_image:
             image = Image.open(uploaded_image)
             st.image(image, caption="Original Image", use_container_width=True)
-         
+        
             edit_prompt = st.text_area("Describe the edits you want (e.g., 'add a sunset background, make the sky vibrant'):", height=100)
-         
+        
             if st.button("✏️ Apply Edits", type="primary"):
                 if edit_prompt:
                     with st.spinner("Editing your image..."):
@@ -3886,7 +4650,7 @@ def framelab():
                             st.error("Failed to edit image. Please try again.")
                 else:
                     st.warning("Please provide edit instructions.")
-     
+    
         if hasattr(st.session_state, 'edited_image') and st.session_state.edited_image:
             st.image(st.session_state.edited_image, caption="Edited Image", use_container_width=True)
             col1, col2 = st.columns(2)
@@ -3904,11 +4668,11 @@ def framelab():
                 if st.button("🔄 Edit Again"):
                     del st.session_state.edited_image
                     st.rerun()
-  
+ 
     with tab3:
         st.subheader("🎬 Generate Video")
         prompt = st.text_area("Describe the video scene:", height=100, placeholder="E.g., A woman walking through a busy Tokyo street at night, wearing dark sunglasses")
-      
+     
         if st.button("🎥 Generate Video", type="primary"):
             with st.spinner("Generating your video... This may take a few minutes."):
                 video_file = generate_video_replicate(prompt, "")
@@ -3924,7 +4688,7 @@ def framelab():
                     )
                 else:
                     st.error("Failed to generate video. Please try again.")
-      
+     
         if hasattr(st.session_state, 'generated_video') and st.session_state.generated_video:
             if st.button("🔄 Generate Another Video"):
                 # Clean up the file
@@ -3932,20 +4696,21 @@ def framelab():
                     os.remove(st.session_state.generated_video)
                 del st.session_state.generated_video
                 st.rerun()
+
 # --------------------------
 # QUANTUM CREATIVESTUDIO MODULE
 # --------------------------
 def quantum_creativestudio():
     st.title("🎨 Quantum CreativeStudio")
     st.markdown("Advanced creative AI studio for multimedia generation and editing")
-  
+ 
     # Display the CreativeStudio in an iframe
     st.components.v1.iframe(
         "https://creativestudio-3ata6gv6.manus.space",
         height=800,
         scrolling=True
     )
-  
+ 
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -3954,20 +4719,21 @@ def quantum_creativestudio():
         st.info("**Tools:**\n- AI-powered design\n- Real-time collaboration\n- Cloud rendering")
     with col3:
         st.info("**Support:**\n- Multi-format export\n- Team workspace\n- Version control")
+
 # --------------------------
 # QUANTUM LM MODULE
 # --------------------------
 def quantum_lm():
     st.title("🧠 Quantum LM")
     st.markdown("Advanced language model with quantum-inspired architecture")
-  
+ 
     # Display the Quantum LM in an iframe
     st.components.v1.iframe(
         "https://quantumlm-w2cjzzsd.manus.space",
         height=800,
         scrolling=True
     )
-  
+ 
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -3976,6 +4742,7 @@ def quantum_lm():
         st.info("**Features:**\n- Contextual memory\n- Emotional intelligence\n- Creative writing")
     with col3:
         st.info("**Applications:**\n- Research assistance\n- Code generation\n- Content creation")
+
 # --------------------------
 # HISTORY DISPLAY
 # --------------------------
@@ -3989,6 +4756,7 @@ def show_history():
             st.markdown(f"**{item['timestamp']}**")
             st.write(item['query'])
             st.markdown("---")
+
 # --------------------------
 # MAIN APP NAVIGATION
 # --------------------------
@@ -3997,11 +4765,11 @@ if st.session_state.pro_unlocked:
         st.markdown("### 🚀 Quantora Modes")
         mode = st.radio(
             "Select Mode",
-            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", "Quantum LM", "Quantomise My Trip", "Coding", "App Building"],
+            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", "Quantum LM", "Quantomise My Trip", "Coding", "App Building", "Quantora Weather"],
             index=0,
             key="current_mode"
         )
-     
+    
         st.markdown("---")
         st.markdown("### 📁 Document & Image Analysis")
         uploaded_file = st.file_uploader(
@@ -4010,20 +4778,20 @@ if st.session_state.pro_unlocked:
             help="Upload documents or images for AI analysis and enhancement",
             key="document_uploader"
         )
-     
+    
         if uploaded_file:
             with st.spinner("🔍 Analyzing content..."):
                 content = process_uploaded_file(uploaded_file)
                 st.session_state.uploaded_content = content
                 st.success(f"✅ {uploaded_file.name} processed!")
-             
+            
                 if uploaded_file.type.startswith('image/'):
                     display_image_enhancement_controls(st.session_state.uploaded_image, st.session_state.enhancement_values)
                 else:
                     with st.expander("📄 Preview Content"):
                         preview_content = content[:1000] + "..." if len(content) > 1000 else content
                         st.text_area("Document Content", preview_content, height=200, disabled=True)
- 
+        
         if st.button("🗑️ Clear Uploads", use_container_width=True):
             st.session_state.uploaded_content = ""
             st.session_state.uploaded_image = None
@@ -4049,6 +4817,7 @@ else:
         else:
             for item in history[::-1]: # Recent first
                 st.write(f"{item['timestamp']}: {item['query']}")
+
 # Main Content Area
 if mode == "AI":
     if not st.session_state.chat:
@@ -4059,9 +4828,9 @@ if mode == "AI":
                 <p>Where knowledge ends.</p>
             </div>
             """.format(app_name), unsafe_allow_html=True)
-         
+        
             col1, col2, col3, col4 = st.columns(4)
-         
+        
             with col1:
                 if st.button("💠 Simulate a quantum network"):
                     prompt = "Simulate a quantum network"
@@ -4072,7 +4841,7 @@ if mode == "AI":
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
                     save_history(prompt)
                     st.rerun()
-         
+        
             with col2:
                 if st.button("🧬 Simulate a molecular model"):
                     prompt = "Simulate a molecular model"
@@ -4083,7 +4852,7 @@ if mode == "AI":
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
                     save_history(prompt)
                     st.rerun()
-         
+        
             with col3:
                 if st.button("🌍 Predict climate patterns"):
                     prompt = "Predict climate patterns"
@@ -4094,7 +4863,7 @@ if mode == "AI":
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
                     save_history(prompt)
                     st.rerun()
-         
+        
             with col4:
                 if st.button("📜 Draft AI ethics code"):
                     prompt = "Draft AI ethics code"
@@ -4105,14 +4874,15 @@ if mode == "AI":
                     st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
                     save_history(prompt)
                     st.rerun()
-         
+        
             st.markdown("<p style='text-align: center; margin-top: 2rem;'><strong>Ask Quantora anything...</strong></p>",
                         unsafe_allow_html=True)
+    
     for i, chat_item in enumerate(st.session_state.chat):
         if len(chat_item) >= 3:
             speaker, message, timestamp = chat_item[:3]
             response_time = chat_item[3] if len(chat_item) > 3 else None
-         
+        
             if speaker == "user":
                 st.markdown(f"""
                 <div class="chat-message user-message">
@@ -4123,10 +4893,10 @@ if mode == "AI":
                     <div>{message}</div>
                 </div>
                 """, unsafe_allow_html=True)
-         
+        
             elif speaker in ["quantora", "ai"]:
                 formatted_parts = format_response_with_code(message)
-             
+            
                 st.markdown(f"""
                 <div class="chat-message ai-message">
                     <div class="message-header">
@@ -4134,14 +4904,15 @@ if mode == "AI":
                         <span class="message-time">{timestamp.strftime('%H:%M:%S')} • ⏱️ {response_time:.1f}s</span>
                     </div>
                 """, unsafe_allow_html=True)
-             
+            
                 for part in formatted_parts:
                     if part[0] == 'text':
                         st.markdown(f"<div>{part[1]}</div>", unsafe_allow_html=True)
                     elif part[0] == 'code':
                         st.code(part[1], language=part[2])
-             
+            
                 st.markdown("</div>", unsafe_allow_html=True)
+    
     st.markdown("---")
     col1, col2 = st.columns([0.85, 0.15])
     with col1:
@@ -4155,31 +4926,33 @@ if mode == "AI":
     with col2:
         st.write("")
         send_button = st.button("💬 Send", use_container_width=True, type="primary")
+    
     if send_button and user_input.strip():
         start_time = time.time()
         st.session_state.chat.append(("user", user_input.strip(), datetime.now()))
-     
+    
         with st.spinner("⚛️ Quantumizing Through Timeless Refinement Toward the Ultimate Answer."):
             context = st.session_state.uploaded_content
             image = st.session_state.uploaded_image if st.session_state.uploaded_image else None
             response = call_quantora_unified(user_input.strip(), context, image)
-     
+    
         response_time = time.time() - start_time
         st.session_state.last_response_time = response_time
         st.session_state.chat.append(("quantora", response, datetime.now(), response_time))
         save_history(user_input.strip())
         st.rerun()
+    
     if st.session_state.chat:
         response_times = []
         for item in st.session_state.chat:
             if len(item) > 3 and item[0] == "quantora" and isinstance(item[3], (int, float)):
                 response_times.append(item[3])
-     
+    
         if response_times:
             avg_time = sum(response_times) / len(response_times)
             min_time = min(response_times)
             max_time = max(response_times)
-         
+        
             st.markdown(f"""
             <div style="background: rgba(30, 41, 59, 0.6); border-radius: 12px; padding: 1rem; margin: 1rem 0; text-align: center;">
                 📊 <strong>Performance Metrics:</strong>
@@ -4189,6 +4962,7 @@ if mode == "AI":
                 Total: <strong>{len(response_times)}</strong>
             </div>
             """, unsafe_allow_html=True)
+    
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         if st.button("🗑️ Clear Chat", use_container_width=True):
@@ -4206,7 +4980,7 @@ if mode == "AI":
                         "Timestamp": item[2].strftime('%Y-%m-%d %H:%M:%S'),
                         "Response_Time": item[3] if len(item) > 3 else None
                     })
-             
+            
                 chat_json = json.dumps(chat_data, indent=2, default=str)
                 st.download_button(
                     label="💾 Download Chat JSON",
@@ -4220,7 +4994,7 @@ if mode == "AI":
         if st.button("ℹ️ About", use_container_width=True):
             st.info("""
             **Quantora AI Elite** v2.4
-         
+        
             Features:
             ✅ Document analysis
             ✅ Image enhancement
@@ -4244,6 +5018,7 @@ if mode == "AI":
                     label_visibility="collapsed",
                     help="Select specialized model versions for different tasks",
                 )
+
 elif mode == "AI Content Detector":
     ai_content_detector_mode()
 elif mode == "AI Humanizer":
@@ -4274,6 +5049,9 @@ elif mode == "Coding":
     coding_workspace()
 elif mode == "App Building":
     app_builder_workspace()
+elif mode == "Quantora Weather":
+    quantora_weather()
+
 # Footer
 st.markdown("---")
 st.markdown(
