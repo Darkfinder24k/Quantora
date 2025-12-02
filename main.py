@@ -24,6 +24,10 @@ import folium
 from streamlit_folium import st_folium
 from dateutil import tz
 
+st.markdown("""
+    <meta name="google-site-verification" content="r0-f193FBPXTVV2BAm3T85RRty-35YaqER_pKSwtIM8" />
+""", unsafe_allow_html=True)
+
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
