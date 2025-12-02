@@ -24,33 +24,6 @@ import folium
 from streamlit_folium import st_folium
 from dateutil import tz
 
-
-VERIF = "r0-f193FBPXTVV2BAm3T85RRty-35YaqER_pKSwtIM8"
-
-# Meta tag (preferred)
-st.markdown(
-    f'<meta name="google-site-verification" content="{VERIF}" />',
-    unsafe_allow_html=True
-)
-
-# JavaScript that tries to add the meta tag into the document head early.
-# NOTE: This may run on the client — if Search Console checks server HTML only,
-# the JS won't help — but often it does help with some proxies/browsers.
-st.components.v1.html(f"""
-<script>
-try {{
-  var m = document.querySelector('meta[name="google-site-verification"]');
-  if (!m) {{
-    m = document.createElement('meta');
-    m.name = 'google-site-verification';
-    m.content = '{VERIF}';
-    document.getElementsByTagName('head')[0].appendChild(m);
-  }}
-}} catch(e) {{ console.log(e); }}
-</script>
-""", height=0)
-# --- end verification snippet ---
-
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
