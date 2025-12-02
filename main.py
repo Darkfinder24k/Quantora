@@ -5052,9 +5052,12 @@ elif mode == "App Building":
 elif mode == "Quantora Weather":
     quantora_weather()
 
-st.markdown("""
+st.markdown(
+    """
     <meta name="google-site-verification" content="r0-f193FBPXTVV2BAm3T85RRty-35YaqER_pKSwtIM8" />
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True
+)
                       
 # Footer
 st.markdown("---")
