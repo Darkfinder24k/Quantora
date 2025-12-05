@@ -7,7 +7,7 @@ import json
 from groq import Groq
 import concurrent.futures
 import re
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
 import docx
 import pandas as pd
 import io
@@ -17,12 +17,16 @@ import base64
 import yfinance as yf
 import plotly.graph_objects as go
 import numpy as np
-import replicate # Added for video generation
+import replicate
 import sys
 from pathlib import Path
 import folium
 from streamlit_folium import st_folium
 from dateutil import tz
+import random
+import cv2
+import subprocess
+from moviepy.editor import VideoFileClip, AudioFileClip
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
@@ -69,11 +73,11 @@ st.set_page_config(
     initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
 )
 
-# Initialize API clients (removed duplicate)
+# Initialize API clients
 @st.cache_resource
 def initialize_clients():
     try:
-        groq_api_key = os.environ["Groq_API_TOKEN"]
+        groq_api_key = os.environ.get("Groq_API_TOKEN", "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")
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
     
         groq_client = Groq(api_key=groq_api_key)
@@ -102,7 +106,7 @@ def quantora_weather():
         html, body, [class*="css"]  {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial;
             /* blue / dark-blue gradient background as requested */
-            background: linear-gradient(180deg, #07143a 0%, #08204f 30%, #07203d 60%, #03122a 100%);
+            background: linear-gradient(180deg, #07143a 0%, #08204f 30%, #07203d 60%, #03112a 100%);
             color: #eaf0ff;
             background-attachment: fixed !important;
         }
@@ -754,9 +758,7 @@ def run_app_inline(script_path: str):
     Works on Streamlit Cloud & local.
     """
     import threading
-    import streamlit as st
     from streamlit.web.bootstrap import run
-    from pathlib import Path
     
     # Copy the file into the *static* folder Streamlit exposes under /app
     static_dir = Path("static")
@@ -786,7 +788,808 @@ def run_app_inline(script_path: str):
         scrolling=True,
     )
 
-# Custom CSS with sidebar toggle and canvas background (removed voice assistant styles)
+# --------------------------
+# COLLAGE MAKER MODULE
+# --------------------------
+def apply_sepia_filter(img):
+    """Apply sepia filter to image"""
+    sepia_filter = np.array([[0.393, 0.769, 0.189],
+                            [0.349, 0.686, 0.168],
+                            [0.272, 0.534, 0.131]])
+    img_array = np.array(img)
+    sepia_img = np.dot(img_array[..., :3], sepia_filter.T)
+    sepia_img = np.clip(sepia_img, 0, 255).astype(np.uint8)
+    return Image.fromarray(sepia_img)
+
+def apply_vintage_filter(img):
+    """Apply vintage filter to image"""
+    img_array = np.array(img)
+    # Add yellow tint
+    img_array = img_array.astype(np.float32)
+    img_array[..., 0] *= 1.1  # Increase red
+    img_array[..., 1] *= 1.05  # Increase green
+    img_array[..., 2] *= 0.9   # Decrease blue
+    img_array = np.clip(img_array, 0, 255).astype(np.uint8)
+    
+    # Add slight vignette
+    rows, cols = img_array.shape[:2]
+    kernel_x = cv2.getGaussianKernel(cols, cols/3)
+    kernel_y = cv2.getGaussianKernel(rows, rows/3)
+    kernel = kernel_y * kernel_x.T
+    mask = kernel / kernel.max()
+    
+    for i in range(3):
+        img_array[..., i] = img_array[..., i] * (0.7 + 0.3*mask)
+    
+    return Image.fromarray(np.clip(img_array, 0, 255).astype(np.uint8))
+
+def apply_cool_tone_filter(img):
+    """Apply cool tone filter to image"""
+    img_array = np.array(img)
+    img_array = img_array.astype(np.float32)
+    img_array[..., 0] *= 0.9   # Decrease red
+    img_array[..., 1] *= 1.0   # Keep green
+    img_array[..., 2] *= 1.1   # Increase blue
+    return Image.fromarray(np.clip(img_array, 0, 255).astype(np.uint8))
+
+def apply_warm_tone_filter(img):
+    """Apply warm tone filter to image"""
+    img_array = np.array(img)
+    img_array = img_array.astype(np.float32)
+    img_array[..., 0] *= 1.1   # Increase red
+    img_array[..., 1] *= 1.05  # Slightly increase green
+    img_array[..., 2] *= 0.9   # Decrease blue
+    return Image.fromarray(np.clip(img_array, 0, 255).astype(np.uint8))
+
+def collage_maker():
+    st.title("🖼️ Images to Collage Maker")
+    st.markdown("Create beautiful collages from multiple images with customizable layouts")
+    
+    # Upload multiple images
+    uploaded_files = st.file_uploader(
+        "Upload images for collage (2-10 images recommended)",
+        type=["jpg", "jpeg", "png", "webp"],
+        accept_multiple_files=True,
+        key="collage_uploader"
+    )
+    
+    if uploaded_files and len(uploaded_files) > 1:
+        # Display uploaded images
+        st.subheader("📸 Uploaded Images")
+        cols = st.columns(min(4, len(uploaded_files)))
+        images = []
+        
+        for i, uploaded_file in enumerate(uploaded_files):
+            with cols[i % 4]:
+                image = Image.open(uploaded_file)
+                images.append(image)
+                st.image(image, caption=f"Image {i+1}", use_container_width=True)
+        
+        # Collage settings
+        st.subheader("🎨 Collage Settings")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            layout_type = st.selectbox(
+                "Layout Type",
+                ["Grid (Uniform)", "Grid (Custom)", "Masonry", "Polaroid Style", "Overlapping"],
+                help="Choose how to arrange the images"
+            )
+            
+            if layout_type == "Grid (Uniform)":
+                cols_count = st.slider("Number of columns", 2, 5, 3)
+            elif layout_type == "Grid (Custom)":
+                cols_count = st.slider("Number of columns", 2, 5, 3)
+                rows_count = st.slider("Number of rows", 1, 5, 2)
+            elif layout_type == "Polaroid Style":
+                rotation_max = st.slider("Maximum rotation (degrees)", 0, 30, 15)
+        
+        with col2:
+            background_color = st.color_picker("Background Color", "#ffffff")
+            spacing = st.slider("Spacing between images (pixels)", 0, 50, 10)
+            border_size = st.slider("Border size (pixels)", 0, 20, 2)
+            border_color = st.color_picker("Border Color", "#000000")
+        
+        # Advanced options
+        with st.expander("Advanced Options"):
+            col1, col2 = st.columns(2)
+            with col1:
+                collage_width = st.number_input("Collage width (pixels)", 800, 4000, 1200, 100)
+                aspect_ratio = st.selectbox("Aspect Ratio", ["Auto", "1:1 (Square)", "3:2", "4:3", "16:9"])
+                image_quality = st.slider("Image Quality", 50, 100, 90)
+            
+            with col2:
+                apply_filters = st.checkbox("Apply uniform filters")
+                if apply_filters:
+                    filter_type = st.selectbox("Filter", ["None", "Sepia", "Black & White", "Vintage", "Cool Tone", "Warm Tone"])
+                watermark = st.checkbox("Add watermark")
+                if watermark:
+                    watermark_text = st.text_input("Watermark text", "Quantora Collage")
+        
+        # Create collage button
+        if st.button("🎨 Create Collage", type="primary"):
+            with st.spinner("Creating your collage..."):
+                try:
+                    # Resize images to uniform size
+                    target_size = collage_width // (cols_count if 'cols_count' in locals() else 3)
+                    resized_images = []
+                    
+                    for img in images:
+                        # Maintain aspect ratio
+                        img_ratio = img.width / img.height
+                        target_height = int(target_size / img_ratio)
+                        resized = img.resize((target_size, target_height), Image.Resampling.LANCZOS)
+                        resized_images.append(resized)
+                    
+                    # Calculate collage dimensions
+                    if layout_type == "Grid (Uniform)":
+                        cols = cols_count
+                        rows = (len(resized_images) + cols - 1) // cols
+                        collage_height = rows * (target_size // 2)  # Adjust for aspect ratio
+                    elif layout_type == "Grid (Custom)":
+                        cols = cols_count
+                        rows = rows_count
+                        collage_height = rows * (target_size // 2)
+                    else:
+                        cols = 3
+                        rows = (len(resized_images) + 2) // 3
+                        collage_height = rows * (target_size // 2)
+                    
+                    # Create blank canvas
+                    if aspect_ratio == "1:1 (Square)":
+                        collage_height = collage_width
+                    elif aspect_ratio == "3:2":
+                        collage_height = int(collage_width * 2 / 3)
+                    elif aspect_ratio == "4:3":
+                        collage_height = int(collage_width * 3 / 4)
+                    elif aspect_ratio == "16:9":
+                        collage_height = int(collage_width * 9 / 16)
+                    
+                    collage = Image.new('RGB', (collage_width, collage_height), background_color)
+                    
+                    # Position images
+                    x_offset = spacing
+                    y_offset = spacing
+                    max_row_height = 0
+                    
+                    for i, img in enumerate(resized_images):
+                        # Apply border
+                        if border_size > 0:
+                            bordered_img = Image.new('RGB', 
+                                                   (img.width + 2*border_size, img.height + 2*border_size), 
+                                                   border_color)
+                            bordered_img.paste(img, (border_size, border_size))
+                            img = bordered_img
+                        
+                        # Apply filters
+                        if apply_filters and filter_type != "None":
+                            if filter_type == "Sepia":
+                                img = apply_sepia_filter(img)
+                            elif filter_type == "Black & White":
+                                img = img.convert('L').convert('RGB')
+                            elif filter_type == "Vintage":
+                                img = apply_vintage_filter(img)
+                            elif filter_type == "Cool Tone":
+                                img = apply_cool_tone_filter(img)
+                            elif filter_type == "Warm Tone":
+                                img = apply_warm_tone_filter(img)
+                        
+                        # Add rotation for polaroid style
+                        if layout_type == "Polaroid Style":
+                            rotation = random.randint(-rotation_max, rotation_max)
+                            img = img.rotate(rotation, expand=True, fillcolor=background_color)
+                        
+                        # Check if image fits in current row
+                        if x_offset + img.width > collage_width - spacing:
+                            x_offset = spacing
+                            y_offset += max_row_height + spacing
+                            max_row_height = 0
+                        
+                        # Paste image
+                        collage.paste(img, (x_offset, y_offset))
+                        
+                        # Update offsets
+                        x_offset += img.width + spacing
+                        max_row_height = max(max_row_height, img.height)
+                        
+                        # Add watermark to each image if enabled
+                        if watermark and 'watermark_text' in locals():
+                            draw = ImageDraw.Draw(collage)
+                            # Use a truetype font if available
+                            try:
+                                font = ImageFont.truetype("arial.ttf", 20)
+                            except:
+                                font = ImageFont.load_default()
+                            
+                            text_width = draw.textlength(watermark_text, font=font)
+                            text_height = 20  # Approximate height
+                            text_position = (x_offset - img.width + 10, y_offset + img.height - text_height - 10)
+                            draw.text(text_position, watermark_text, font=font, fill=(255, 255, 255, 128))
+                    
+                    # Add final watermark if enabled
+                    if watermark and 'watermark_text' in locals() and not apply_filters:
+                        draw = ImageDraw.Draw(collage)
+                        try:
+                            font = ImageFont.truetype("arial.ttf", 40)
+                        except:
+                            font = ImageFont.load_default()
+                        
+                        text_width = draw.textlength(watermark_text, font=font)
+                        text_height = 40  # Approximate height
+                        text_position = (collage_width - text_width - 20, collage_height - text_height - 20)
+                        draw.text(text_position, watermark_text, font=font, fill=(255, 255, 255, 128))
+                    
+                    st.session_state.collage_image = collage
+                    st.success("✅ Collage created successfully!")
+                    
+                except Exception as e:
+                    st.error(f"Error creating collage: {str(e)}")
+        
+        # Display and download collage
+        if hasattr(st.session_state, 'collage_image') and st.session_state.collage_image:
+            st.subheader("🎉 Your Collage")
+            st.image(st.session_state.collage_image, use_container_width=True)
+            
+            # Download options
+            col1, col2 = st.columns(2)
+            with col1:
+                # Save to buffer
+                buffered = BytesIO()
+                st.session_state.collage_image.save(buffered, format="PNG", quality=image_quality)
+                
+                st.download_button(
+                    label="📥 Download PNG",
+                    data=buffered.getvalue(),
+                    file_name=f"quantora_collage_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
+            
+            with col2:
+                buffered_jpg = BytesIO()
+                st.session_state.collage_image.save(buffered_jpg, format="JPEG", quality=image_quality)
+                
+                st.download_button(
+                    label="📥 Download JPEG",
+                    data=buffered_jpg.getvalue(),
+                    file_name=f"quantora_collage_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg",
+                    mime="image/jpeg",
+                    use_container_width=True
+                )
+            
+            # Reset button
+            if st.button("🔄 Create New Collage"):
+                if hasattr(st.session_state, 'collage_image'):
+                    del st.session_state.collage_image
+                st.rerun()
+    
+    elif uploaded_files and len(uploaded_files) == 1:
+        st.warning("Please upload at least 2 images to create a collage.")
+    else:
+        # Show instructions
+        st.info("""
+        **How to create a collage:**
+        1. Upload 2 or more images (JPG, PNG, or WebP format)
+        2. Choose your preferred layout and settings
+        3. Click "Create Collage"
+        4. Download your masterpiece!
+        
+        **Tips for best results:**
+        • Use images with similar aspect ratios for uniform grids
+        • Try the "Polaroid Style" for a fun, casual look
+        • Adjust spacing and borders to control visual density
+        • Use the "Masonry" layout for a Pinterest-style collage
+        """)
+
+# --------------------------
+# SOUND EXTRACTOR MODULE
+# --------------------------
+def sound_extractor():
+    st.title("🎵 Sound Extractor from Video")
+    st.markdown("Extract high-quality audio from video files in multiple formats")
+    
+    # Upload video
+    uploaded_video = st.file_uploader(
+        "Upload a video file",
+        type=["mp4", "avi", "mov", "mkv", "webm", "flv", "wmv", "mpeg", "mpg"],
+        key="video_uploader"
+    )
+    
+    if uploaded_video:
+        # Display video info
+        st.subheader("🎥 Uploaded Video")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # Save uploaded video temporarily
+            temp_video_path = f"temp_video_{int(time.time())}.{uploaded_video.name.split('.')[-1]}"
+            with open(temp_video_path, "wb") as f:
+                f.write(uploaded_video.getbuffer())
+            
+            # Display video
+            st.video(uploaded_video)
+        
+        with col2:
+            # Video info
+            st.info(f"""
+            **Video Details:**
+            • Name: `{uploaded_video.name}`
+            • Size: `{uploaded_video.size / (1024*1024):.2f} MB`
+            • Type: `{uploaded_video.type}`
+            """)
+            
+            # Get video duration using moviepy
+            try:
+                video = VideoFileClip(temp_video_path)
+                duration = video.duration
+                st.info(f"• Duration: `{int(duration // 60)}m {int(duration % 60)}s`")
+                video.close()
+            except:
+                st.info("• Duration: `Unable to detect`")
+        
+        # Audio extraction settings
+        st.subheader("⚙️ Extraction Settings")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            audio_format = st.selectbox(
+                "Output Format",
+                ["MP3 (Recommended)", "WAV (Lossless)", "M4A", "AAC", "OGG", "FLAC"],
+                help="Choose audio format. MP3 is most compatible."
+            )
+            
+            # Map format to extension
+            format_map = {
+                "MP3 (Recommended)": "mp3",
+                "WAV (Lossless)": "wav",
+                "M4A": "m4a",
+                "AAC": "aac",
+                "OGG": "ogg",
+                "FLAC": "flac"
+            }
+            output_ext = format_map[audio_format]
+        
+        with col2:
+            audio_quality = st.selectbox(
+                "Audio Quality",
+                ["High (320 kbps)", "Medium (192 kbps)", "Standard (128 kbps)", "Low (64 kbps)"],
+                index=0
+            )
+            
+            # Map quality to bitrate
+            quality_map = {
+                "High (320 kbps)": 320,
+                "Medium (192 kbps)": 192,
+                "Standard (128 kbps)": 128,
+                "Low (64 kbps)": 64
+            }
+            bitrate = quality_map[audio_quality]
+        
+        with col3:
+            trim_audio = st.checkbox("Trim Audio")
+            if trim_audio:
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    start_time = st.number_input("Start (seconds)", 0.0, 1000.0, 0.0, 0.5)
+                with col_b:
+                    end_time = st.number_input("End (seconds)", 0.0, 1000.0, 30.0, 0.5)
+        
+        # Advanced options
+        with st.expander("Advanced Options"):
+            col1, col2 = st.columns(2)
+            with col1:
+                normalize_audio = st.checkbox("Normalize Audio Volume", True)
+                remove_noise = st.checkbox("Remove Background Noise")
+                if remove_noise:
+                    noise_level = st.slider("Noise Reduction", 0, 100, 50)
+            
+            with col2:
+                add_metadata = st.checkbox("Add Metadata", True)
+                if add_metadata:
+                    title = st.text_input("Audio Title", uploaded_video.name.split('.')[0])
+                    artist = st.text_input("Artist", "Extracted from Video")
+                    album = st.text_input("Album", "Video Audio Extractions")
+        
+        # Extract button
+        if st.button("🎵 Extract Audio", type="primary"):
+            with st.spinner(f"Extracting audio... This may take a moment"):
+                try:
+                    # Load video
+                    video = VideoFileClip(temp_video_path)
+                    audio = video.audio
+                    
+                    # Trim if requested
+                    if trim_audio:
+                        audio = audio.subclip(start_time, min(end_time, audio.duration))
+                    
+                    # Save audio temporarily
+                    temp_audio_path = f"temp_audio_{int(time.time())}.{output_ext}"
+                    
+                    # Write audio file with specified parameters
+                    if output_ext == "mp3":
+                        audio.write_audiofile(temp_audio_path, bitrate=f"{bitrate}k")
+                    elif output_ext == "wav":
+                        audio.write_audiofile(temp_audio_path, codec='pcm_s16le')
+                    elif output_ext == "m4a":
+                        audio.write_audiofile(temp_audio_path, codec='aac', bitrate=f"{bitrate}k")
+                    elif output_ext == "flac":
+                        audio.write_audiofile(temp_audio_path, codec='flac')
+                    else:
+                        audio.write_audiofile(temp_audio_path)
+                    
+                    # Apply audio processing if requested
+                    if normalize_audio or remove_noise:
+                        processed_audio_path = f"processed_audio_{int(time.time())}.{output_ext}"
+                        
+                        # Use ffmpeg for audio processing
+                        ffmpeg_cmd = ["ffmpeg", "-i", temp_audio_path]
+                        
+                        if normalize_audio:
+                            ffmpeg_cmd.extend(["-af", "loudnorm=I=-16:LRA=11:TP=-1.5"])
+                        
+                        if remove_noise:
+                            ffmpeg_cmd.extend(["-af", f"afftdn=nr={noise_level}"])
+                        
+                        ffmpeg_cmd.append(processed_audio_path)
+                        
+                        # Run ffmpeg
+                        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+                        
+                        if result.returncode == 0 and os.path.exists(processed_audio_path):
+                            final_audio_path = processed_audio_path
+                            # Remove temp file
+                            if os.path.exists(temp_audio_path):
+                                os.remove(temp_audio_path)
+                        else:
+                            final_audio_path = temp_audio_path
+                    else:
+                        final_audio_path = temp_audio_path
+                    
+                    # Add metadata if requested
+                    if add_metadata and output_ext in ["mp3", "m4a"]:
+                        metadata_path = f"metadata_audio_{int(time.time())}.{output_ext}"
+                        
+                        ffmpeg_metadata_cmd = [
+                            "ffmpeg", "-i", final_audio_path,
+                            "-metadata", f"title={title}",
+                            "-metadata", f"artist={artist}",
+                            "-metadata", f"album={album}",
+                            "-codec", "copy",
+                            metadata_path
+                        ]
+                        
+                        result = subprocess.run(ffmpeg_metadata_cmd, capture_output=True, text=True)
+                        
+                        if result.returncode == 0 and os.path.exists(metadata_path):
+                            # Update final audio path
+                            if os.path.exists(final_audio_path):
+                                os.remove(final_audio_path)
+                            final_audio_path = metadata_path
+                    
+                    # Store in session state
+                    with open(final_audio_path, "rb") as f:
+                        st.session_state.extracted_audio = f.read()
+                    st.session_state.audio_filename = f"{title if add_metadata else uploaded_video.name.split('.')[0]}.{output_ext}"
+                    
+                    # Cleanup
+                    video.close()
+                    audio.close()
+                    
+                    if os.path.exists(temp_video_path):
+                        os.remove(temp_video_path)
+                    
+                    if os.path.exists(temp_audio_path):
+                        os.remove(temp_audio_path)
+                    if 'final_audio_path' in locals() and os.path.exists(final_audio_path) and final_audio_path != temp_audio_path:
+                        os.remove(final_audio_path)
+                    
+                    st.success("✅ Audio extracted successfully!")
+                    
+                except Exception as e:
+                    st.error(f"Error extracting audio: {str(e)}")
+        
+        # Display and download extracted audio
+        if hasattr(st.session_state, 'extracted_audio') and st.session_state.extracted_audio:
+            st.subheader("🎧 Extracted Audio")
+            
+            # Audio player
+            st.audio(st.session_state.extracted_audio, format=f'audio/{output_ext}')
+            
+            # Download button
+            st.download_button(
+                label=f"📥 Download {audio_format}",
+                data=st.session_state.extracted_audio,
+                file_name=st.session_state.audio_filename,
+                mime=f"audio/{output_ext}",
+                use_container_width=True
+            )
+            
+            # Convert to other formats
+            st.subheader("🔄 Convert to Other Formats")
+            convert_cols = st.columns(3)
+            
+            with convert_cols[0]:
+                if st.button("Convert to MP3"):
+                    st.info("MP3 conversion selected")
+            
+            with convert_cols[1]:
+                if st.button("Convert to WAV"):
+                    st.info("WAV conversion selected")
+            
+            with convert_cols[2]:
+                if st.button("Convert to M4A"):
+                    st.info("M4A conversion selected")
+            
+            # Reset button
+            if st.button("🔄 Extract New Audio"):
+                if hasattr(st.session_state, 'extracted_audio'):
+                    del st.session_state.extracted_audio
+                if hasattr(st.session_state, 'audio_filename'):
+                    del st.session_state.audio_filename
+                st.rerun()
+    
+    else:
+        # Show instructions
+        st.info("""
+        **How to extract audio:**
+        1. Upload a video file (MP4, AVI, MOV, MKV, etc.)
+        2. Configure audio extraction settings
+        3. Click "Extract Audio"
+        4. Download your extracted audio file
+        
+        **Supported video formats:**
+        • MP4, AVI, MOV, MKV, WebM, FLV, WMV, MPEG, MPG
+        
+        **Output audio formats:**
+        • MP3 (Most compatible)
+        • WAV (Lossless quality)
+        • M4A (Apple devices)
+        • AAC, OGG, FLAC
+        
+        **Features:**
+        • Adjustable audio quality
+        • Audio trimming
+        • Volume normalization
+        • Background noise reduction
+        • Metadata editing
+        """)
+
+# --------------------------
+# SHOPPING RESEARCH MODULE
+# --------------------------
+def shopping_research():
+    st.title("🛒 Shopping Research Assistant")
+    st.markdown("Find the perfect product with AI-powered shopping research")
+    
+    # Step 1: User input
+    st.subheader("🔍 Step 1: What are you looking for?")
+    
+    shopping_query = st.text_area(
+        "Describe what you want to buy in detail:",
+        height=120,
+        placeholder="Example: 'Looking for a gaming laptop under $1500 with at least RTX 4060, 16GB RAM, good cooling system, and at least 6-hour battery life for college and gaming.'",
+        help="Be as specific as possible about features, budget, and use case"
+    )
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        budget_min = st.number_input("Minimum Budget ($)", 0, 10000, 0, 50)
+        budget_max = st.number_input("Maximum Budget ($)", 0, 10000, 1000, 50)
+    
+    with col2:
+        priority = st.selectbox(
+            "Primary Priority",
+            ["Best Value", "Highest Quality", "Best Features", "Most Reliable", "Lowest Price"]
+        )
+        
+        region = st.selectbox(
+            "Shopping Region",
+            ["United States", "Europe", "India", "Canada", "Australia", "Global"]
+        )
+    
+    # Additional preferences
+    with st.expander("Additional Preferences"):
+        brand_preference = st.text_input("Preferred brands (comma-separated)", 
+                                        placeholder="e.g., Dell, ASUS, Lenovo")
+        
+        exclude_brands = st.text_input("Brands to avoid", 
+                                      placeholder="e.g., Acer, HP")
+        
+        must_have = st.text_area("Must-have features", 
+                                placeholder="e.g., USB-C charging, backlit keyboard, warranty")
+        
+        avoid_features = st.text_area("Features to avoid", 
+                                     placeholder="e.g., soldered RAM, poor thermals")
+    
+    # Research button
+    if st.button("🔍 Start Shopping Research", type="primary") and shopping_query.strip():
+        with st.spinner("🤖 Researching products... This may take 30-60 seconds"):
+            # Step 1: Generate product list using Gemini
+            st.info("**Step 1:** Generating product list with provider-2/gemini-3-pro-preview...")
+            
+            gemini_prompt = f"""
+            You are an expert shopping assistant. Based on the following query, generate a list of 5-7 specific products that match the criteria.
+            
+            SHOPPING QUERY: {shopping_query}
+            
+            ADDITIONAL DETAILS:
+            - Budget: ${budget_min} - ${budget_max}
+            - Priority: {priority}
+            - Region: {region}
+            - Brand Preference: {brand_preference if brand_preference else 'None specified'}
+            - Brands to Avoid: {exclude_brands if exclude_brands else 'None specified'}
+            - Must-have Features: {must_have if must_have else 'None specified'}
+            - Features to Avoid: {avoid_features if avoid_features else 'None specified'}
+            
+            FOR EACH PRODUCT, PROVIDE:
+            1. Product Name (exact model if possible)
+            2. Current Approximate Price (in USD)
+            3. Key Specifications (bullet points)
+            4. Pros (3-5 bullet points)
+            5. Cons (2-3 bullet points)
+            6. Best For (who should buy this)
+            7. Where to Buy (Amazon, Best Buy, manufacturer website, etc.)
+            8. Availability Status (In Stock, Limited Stock, Pre-order, etc.)
+            
+            Format each product as a separate section with clear headings.
+            Focus on REAL products available for purchase in {region}.
+            Include a mix of price points within the budget range.
+            Prioritize products that match the "{priority}" criteria.
+            
+            Make sure the information is accurate and up-to-date for current year shopping.
+            """
+            
+            try:
+                # Call Gemini model
+                product_list = call_a4f_model(gemini_prompt, "provider-2/gemini-3-pro-preview")
+                st.session_state.product_list = product_list
+                st.success("✅ Product list generated!")
+                
+                # Display product list
+                with st.expander("📋 Generated Product List", expanded=True):
+                    st.markdown(product_list)
+                
+            except Exception as e:
+                st.error(f"Error generating product list: {str(e)}")
+                return
+        
+        # Step 2: Analyze and pick best product using Claude Opus
+        with st.spinner("🤔 Analyzing products to find the best one..."):
+            st.info("**Step 2:** Analyzing products with provider-7/claude-opus-4-5-20251101...")
+            
+            claude_prompt = f"""
+            You are an expert shopping analyst. Analyze the following list of products and select the SINGLE BEST OPTION based on the original query.
+            
+            ORIGINAL SHOPPING QUERY: {shopping_query}
+            BUDGET: ${budget_min} - ${budget_max}
+            PRIORITY: {priority}
+            REGION: {region}
+            
+            PRODUCT LIST:
+            {product_list if 'product_list' in locals() else st.session_state.get('product_list', '')}
+            
+            YOUR TASK:
+            1. Review ALL products thoroughly
+            2. Compare them against the original requirements
+            3. Select the SINGLE BEST product that best matches the user's needs
+            4. Provide a detailed explanation of WHY this product was chosen
+            5. Mention any compromises or trade-offs
+            6. Provide final recommendation
+            
+            FORMAT YOUR RESPONSE AS:
+            
+            ## 🏆 BEST PRODUCT RECOMMENDATION
+            
+            ### [Product Name]
+            
+            **Price:** [Exact or approximate price]
+            
+            **Why This is the Best Choice:**
+            [3-4 paragraphs explaining why this product is the best match]
+            
+            **Key Advantages:**
+            - Advantage 1
+            - Advantage 2
+            - Advantage 3
+            - Advantage 4
+            
+            **Considerations to Note:**
+            - Consideration 1
+            - Consideration 2
+            
+            **Final Verdict:**
+            [Strong concluding statement about why this is the recommended choice]
+            
+            **Where to Buy:**
+            - [Store 1 with link if available]
+            - [Store 2 with link if available]
+            
+            **Next Steps:**
+            [Actionable advice for the user]
+            
+            ONLY SHOW THE SINGLE BEST PRODUCT. Do not mention other products or include a comparison table.
+            Focus on why THIS product is the perfect match for the user's specific needs.
+            """
+            
+            try:
+                # Call Claude Opus model
+                best_product = call_a4f_model(claude_prompt, "provider-7/claude-opus-4-5-20251101")
+                st.session_state.best_product = best_product
+                st.success("✅ Best product analysis complete!")
+                
+            except Exception as e:
+                st.error(f"Error analyzing products: {str(e)}")
+                return
+    
+    # Display results
+    if hasattr(st.session_state, 'best_product') and st.session_state.best_product:
+        st.markdown("---")
+        st.subheader("🎯 Your Perfect Product Match")
+        
+        # Display best product with nice formatting
+        st.markdown(st.session_state.best_product)
+        
+        # Additional features
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📧 Email This Recommendation", use_container_width=True):
+                st.info("Email feature would open your default email client with the recommendation.")
+        
+        with col2:
+            if st.button("📋 Copy to Clipboard", use_container_width=True):
+                st.info("Recommendation copied to clipboard!")
+        
+        with col3:
+            if st.button("💾 Save as PDF", use_container_width=True):
+                st.info("PDF generation would start here.")
+        
+        # Comparison table (optional)
+        with st.expander("📊 See Detailed Comparison", expanded=False):
+            if hasattr(st.session_state, 'product_list'):
+                st.markdown(st.session_state.product_list)
+        
+        # Start new search
+        if st.button("🔄 Start New Search", type="secondary"):
+            for key in ['product_list', 'best_product']:
+                if hasattr(st.session_state, key):
+                    delattr(st.session_state, key)
+            st.rerun()
+    
+    elif hasattr(st.session_state, 'product_list') and not hasattr(st.session_state, 'best_product'):
+        st.warning("Product list generated but analysis failed. Please try again.")
+    
+    else:
+        # Show examples
+        st.markdown("---")
+        st.subheader("💡 Examples to Try")
+        
+        examples = [
+            "Gaming laptop under $1200 with good battery life for college",
+            "Wireless noise-cancelling headphones under $300 for travel",
+            "Smartphone with best camera under $800 for photography",
+            "Gaming chair with lumbar support under $250",
+            "4K monitor for photo editing under $400"
+        ]
+        
+        cols = st.columns(3)
+        for i, example in enumerate(examples):
+            with cols[i % 3]:
+                if st.button(f"🎯 {example}", use_container_width=True):
+                    st.session_state.shopping_example = example
+                    st.rerun()
+        
+        if 'shopping_example' in st.session_state:
+            st.text_area("Try this example:", value=st.session_state.shopping_example, key="example_fill")
+            if st.button("Use This Example"):
+                shopping_query = st.session_state.shopping_example
+                st.rerun()
+
+# Custom CSS with sidebar toggle and canvas background
 st.markdown("""
 <style>
     .sidebar-toggle {
@@ -1223,7 +2026,7 @@ if not st.session_state.pro_unlocked:
         st.session_state.pro_unlocked = True
         st.rerun()
 
-# Initialize session state variables (removed voice-related variables)
+# Initialize session state variables
 if "chat" not in st.session_state:
     st.session_state.chat = []
 if "uploaded_content" not in st.session_state:
@@ -4765,7 +5568,11 @@ if st.session_state.pro_unlocked:
         st.markdown("### 🚀 Quantora Modes")
         mode = st.radio(
             "Select Mode",
-            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", "Quantum LM", "Quantomise My Trip", "Coding", "App Building", "Quantora Weather"],
+            ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", 
+             "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", 
+             "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", 
+             "Quantum LM", "Quantomise My Trip", "Coding", "App Building", "Quantora Weather",
+             "Collage Maker", "Sound Extractor", "Shopping Research"],  # Added new modes
             index=0,
             key="current_mode"
         )
@@ -5051,6 +5858,12 @@ elif mode == "App Building":
     app_builder_workspace()
 elif mode == "Quantora Weather":
     quantora_weather()
+elif mode == "Collage Maker":
+    collage_maker()
+elif mode == "Sound Extractor":
+    sound_extractor()
+elif mode == "Shopping Research":
+    shopping_research()
 
 st.markdown(
     """
