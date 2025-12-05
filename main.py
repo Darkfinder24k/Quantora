@@ -638,7 +638,7 @@ def quantomise_my_trip():
         vibe = st.text_input("Describe your vibe (e.g., peaceful mountains, party beach, cultural city):", placeholder="e.g., peaceful mountains")
         if st.button("Suggest Destinations"):
             prompt = f"Suggest 5 best travel destinations for someone who likes: {vibe}. Include country and best time to visit."
-            response = call_a4f_model(prompt, "provider-5/gpt-5")
+            response = call_a4f_model(prompt, "provider-2/gemini-3-pro-preview")
             st.markdown("### 🎯 AI Suggestions:")
             st.write(response)
 
@@ -681,7 +681,7 @@ def quantomise_my_trip():
             8. Hidden gems
             Format it beautifully with emojis and sections.
             """
-            response = call_a4f_model(prompt, "provider-5/gpt-5.1-2025-11-13")
+            response = call_a4f_model(prompt, "provider-2/gemini-3-pro-preview")
             st.markdown("### 🎯 Your AI-Planned Trip:")
             st.markdown(response)
             st.download_button(
