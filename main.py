@@ -24,7 +24,7 @@ import folium
 from streamlit_folium import st_folium
 from dateutil import tz
 import random
-import opencv-python
+import cv2
 import subprocess
 from moviepy.editor import VideoFileClip, AudioFileClip
 
