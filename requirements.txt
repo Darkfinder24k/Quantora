@@ -1,29 +1,46 @@
+# Core dependencies
 streamlit==1.40.0
-google-generativeai==0.8.5
 groq==0.33.0
-google-api-python-client==2.187.0
 PyPDF2==3.0.1
 python-docx==1.2.0
-pandas==2.3.0
+pandas==2.2.0
 Pillow==10.3.0
 requests==2.32.5
 yfinance==0.2.66
 plotly==5.24.0
-numpy==2.0.0
-opencv-python==4.10.0.84
-scipy==1.14.0
-matplotlib==3.9.2
+numpy==1.26.4
+replicate==1.0.0
+streamlit-folium==0.19.0
+folium==0.19.0
+python-dateutil==2.9.0.post0
+pydub==0.25.1
+scikit-learn==1.6.0
+seaborn==0.13.2
+plotly-express==0.4.1
 openai==2.7.2
 PyGithub==2.5.0
 disposable-email-domains==0.0.6
 razorpay==2.0.0
 asyncio-throttle==1.0.2
 jsonschema==4.25.1
-python-dateutil==2.9.0.post0
-pydub==0.25.1
-scikit-learn==1.6.0
-seaborn==0.13.2
-plotly-express==0.4.1
-replicate==1.0.0
-streamlit-folium==0.19.0
-folium
+matplotlib==3.9.2
+scipy==1.14.0
+
+# Media processing
+moviepy==1.0.3
+imageio==2.34.1
+imageio-ffmpeg==0.4.9
+
+# Optional/Removed dependencies
+# opencv-python-headless==4.10.0.84  # Removed as requested
+google-generativeai==0.8.5  # For Gemini models
+google-api-python-client==2.187.0
+
+# Additional utilities
+pyyaml==6.0.1
+tqdm==4.66.5
+chardet==5.2.0
+urllib3==2.2.1
+certifi==2024.8.30
+beautifulsoup4==4.12.3
+lxml==5.2.2
