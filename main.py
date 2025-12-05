@@ -24,7 +24,7 @@ import folium
 from streamlit_folium import st_folium
 from dateutil import tz
 import random
-import cv2
+# Removed: import cv2
 import subprocess
 from moviepy.editor import VideoFileClip, AudioFileClip
 
@@ -802,24 +802,35 @@ def apply_sepia_filter(img):
     return Image.fromarray(sepia_img)
 
 def apply_vintage_filter(img):
-    """Apply vintage filter to image"""
-    img_array = np.array(img)
+    """Apply vintage filter to image using PIL instead of cv2"""
     # Add yellow tint
+    img_array = np.array(img)
     img_array = img_array.astype(np.float32)
     img_array[..., 0] *= 1.1  # Increase red
     img_array[..., 1] *= 1.05  # Increase green
     img_array[..., 2] *= 0.9   # Decrease blue
     img_array = np.clip(img_array, 0, 255).astype(np.uint8)
     
-    # Add slight vignette
-    rows, cols = img_array.shape[:2]
-    kernel_x = cv2.getGaussianKernel(cols, cols/3)
-    kernel_y = cv2.getGaussianKernel(rows, rows/3)
-    kernel = kernel_y * kernel_x.T
-    mask = kernel / kernel.max()
+    # Create vignette effect with PIL instead of cv2
+    width, height = img.size
+    # Create a radial gradient for vignette
+    vignette = Image.new('L', (width, height), 0)
+    draw = ImageDraw.Draw(vignette)
     
+    # Draw an ellipse that covers most of the image
+    ellipse_bbox = [
+        -width * 0.5, -height * 0.5,
+        width * 1.5, height * 1.5
+    ]
+    draw.ellipse(ellipse_bbox, fill=255)
+    
+    # Apply Gaussian blur to smooth the edges
+    vignette = vignette.filter(ImageFilter.GaussianBlur(radius=width * 0.1))
+    vignette_array = np.array(vignette).astype(np.float32) / 255.0
+    
+    # Apply vignette to each channel
     for i in range(3):
-        img_array[..., i] = img_array[..., i] * (0.7 + 0.3*mask)
+        img_array[..., i] = img_array[..., i] * (0.7 + 0.3 * vignette_array)
     
     return Image.fromarray(np.clip(img_array, 0, 255).astype(np.uint8))
 
