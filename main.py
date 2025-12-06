@@ -1600,6 +1600,319 @@ def shopping_research():
                 shopping_query = st.session_state.shopping_example
                 st.rerun()
 
+# --------------------------
+# QUANTORA TRANSLATE MODULE
+# --------------------------
+def quantora_translate():
+    st.title("🌐 Quantora Translate")
+    st.markdown("Advanced AI-powered translation with professional accuracy using Gemini 3 Pro")
+    
+    # Language selection
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Common languages for quick selection
+        language_options = {
+            "English": "en",
+            "Spanish": "es",
+            "French": "fr",
+            "German": "de",
+            "Italian": "it",
+            "Portuguese": "pt",
+            "Russian": "ru",
+            "Chinese (Simplified)": "zh-CN",
+            "Japanese": "ja",
+            "Korean": "ko",
+            "Arabic": "ar",
+            "Hindi": "hi",
+            "Bengali": "bn",
+            "Urdu": "ur",
+            "Turkish": "tr",
+            "Dutch": "nl",
+            "Polish": "pl",
+            "Vietnamese": "vi",
+            "Thai": "th",
+            "Greek": "el",
+            "Hebrew": "he",
+            "Swedish": "sv",
+            "Danish": "da",
+            "Norwegian": "no",
+            "Finnish": "fi"
+        }
+        
+        target_language = st.selectbox(
+            "Translate to:",
+            options=list(language_options.keys()),
+            index=0,
+            help="Select the target language for translation"
+        )
+        
+        # Additional translation options
+        with st.expander("⚙️ Advanced Options"):
+            tone_style = st.selectbox(
+                "Translation Style:",
+                ["Formal", "Casual", "Technical", "Literary", "Business", "Medical", "Legal"],
+                index=0,
+                help="Choose the appropriate tone/style for your translation"
+            )
+            
+            preserve_formatting = st.checkbox(
+                "Preserve formatting and structure",
+                value=True,
+                help="Maintain original formatting like paragraphs, lists, and spacing"
+            )
+            
+            include_notes = st.checkbox(
+                "Include cultural/context notes",
+                value=False,
+                help="Add helpful notes about cultural context or idioms"
+            )
+    
+    with col2:
+        # Text input area
+        st.subheader("📝 Text to Translate")
+        source_text = st.text_area(
+            "Enter text to translate:",
+            height=250,
+            placeholder="Paste or type the text you want to translate here...",
+            help="Enter up to 5000 characters for translation"
+        )
+        
+        # Character counter
+        if source_text:
+            char_count = len(source_text)
+            st.caption(f"Characters: {char_count}/5000")
+            if char_count > 5000:
+                st.warning("Text exceeds 5000 characters. Please shorten your text.")
+        
+        # File upload option
+        uploaded_file = st.file_uploader(
+            "Or upload a text file:",
+            type=["txt", "doc", "docx", "pdf", "md"],
+            help="Upload text documents for translation"
+        )
+        
+        if uploaded_file:
+            try:
+                if uploaded_file.type == "application/pdf":
+                    pdf_reader = PdfReader(uploaded_file)
+                    extracted_text = ""
+                    for page in pdf_reader.pages:
+                        extracted_text += page.extract_text() + "\n"
+                    source_text = extracted_text.strip()
+                elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    doc = docx.Document(uploaded_file)
+                    extracted_text = "\n".join([para.text for para in doc.paragraphs])
+                    source_text = extracted_text
+                else:
+                    source_text = uploaded_file.read().decode('utf-8')
+                
+                st.success(f"✅ File '{uploaded_file.name}' loaded successfully!")
+                st.text_area("Extracted text:", value=source_text[:1000] + "..." if len(source_text) > 1000 else source_text, height=150, disabled=True)
+            except Exception as e:
+                st.error(f"Error reading file: {str(e)}")
+    
+    # Translation button
+    translate_button = st.button(
+        "🔁 Translate Now",
+        type="primary",
+        use_container_width=True,
+        disabled=not source_text or len(source_text.strip()) == 0
+    )
+    
+    # Translation history
+    if "translation_history" not in st.session_state:
+        st.session_state.translation_history = []
+    
+    if translate_button and source_text.strip():
+        with st.spinner(f"Translating to {target_language}..."):
+            try:
+                # Prepare translation prompt
+                language_code = language_options[target_language]
+                
+                translation_prompt = f"""
+                You are an expert translator. Translate the following text from its source language to {target_language}.
+                
+                IMPORTANT TRANSLATION REQUIREMENTS:
+                1. Translate the text accurately and naturally
+                2. Maintain the original meaning and intent
+                3. Use {tone_style.lower()} tone/style
+                4. Preserve proper names, technical terms, and specific terminology
+                5. Handle idioms and cultural references appropriately
+                {"6. Preserve the original formatting, paragraphs, and structure" if preserve_formatting else ""}
+                {"7. Add brief cultural/context notes where appropriate" if include_notes else ""}
+                
+                SOURCE TEXT:
+                {source_text}
+                
+                Provide only the translated text in {target_language}.
+                {"Add cultural/context notes at the end if needed, clearly marked as [NOTE]:" if include_notes else ""}
+                """
+                
+                # Call the translation model
+                translated_text = call_a4f_model(translation_prompt, "provider-2/gemini-3-pro-preview")
+                
+                # Store in session state
+                st.session_state.last_translation = {
+                    "source": source_text,
+                    "translated": translated_text,
+                    "target_language": target_language,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "tone_style": tone_style
+                }
+                
+                # Add to history
+                st.session_state.translation_history.append(st.session_state.last_translation)
+                
+                # Limit history to last 10 items
+                if len(st.session_state.translation_history) > 10:
+                    st.session_state.translation_history = st.session_state.translation_history[-10:]
+                
+            except Exception as e:
+                st.error(f"Translation error: {str(e)}")
+                return
+    
+    # Display translation results
+    if "last_translation" in st.session_state:
+        st.markdown("---")
+        st.subheader("✅ Translation Complete")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📝 Original Text")
+            st.text_area(
+                "Source:",
+                value=st.session_state.last_translation["source"],
+                height=200,
+                disabled=True,
+                label_visibility="collapsed"
+            )
+        
+        with col2:
+            st.markdown(f"#### 🌐 Translated to {st.session_state.last_translation['target_language']}")
+            st.text_area(
+                "Translation:",
+                value=st.session_state.last_translation["translated"],
+                height=200,
+                disabled=True,
+                label_visibility="collapsed"
+            )
+        
+        # Translation metrics
+        source_words = len(st.session_state.last_translation["source"].split())
+        translated_words = len(st.session_state.last_translation["translated"].split())
+        
+        st.markdown(f"""
+        <div style="background-color: #f0f2f6; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+            <div style="display: flex; justify-content: space-between;">
+                <div>
+                    <strong>📊 Translation Stats:</strong><br>
+                    • Words: {source_words} → {translated_words}<br>
+                    • Language: {st.session_state.last_translation['target_language']}<br>
+                    • Style: {st.session_state.last_translation['tone_style']}<br>
+                    • Time: {st.session_state.last_translation['timestamp']}
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Action buttons
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            # Download translation
+            translation_data = f"""ORIGINAL TEXT:
+{st.session_state.last_translation["source"]}
+
+TRANSLATED TEXT ({st.session_state.last_translation["target_language"]}):
+{st.session_state.last_translation["translated"]}
+
+Translation Details:
+- Target Language: {st.session_state.last_translation["target_language"]}
+- Style: {st.session_state.last_translation["tone_style"]}
+- Translated on: {st.session_state.last_translation["timestamp"]}
+"""
+            
+            st.download_button(
+                label="📥 Download",
+                data=translation_data,
+                file_name=f"translation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        
+        with col2:
+            # Copy to clipboard
+            if st.button("📋 Copy", use_container_width=True):
+                st.code(st.session_state.last_translation["translated"])
+                st.info("Translation copied to clipboard!")
+        
+        with col3:
+            # Speak translation (placeholder)
+            if st.button("🔊 Speak", use_container_width=True):
+                st.info("Text-to-speech feature would play the translated text")
+        
+        with col4:
+            # New translation
+            if st.button("🔄 New", use_container_width=True):
+                if "last_translation" in st.session_state:
+                    del st.session_state.last_translation
+                st.rerun()
+        
+        # Translation history
+        if st.session_state.translation_history:
+            with st.expander("📜 Translation History"):
+                for i, item in enumerate(reversed(st.session_state.translation_history)):
+                    with st.container():
+                        st.markdown(f"**{item['timestamp']}** - {item['target_language']} ({item['tone_style']})")
+                        st.text_area(
+                            f"Translation {len(st.session_state.translation_history) - i}",
+                            value=item['translated'][:300] + "..." if len(item['translated']) > 300 else item['translated'],
+                            height=100,
+                            disabled=True,
+                            label_visibility="collapsed"
+                        )
+                        if st.button(f"Use this translation", key=f"use_{i}"):
+                            source_text = item['source']
+                            st.rerun()
+                        st.markdown("---")
+    
+    # Quick translation examples
+    if not translate_button and not source_text:
+        st.markdown("---")
+        st.subheader("💡 Quick Translation Examples")
+        
+        examples = [
+            {"text": "Hello, how are you today? I hope you're having a wonderful day!", "lang": "Spanish"},
+            {"text": "The quick brown fox jumps over the lazy dog.", "lang": "French"},
+            {"text": "Technology is transforming our world at an unprecedented pace.", "lang": "Japanese"},
+            {"text": "Where can I find the best restaurants in this neighborhood?", "lang": "Italian"},
+            {"text": "The meeting has been rescheduled to next Tuesday at 3 PM.", "lang": "German"}
+        ]
+        
+        cols = st.columns(3)
+        for i, example in enumerate(examples[:6]):
+            with cols[i % 3]:
+                if st.button(f"Translate to {example['lang']}", key=f"example_{i}", use_container_width=True):
+                    # Set the example text and language
+                    source_text = example['text']
+                    target_language = example['lang']
+                    st.rerun()
+    
+    # Footer information
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; color: #666; font-size: 0.9rem;">
+        <strong>🌐 Quantora Translate Features:</strong><br>
+        • Powered by Gemini 3 Pro for high-quality translations<br>
+        • Supports 25+ languages with professional accuracy<br>
+        • Preserves formatting and technical terminology<br>
+        • Cultural context awareness and idiom handling<br>
+        • Translation history and export options
+    </div>
+    """, unsafe_allow_html=True)
+
 # Custom CSS with sidebar toggle and canvas background
 st.markdown("""
 <style>
@@ -1974,6 +2287,25 @@ header {visibility: hidden;}
     margin: 1rem 0;
     color: white;
 }
+/* Translation specific styles */
+.translation-container {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border-radius: 15px;
+    padding: 2rem;
+    margin: 1rem 0;
+    color: white;
+}
+.translation-result {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.language-flag {
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
 </style>
 <canvas id="stars"></canvas>
 <script>
@@ -2074,6 +2406,11 @@ if "iq_test_score" not in st.session_state:
     st.session_state.iq_test_score = None
 if "city_input" not in st.session_state:
     st.session_state.city_input = "Berlin"
+# Translation session state
+if "translation_history" not in st.session_state:
+    st.session_state.translation_history = []
+if "last_translation" not in st.session_state:
+    st.session_state.last_translation = None
 
 # Force V2 in trial mode
 if not st.session_state.pro_unlocked:
@@ -5583,7 +5920,7 @@ if st.session_state.pro_unlocked:
              "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", 
              "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", 
              "Quantum LM", "Quantomise My Trip", "Coding", "App Building", "Quantora Weather",
-             "Collage Maker", "Sound Extractor", "Shopping Research"],  # Added new modes
+             "Collage Maker", "Sound Extractor", "Shopping Research", "Quantora Translate"],  # Added Quantora Translate
             index=0,
             key="current_mode"
         )
@@ -5821,6 +6158,7 @@ if mode == "AI":
             ✅ Enhanced response quality
             ✅ AI Content Detection
             ✅ AI Text Humanization
+            ✅ Quantora Translate
             """)
     with col4:
         if st.session_state.pro_unlocked:
@@ -5875,6 +6213,8 @@ elif mode == "Sound Extractor":
     sound_extractor()
 elif mode == "Shopping Research":
     shopping_research()
+elif mode == "Quantora Translate":
+    quantora_translate()
 
 st.markdown(
     """
