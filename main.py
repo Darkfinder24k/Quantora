@@ -28,6 +28,9 @@ import random
 import subprocess
 from moviepy.editor import VideoFileClip, AudioFileClip
 
+with open("index.html") as f:
+    st.markdown(f"<head>{f.read()}</head>", unsafe_allow_html=True)
+    
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
