@@ -5919,7 +5919,7 @@ if st.session_state.pro_unlocked:
             ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", 
               "Heart Health Analyzer", "Brain Health Analyzer", 
              "Cancer Risk Assessor", "FrameLab", "Quantum CreativeStudio", "Quantum LM", 
-              "Quantomise My Trip", "Coding", "App Building", "Quantora Weather",
+              "Quantomise My Trip", "Coding", "Quantora Weather",
              "Collage Maker", "Sound Extractor", "Shopping Research"],  # Added Quantora Translate
             index=0,
             key="current_mode"
@@ -6197,8 +6197,6 @@ elif mode == "Quantomise My Trip":
     quantomise_my_trip()
 elif mode == "Coding":
     coding_workspace()
-elif mode == "App Building":
-    app_builder_workspace()
 elif mode == "Quantora Weather":
     quantora_weather()
 elif mode == "Collage Maker":
