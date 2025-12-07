@@ -5925,7 +5925,7 @@ if st.session_state.pro_unlocked:
             "Select Mode",
             ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", 
               "Heart Health Analyzer", "Brain Health Analyzer", 
-             "Cancer Risk Assessor", "FrameLab", "Quantum CreativeStudio", "Quantum Lm", 
+             "Cancer Risk Assessor", "FrameLab", "Quantum CreativeStudio", "Quantum LM", 
               "Quantomise My Trip", "Coding", "App Building", "Quantora Weather",
              "Collage Maker", "Sound Extractor", "Shopping Research"],  # Added Quantora Translate
             index=0,
