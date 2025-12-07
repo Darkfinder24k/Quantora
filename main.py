@@ -1099,274 +1099,201 @@ def collage_maker():
 def sound_extractor():
     st.title("🎵 Sound Extractor from Video")
     st.markdown("Extract high-quality audio from video files in multiple formats")
-    
-    # Upload video
+
     uploaded_video = st.file_uploader(
         "Upload a video file",
         type=["mp4", "avi", "mov", "mkv", "webm", "flv", "wmv", "mpeg", "mpg"],
         key="video_uploader"
     )
-    
-    if uploaded_video:
-        # Display video info
-        st.subheader("🎥 Uploaded Video")
-        
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            # Save uploaded video temporarily
-            temp_video_path = f"temp_video_{int(time.time())}.{uploaded_video.name.split('.')[-1]}"
-            with open(temp_video_path, "wb") as f:
-                f.write(uploaded_video.getbuffer())
-            
-            # Display video
-            st.video(uploaded_video)
-        
-        with col2:
-            # Video info
-            st.info(f"""
-            **Video Details:**
-            • Name: `{uploaded_video.name}`
-            • Size: `{uploaded_video.size / (1024*1024):.2f} MB`
-            • Type: `{uploaded_video.type}`
-            """)
-            
-            # Get video duration using moviepy
-            try:
-                video = VideoFileClip(temp_video_path)
-                duration = video.duration
-                st.info(f"• Duration: `{int(duration // 60)}m {int(duration % 60)}s`")
-                video.close()
-            except:
-                st.info("• Duration: `Unable to detect`")
-        
-        # Audio extraction settings
-        st.subheader("⚙️ Extraction Settings")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            audio_format = st.selectbox(
-                "Output Format",
-                ["MP3 (Recommended)", "WAV (Lossless)", "M4A", "AAC", "OGG", "FLAC"],
-                help="Choose audio format. MP3 is most compatible."
-            )
-            
-            # Map format to extension
-            format_map = {
-                "MP3 (Recommended)": "mp3",
-                "WAV (Lossless)": "wav",
-                "M4A": "m4a",
-                "AAC": "aac",
-                "OGG": "ogg",
-                "FLAC": "flac"
-            }
-            output_ext = format_map[audio_format]
-        
-        with col2:
-            audio_quality = st.selectbox(
-                "Audio Quality",
-                ["High (320 kbps)", "Medium (192 kbps)", "Standard (128 kbps)", "Low (64 kbps)"],
-                index=0
-            )
-            
-            # Map quality to bitrate
-            quality_map = {
-                "High (320 kbps)": 320,
-                "Medium (192 kbps)": 192,
-                "Standard (128 kbps)": 128,
-                "Low (64 kbps)": 64
-            }
-            bitrate = quality_map[audio_quality]
-        
-        with col3:
-            trim_audio = st.checkbox("Trim Audio")
-            if trim_audio:
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    start_time = st.number_input("Start (seconds)", 0.0, 1000.0, 0.0, 0.5)
-                with col_b:
-                    end_time = st.number_input("End (seconds)", 0.0, 1000.0, 30.0, 0.5)
-        
-        # Advanced options
-        with st.expander("Advanced Options"):
-            col1, col2 = st.columns(2)
-            with col1:
-                normalize_audio = st.checkbox("Normalize Audio Volume", True)
-                remove_noise = st.checkbox("Remove Background Noise")
-                if remove_noise:
-                    noise_level = st.slider("Noise Reduction", 0, 100, 50)
-            
-            with col2:
-                add_metadata = st.checkbox("Add Metadata", True)
-                if add_metadata:
-                    title = st.text_input("Audio Title", uploaded_video.name.split('.')[0])
-                    artist = st.text_input("Artist", "Extracted from Video")
-                    album = st.text_input("Album", "Video Audio Extractions")
-        
-        # Extract button
-        if st.button("🎵 Extract Audio", type="primary"):
-            with st.spinner(f"Extracting audio... This may take a moment"):
-                try:
-                    # Load video
-                    video = VideoFileClip(temp_video_path)
-                    audio = video.audio
-                    
-                    # Trim if requested
-                    if trim_audio:
-                        audio = audio.subclip(start_time, min(end_time, audio.duration))
-                    
-                    # Save audio temporarily
-                    temp_audio_path = f"temp_audio_{int(time.time())}.{output_ext}"
-                    
-                    # Write audio file with specified parameters
-                    if output_ext == "mp3":
-                        audio.write_audiofile(temp_audio_path, bitrate=f"{bitrate}k")
-                    elif output_ext == "wav":
-                        audio.write_audiofile(temp_audio_path, codec='pcm_s16le')
-                    elif output_ext == "m4a":
-                        audio.write_audiofile(temp_audio_path, codec='aac', bitrate=f"{bitrate}k")
-                    elif output_ext == "flac":
-                        audio.write_audiofile(temp_audio_path, codec='flac')
-                    else:
-                        audio.write_audiofile(temp_audio_path)
-                    
-                    # Apply audio processing if requested
-                    if normalize_audio or remove_noise:
-                        processed_audio_path = f"processed_audio_{int(time.time())}.{output_ext}"
-                        
-                        # Use ffmpeg for audio processing
-                        ffmpeg_cmd = ["ffmpeg", "-i", temp_audio_path]
-                        
-                        if normalize_audio:
-                            ffmpeg_cmd.extend(["-af", "loudnorm=I=-16:LRA=11:TP=-1.5"])
-                        
-                        if remove_noise:
-                            ffmpeg_cmd.extend(["-af", f"afftdn=nr={noise_level}"])
-                        
-                        ffmpeg_cmd.append(processed_audio_path)
-                        
-                        # Run ffmpeg
-                        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-                        
-                        if result.returncode == 0 and os.path.exists(processed_audio_path):
-                            final_audio_path = processed_audio_path
-                            # Remove temp file
-                            if os.path.exists(temp_audio_path):
-                                os.remove(temp_audio_path)
-                        else:
-                            final_audio_path = temp_audio_path
-                    else:
-                        final_audio_path = temp_audio_path
-                    
-                    # Add metadata if requested
-                    if add_metadata and output_ext in ["mp3", "m4a"]:
-                        metadata_path = f"metadata_audio_{int(time.time())}.{output_ext}"
-                        
-                        ffmpeg_metadata_cmd = [
-                            "ffmpeg", "-i", final_audio_path,
-                            "-metadata", f"title={title}",
-                            "-metadata", f"artist={artist}",
-                            "-metadata", f"album={album}",
-                            "-codec", "copy",
-                            metadata_path
-                        ]
-                        
-                        result = subprocess.run(ffmpeg_metadata_cmd, capture_output=True, text=True)
-                        
-                        if result.returncode == 0 and os.path.exists(metadata_path):
-                            # Update final audio path
-                            if os.path.exists(final_audio_path):
-                                os.remove(final_audio_path)
-                            final_audio_path = metadata_path
-                    
-                    # Store in session state
-                    with open(final_audio_path, "rb") as f:
-                        st.session_state.extracted_audio = f.read()
-                    st.session_state.audio_filename = f"{title if add_metadata else uploaded_video.name.split('.')[0]}.{output_ext}"
-                    
-                    # Cleanup
-                    video.close()
-                    audio.close()
-                    
-                    if os.path.exists(temp_video_path):
-                        os.remove(temp_video_path)
-                    
-                    if os.path.exists(temp_audio_path):
-                        os.remove(temp_audio_path)
-                    if 'final_audio_path' in locals() and os.path.exists(final_audio_path) and final_audio_path != temp_audio_path:
-                        os.remove(final_audio_path)
-                    
-                    st.success("✅ Audio extracted successfully!")
-                    
-                except Exception as e:
-                    st.error(f"Error extracting audio: {str(e)}")
-        
-        # Display and download extracted audio
-        if hasattr(st.session_state, 'extracted_audio') and st.session_state.extracted_audio:
-            st.subheader("🎧 Extracted Audio")
-            
-            # Audio player
-            st.audio(st.session_state.extracted_audio, format=f'audio/{output_ext}')
-            
-            # Download button
-            st.download_button(
-                label=f"📥 Download {audio_format}",
-                data=st.session_state.extracted_audio,
-                file_name=st.session_state.audio_filename,
-                mime=f"audio/{output_ext}",
-                use_container_width=True
-            )
-            
-            # Convert to other formats
-            st.subheader("🔄 Convert to Other Formats")
-            convert_cols = st.columns(3)
-            
-            with convert_cols[0]:
-                if st.button("Convert to MP3"):
-                    st.info("MP3 conversion selected")
-            
-            with convert_cols[1]:
-                if st.button("Convert to WAV"):
-                    st.info("WAV conversion selected")
-            
-            with convert_cols[2]:
-                if st.button("Convert to M4A"):
-                    st.info("M4A conversion selected")
-            
-            # Reset button
-            if st.button("🔄 Extract New Audio"):
-                if hasattr(st.session_state, 'extracted_audio'):
-                    del st.session_state.extracted_audio
-                if hasattr(st.session_state, 'audio_filename'):
-                    del st.session_state.audio_filename
-                st.rerun()
-    
-    else:
-        # Show instructions
+
+    if not uploaded_video:
         st.info("""
         **How to extract audio:**
         1. Upload a video file (MP4, AVI, MOV, MKV, etc.)
         2. Configure audio extraction settings
         3. Click "Extract Audio"
         4. Download your extracted audio file
-        
-        **Supported video formats:**
-        • MP4, AVI, MOV, MKV, WebM, FLV, WMV, MPEG, MPG
-        
-        **Output audio formats:**
-        • MP3 (Most compatible)
-        • WAV (Lossless quality)
-        • M4A (Apple devices)
-        • AAC, OGG, FLAC
-        
-        **Features:**
-        • Adjustable audio quality
-        • Audio trimming
-        • Volume normalization
-        • Background noise reduction
-        • Metadata editing
         """)
+        return
+
+    # -------------------------
+    # SAVE TEMP VIDEO
+    # -------------------------
+    temp_video_path = f"temp_video_{time.time()}.{uploaded_video.name.split('.')[-1]}"
+    with open(temp_video_path, "wb") as f:
+        f.write(uploaded_video.getbuffer())
+
+    # -------------------------
+    # DISPLAY VIDEO
+    # -------------------------
+    st.subheader("🎥 Uploaded Video")
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.video(temp_video_path)
+
+    with col2:
+        st.info(f"""
+        **Video Details:**
+        • Name: `{uploaded_video.name}`
+        • Size: `{uploaded_video.size / (1024*1024):.2f} MB`
+        • Type: `{uploaded_video.type}`
+        """)
+
+        try:
+            video = VideoFileClip(temp_video_path)
+            duration = video.duration
+            st.info(f"• Duration: `{int(duration // 60)}m {int(duration % 60)}s`")
+            video.close()
+        except:
+            st.info("• Duration: `Unable to detect`")
+
+    # -------------------------
+    # EXTRACTION SETTINGS
+    # -------------------------
+    st.subheader("⚙️ Extraction Settings")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        audio_format = st.selectbox(
+            "Output Format",
+            ["MP3 (Recommended)", "WAV (Lossless)", "M4A", "AAC", "OGG", "FLAC"]
+        )
+        format_map = {
+            "MP3 (Recommended)": "mp3",
+            "WAV (Lossless)": "wav",
+            "M4A": "m4a",
+            "AAC": "aac",
+            "OGG": "ogg",
+            "FLAC": "flac"
+        }
+        output_ext = format_map[audio_format]
+
+    with col2:
+        audio_quality = st.selectbox(
+            "Audio Quality",
+            ["High (320 kbps)", "Medium (192 kbps)", "Standard (128 kbps)", "Low (64 kbps)"],
+            index=0
+        )
+        bitrate = {
+            "High (320 kbps)": 320,
+            "Medium (192 kbps)": 192,
+            "Standard (128 kbps)": 128,
+            "Low (64 kbps)": 64
+        }[audio_quality]
+
+    with col3:
+        trim_audio = st.checkbox("Trim Audio")
+        if trim_audio:
+            start_time = st.number_input("Start (seconds)", min_value=0.0, value=0.0)
+            end_time = st.number_input("End (seconds)", min_value=0.0, value=30.0)
+
+    # -------------------------
+    # ADVANCED OPTIONS
+    # -------------------------
+    with st.expander("Advanced Options"):
+        normalize_audio = st.checkbox("Normalize Audio Volume", True)
+        remove_noise = st.checkbox("Remove Background Noise")
+
+        if remove_noise:
+            noise_level = st.slider("Noise Reduction", 0, 100, 50)
+
+        add_metadata = st.checkbox("Add Metadata", True)
+
+        if add_metadata:
+            title = st.text_input("Audio Title", uploaded_video.name.split('.')[0])
+            artist = st.text_input("Artist", "Extracted from Video")
+            album = st.text_input("Album", "Video Audio Extractions")
+
+    # -------------------------
+    # EXTRACTION BUTTON
+    # -------------------------
+    if st.button("🎵 Extract Audio", type="primary"):
+        with st.spinner("Extracting audio..."):
+            try:
+                # Load video
+                video = VideoFileClip(temp_video_path)
+                audio = video.audio
+
+                # Trim
+                if trim_audio:
+                    audio = audio.subclip(start_time, min(end_time, audio.duration))
+
+                # Save audio
+                raw_audio_path = f"raw_audio_{time.time()}.{output_ext}"
+                if output_ext == "mp3":
+                    audio.write_audiofile(raw_audio_path, bitrate=f"{bitrate}k")
+                elif output_ext == "wav":
+                    audio.write_audiofile(raw_audio_path, codec="pcm_s16le")
+                else:
+                    audio.write_audiofile(raw_audio_path)
+
+                audio.close()
+                video.close()
+
+                # PROCESS AUDIO (normalize/noise)
+                processed_path = raw_audio_path
+                if normalize_audio or remove_noise:
+                    processed_path = f"processed_{time.time()}.{output_ext}"
+                    filters = []
+
+                    if normalize_audio:
+                        filters.append("loudnorm=I=-16:LRA=11:TP=-1.5")
+                    if remove_noise:
+                        filters.append(f"afftdn=nr={noise_level}")
+
+                    ffmpeg_cmd = [
+                        "ffmpeg", "-y", "-i", raw_audio_path,
+                        "-af", ",".join(filters),
+                        processed_path
+                    ]
+                    subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+                # METADATA
+                final_path = processed_path
+                if add_metadata:
+                    final_path = f"final_{time.time()}.{output_ext}"
+                    metadata_cmd = [
+                        "ffmpeg", "-y", "-i", processed_path,
+                        "-metadata", f"title={title}",
+                        "-metadata", f"artist={artist}",
+                        "-metadata", f"album={album}",
+                        "-codec", "copy",
+                        final_path
+                    ]
+                    subprocess.run(metadata_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+                # Store output for download
+                with open(final_path, "rb") as f:
+                    st.session_state.extracted_audio = f.read()
+                st.session_state.audio_filename = f"{title}.{output_ext}"
+
+                st.success("✅ Audio extracted successfully!")
+
+                # CLEANUP
+                for p in [temp_video_path, raw_audio_path, processed_path]:
+                    if os.path.exists(p):
+                        os.remove(p)
+
+            except Exception as e:
+                st.error("❌ Error: " + str(e))
+
+    # -------------------------
+    # DOWNLOAD SECTION
+    # -------------------------
+    if "extracted_audio" in st.session_state:
+        st.subheader("🎧 Extracted Audio")
+
+        st.audio(st.session_state.extracted_audio, format=f"audio/{output_ext}")
+
+        st.download_button(
+            "📥 Download Audio",
+            st.session_state.extracted_audio,
+            file_name=st.session_state.audio_filename,
+            mime=f"audio/{output_ext}",
+            use_container_width=True
+        )
 
 # --------------------------
 # SHOPPING RESEARCH MODULE
