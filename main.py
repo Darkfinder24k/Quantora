@@ -641,7 +641,7 @@ def quantomise_my_trip():
     with st.expander("✨ Get AI Destination Suggestions"):
         vibe = st.text_input("Describe your vibe (e.g., peaceful mountains, party beach, cultural city):", placeholder="e.g., peaceful mountains")
         if st.button("Suggest Destinations"):
-            prompt = f"Suggest 5 best travel destinations for someone who likes: {vibe}. Include country and best time to visit."
+            prompt = f"Suggest 5 best travel destinations for someone who likes: {vibe}. Include country and best time to visit, Provide working link according to real latest time, no errors."
             response = call_a4f_model(prompt, "provider-2/gemini-3-pro-preview")
             st.markdown("### 🎯 AI Suggestions:")
             st.write(response)
@@ -697,7 +697,7 @@ def quantomise_my_trip():
 
 def coding_workspace():
     st.title("💻 AI Coding Workspace")
-    st.markdown("Generate complete, ready-to-run code with `provider-2/gemini-3-pro-preview`")
+    st.markdown("Generate complete, ready-to-run code ")
     
     lang = st.selectbox("Language / Framework", ["Python", "JavaScript", "C++", "Go", "Rust", "Java", "Bash", "SQL"])
     intent = st.text_area("Describe what you need:", placeholder="e.g., FastAPI CRUD with SQLite and Pydantic models")
@@ -719,7 +719,7 @@ def coding_workspace():
 # ---------------------------------------------------------
 def app_builder_workspace():
     st.title("🏗️ Streamlit App Builder")
-    st.markdown("Describe an app idea → Claude expands → GPT-5.1-codex builds → run instantly")
+    st.markdown("Describe an app idea")
     
     idea = st.text_area("Your app idea (1–2 sentences):", placeholder="e.g., an app that predicts house prices from CSV upload")
     
@@ -1354,7 +1354,7 @@ def shopping_research():
     if st.button("🔍 Start Shopping Research", type="primary") and shopping_query.strip():
         with st.spinner("🤖 Researching products... This may take 30-60 seconds"):
             # Step 1: Generate product list using Gemini
-            st.info("**Step 1:** Generating product list with provider-2/gemini-3-pro-preview...")
+            st.info("**Step 1:** Generating product list")
             
             gemini_prompt = f"""
             You are an expert shopping assistant. Based on the following query, generate a list of 5-7 specific products that match the criteria.
@@ -1379,6 +1379,7 @@ def shopping_research():
             6. Best For (who should buy this)
             7. Where to Buy (Amazon, Best Buy, manufacturer website, etc.)
             8. Availability Status (In Stock, Limited Stock, Pre-order, etc.)
+            9. 100% Working Non-Brokwn links, for each product, it the link does not needs to be of one product, and it opens any other product also.
             
             Format each product as a separate section with clear headings.
             Focus on REAL products available for purchase in {region}.
@@ -1404,7 +1405,7 @@ def shopping_research():
         
         # Step 2: Analyze and pick best product using Claude Opus
         with st.spinner("🤔 Analyzing products to find the best one..."):
-            st.info("**Step 2:** Analyzing products with provider-7/claude-opus-4-5-20251101...")
+            st.info("**Step 2:** Analyzing products ")
             
             claude_prompt = f"""
             You are an expert shopping analyst. Analyze the following list of products and select the SINGLE BEST OPTION based on the original query.
@@ -1450,8 +1451,8 @@ def shopping_research():
             [Strong concluding statement about why this is the recommended choice]
             
             **Where to Buy:**
-            - [Store 1 with link if available]
-            - [Store 2 with link if available]
+            - [Store 1 with working non-broken link if available]
+            - [Store 2 with working non-broken link if available]
             
             **Next Steps:**
             [Actionable advice for the user]
