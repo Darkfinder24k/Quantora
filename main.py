@@ -1425,6 +1425,7 @@ def shopping_research():
             4. Provide a detailed explanation of WHY this product was chosen
             5. Mention any compromises or trade-offs
             6. Provide final recommendation
+            7. Do Web Search and check that the links provided in the list are not broken if they are broke, give the fixed link
             
             FORMAT YOUR RESPONSE AS:
             
