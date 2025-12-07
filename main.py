@@ -5854,14 +5854,17 @@ def framelab():
 def quantum_creativestudio():
     st.title("🎨 Quantum CreativeStudio")
     st.markdown("Advanced creative AI studio for multimedia generation and editing")
- 
-    # Display the CreativeStudio in an iframe
-    st.components.v1.iframe(
-        "https://creativestudio-3ata6gv6.manus.space",
-        height=800,
-        scrolling=True
-    )
- 
+
+    # Button to open in new tab
+    open_tab_code = """
+        <script>
+            window.open("https://creativestudio-3ata6gv6.manus.space", "_blank");
+        </script>
+    """
+
+    if st.button("🚀 Open CreativeStudio"):
+        st.markdown(open_tab_code, unsafe_allow_html=True)
+
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -5871,20 +5874,24 @@ def quantum_creativestudio():
     with col3:
         st.info("**Support:**\n- Multi-format export\n- Team workspace\n- Version control")
 
-# --------------------------
+
+# -----------------------------------
 # QUANTUM LM MODULE
-# --------------------------
+# -----------------------------------
 def quantum_lm():
     st.title("🧠 Quantum LM")
-    st.markdown("Advanced language model with quantum-inspired architecture")
- 
-    # Display the Quantum LM in an iframe
-    st.components.v1.iframe(
-        "https://quantumlm-w2cjzzsd.manus.space",
-        height=800,
-        scrolling=True
-    )
- 
+    st.markdown("Advanced Notebook with quantum-inspired architecture")
+
+    # Button to open in new tab
+    open_tab_code = """
+        <script>
+            window.open("https://quantumlm-w2cjzzsd.manus.space", "_blank");
+        </script>
+    """
+
+    if st.button("🧠 Open Quantum LM"):
+        st.markdown(open_tab_code, unsafe_allow_html=True)
+
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -5918,7 +5925,7 @@ if st.session_state.pro_unlocked:
             "Select Mode",
             ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", 
               "Heart Health Analyzer", "Brain Health Analyzer", 
-             "Cancer Risk Assessor", "FrameLab", "Quantum CreativeStudio", 
+             "Cancer Risk Assessor", "FrameLab", "Quantum CreativeStudio", "Quantum Lm", 
               "Quantomise My Trip", "Coding", "App Building", "Quantora Weather",
              "Collage Maker", "Sound Extractor", "Shopping Research"],  # Added Quantora Translate
             index=0,
@@ -6207,6 +6214,8 @@ elif mode == "Sound Extractor":
     sound_extractor()
 elif mode == "Shopping Research":
     shopping_research()
+elif mode == "Quantum LM":
+    quantom_lm()
 
 
 st.markdown(
