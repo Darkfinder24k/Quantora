@@ -5855,15 +5855,10 @@ def quantum_creativestudio():
     st.title("🎨 Quantum CreativeStudio")
     st.markdown("Advanced creative AI studio for multimedia generation and editing")
 
-    # Button to open in new tab
-    open_tab_code = """
-        <script>
-            window.open("https://creativestudio-3ata6gv6.manus.space", "_blank");
-        </script>
-    """
-
-    if st.button("🚀 Open CreativeStudio"):
-        st.markdown(open_tab_code, unsafe_allow_html=True)
+    if st.button("🚀 Open CreativeStudio in New Tab"):
+        st.experimental_open_url(
+            "https://creativestudio-3ata6gv6.manus.space"
+        )
 
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
@@ -5882,15 +5877,10 @@ def quantum_lm():
     st.title("🧠 Quantum LM")
     st.markdown("Advanced Notebook with quantum-inspired architecture")
 
-    # Button to open in new tab
-    open_tab_code = """
-        <script>
-            window.open("https://quantumlm-w2cjzzsd.manus.space", "_blank");
-        </script>
-    """
-
-    if st.button("🧠 Open Quantum LM"):
-        st.markdown(open_tab_code, unsafe_allow_html=True)
+    if st.button("🧠 Open Quantum LM in New Tab"):
+        st.experimental_open_url(
+            "https://quantumlm-w2cjzzsd.manus.space"
+        )
 
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
@@ -5900,7 +5890,6 @@ def quantum_lm():
         st.info("**Features:**\n- Contextual memory\n- Emotional intelligence\n- Creative writing")
     with col3:
         st.info("**Applications:**\n- Research assistance\n- Code generation\n- Content creation")
-
 # --------------------------
 # HISTORY DISPLAY
 # --------------------------
@@ -6215,7 +6204,7 @@ elif mode == "Sound Extractor":
 elif mode == "Shopping Research":
     shopping_research()
 elif mode == "Quantum LM":
-    quantom_lm()
+    quantum_lm()
 
 
 st.markdown(
