@@ -31,6 +31,12 @@ moviepy==1.0.3
 imageio==2.34.1
 imageio-ffmpeg==0.4.9
 
+# FFmpeg required for audio/video processing
+ffmpeg-python==0.2.0
+
+# 🔥 Absolutely required for Streamlit Cloud to install the ffmpeg binary
+ffmpeg
+
 # Optional/Removed dependencies
 # opencv-python-headless==4.10.0.84  # Removed as requested
 google-generativeai==0.8.5  # For Gemini models
