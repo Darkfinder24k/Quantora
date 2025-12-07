@@ -5855,10 +5855,12 @@ def quantum_creativestudio():
     st.title("🎨 Quantum CreativeStudio")
     st.markdown("Advanced creative AI studio for multimedia generation and editing")
 
-    if st.button("🚀 Open CreativeStudio in New Tab"):
-        st.experimental_open_url(
-            "https://creativestudio-3ata6gv6.manus.space"
-        )
+    st.write(
+        '<a href="https://creativestudio-3ata6gv6.manus.space" target="_blank">'
+        '<button style="padding:10px 20px; font-size:18px;">🚀 Open CreativeStudio</button>'
+        '</a>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
@@ -5877,10 +5879,12 @@ def quantum_lm():
     st.title("🧠 Quantum LM")
     st.markdown("Advanced Notebook with quantum-inspired architecture")
 
-    if st.button("🧠 Open Quantum LM in New Tab"):
-        st.experimental_open_url(
-            "https://quantumlm-w2cjzzsd.manus.space"
-        )
+    st.write(
+        '<a href="https://quantumlm-w2cjzzsd.manus.space" target="_blank">'
+        '<button style="padding:10px 20px; font-size:18px;">🧠 Open Quantum LM</button>'
+        '</a>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
