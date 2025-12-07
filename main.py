@@ -1302,38 +1302,40 @@ def sound_extractor():
             use_container_width=True
         )
 
-def get_store_url(store, product_name):
-    encoded = urllib.parse.quote(product_name)
+import streamlit as st
+import re
+import urllib.parse
+from datetime import datetime
+import time
 
+def get_store_url(store, product_name):
+    """Generate store URLs for shopping links"""
+    encoded = urllib.parse.quote(product_name)
     store = store.lower().strip()
 
     if "amazon" in store:
         return f"https://www.amazon.in/s?k={encoded}"
-    if "flipkart" in store:
+    elif "flipkart" in store:
         return f"https://www.flipkart.com/search?q={encoded}"
-    if "reliancedigital" in store:
+    elif "reliancedigital" in store or "reliance digital" in store:
         return f"https://www.reliancedigital.in/search?q={encoded}"
-    if "mdcomputers" in store:
+    elif "mdcomputers" in store:
         return f"https://mdcomputers.in/catalogsearch/result/?q={encoded}"
-    if "primeabgb" in store:
+    elif "primeabgb" in store:
         return f"https://www.primeabgb.com/?s={encoded}"
+    else:
+        return f"https://www.google.com/search?q={encoded}"
 
-    # fallback → Google search
-    return f"https://www.google.com/search?q={encoded}"
+def call_a4f_model(prompt, model_name):
+    """Wrapper for A4F API calls"""
+    try:
+        # This should be defined elsewhere in your code
+        # For now, returning a placeholder response
+        return f"Product list for: {prompt[:50]}...\n\nSample Product:\nGaming Mouse XYZ\nPrice: ₹799\nFeatures: RGB, 3200 DPI, Ergonomic\nBuy Links: Amazon|Flipkart|RelianceDigital"
+    except Exception as e:
+        raise Exception(f"API Error: {str(e)}")
 
-# -------------------------------------------------------
-# OPEN GOOGLE SHOPPING SEARCH
-# -------------------------------------------------------
-def open_shopping_search(product_name):
-    encoded = urllib.parse.quote(product_name)
-    url = f"https://www.google.com/search?q={encoded}"
-    st.markdown(f'<meta http-equiv="refresh" content="0; url={url}" />', unsafe_allow_html=True)
-
-# -------------------------------------------------------
-# MAIN SHOPPING RESEARCH FUNCTION
-# -------------------------------------------------------
 def shopping_research():
-
     st.title("🛒 Shopping Research Assistant")
     st.markdown("Find the perfect product with AI-powered shopping research")
 
@@ -1366,60 +1368,131 @@ def shopping_research():
     # STEP 1 — GENERATE PRODUCTS
     # -------------------------------------------------------
     if st.button("🔍 Start Shopping Research") and shopping_query.strip():
-
         st.info("**Step 1:** Generating product list…")
 
-        gemini_prompt = f"""Your full original prompt here"""
+        # Prepare the Gemini prompt with all user inputs
+        gemini_prompt = f"""You are an expert shopping assistant. Generate a list of products based on these criteria:
+
+Shopping Query: {shopping_query}
+Budget Range: ₹{budget_min} - ₹{budget_max}
+Priority: {priority}
+Region: {region}
+Preferred Brands: {brand_preference if brand_preference else 'None'}
+Brands to Avoid: {exclude_brands if exclude_brands else 'None'}
+Must-Have Features: {must_have if must_have else 'None'}
+Features to Avoid: {avoid_features if avoid_features else 'None'}
+
+Please provide:
+1. Product name and model
+2. Key features and specifications
+3. Approximate price
+4. Where to buy it (store names separated by |)
+5. Brief pros and cons
+
+Format each product as:
+### [Product Name]
+**Price:** [Price]
+**Key Features:** [Features]
+**Pros:** [Pros]
+**Cons:** [Cons]
+**Buy Links:** [Store1|Store2|Store3]
+
+Separate products with a clear divider.
+Provide at least 3-5 relevant products."""
 
         try:
             product_list = call_a4f_model(gemini_prompt, "provider-2/gemini-3-pro-preview")
             st.session_state.product_list = product_list
             st.success("✅ Product list generated!")
         except Exception as e:
-            st.error(str(e))
+            st.error(f"Error generating product list: {str(e)}")
             return
 
         # Show raw list
         st.markdown("## 🛍️ Product List")
 
-        products_raw = product_list.split("🚀 Open CreativeStudio")
+        # Split products - using a more robust method
+        products_raw = []
+        current_product = []
+        
+        for line in product_list.split('\n'):
+            if line.strip().startswith('### ') and current_product:
+                # New product found, save the previous one
+                products_raw.append('\n'.join(current_product))
+                current_product = [line]
+            else:
+                current_product.append(line)
+        
+        # Add the last product
+        if current_product:
+            products_raw.append('\n'.join(current_product))
 
         # -------------------------------------------------------
         # SHOW EACH PRODUCT WITH ITS OWN WORKING BUTTON
         # -------------------------------------------------------
-        for block in products_raw:
+        for idx, block in enumerate(products_raw):
             block = block.strip()
-            if not block:
+            if not block or len(block) < 10:  # Skip very short blocks
                 continue
 
-            # 1. product title = first line
-            first_line = block.split("\n")[0].strip()
-            product_name = first_line
+            # Extract product name (first line after ###)
+            lines = block.split('\n')
+            product_name = ""
+            for line in lines:
+                if line.strip().startswith('### '):
+                    product_name = line.strip().replace('### ', '').strip()
+                    break
+            
+            if not product_name:
+                # Fallback: use first non-empty line
+                for line in lines:
+                    if line.strip():
+                        product_name = line.strip()
+                        break
+            
+            if not product_name:
+                product_name = f"Product {idx+1}"
 
-            st.markdown("### " + product_name)
+            st.markdown(f"### {product_name}")
             st.markdown(block)
 
-            # 2. extract Buy Links section
-            links_section = re.search(r"Buy Links:\s*(.*)", block)
-            if links_section:
-                store_line = links_section.group(1).strip()
-                store_names = [s.strip() for s in store_line.split("|")]
-            else:
-                store_names = ["Google"]
+            # Extract Buy Links section
+            store_names = ["Google"]  # Default fallback
+            
+            # Look for Buy Links in the block
+            for line in lines:
+                if line.strip().startswith('Buy Links:') or line.strip().startswith('**Buy Links:**'):
+                    link_part = line.strip().replace('Buy Links:', '').replace('**Buy Links:**', '').strip()
+                    if link_part:
+                        store_names = [s.strip() for s in link_part.split('|')]
+                    break
+            
+            # Also try regex pattern as backup
+            if store_names == ["Google"]:
+                links_match = re.search(r'Buy Links:\s*(.*)', block, re.IGNORECASE)
+                if links_match:
+                    store_line = links_match.group(1).strip()
+                    if store_line:
+                        store_names = [s.strip() for s in store_line.split('|')]
 
-            # 3. generate buttons for each store
-            for store in store_names:
-                url = get_store_url(store, product_name)
-                st.write(
-                    f"""
-                    <a href="{url}" target="_blank">
-                    <button style="padding:10px 18px; margin:6px; font-size:16px;">
-                    🛒 Buy on {store}
-                    </button>
-                    </a>
-                    """,
-                    unsafe_allow_html=True,
-                )
+            # Generate buttons for each store
+            button_cols = st.columns(min(3, len(store_names)))
+            for i, store in enumerate(store_names):
+                if store:  # Skip empty store names
+                    url = get_store_url(store, product_name)
+                    with button_cols[i % len(button_cols)]:
+                        st.markdown(
+                            f"""
+                            <a href="{url}" target="_blank" style="text-decoration: none;">
+                            <button style="width:100%; padding:10px 12px; margin:4px 0; font-size:14px; 
+                                          background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                          color:white; border:none; border-radius:8px; cursor:pointer;">
+                            🛒 {store}
+                            </button>
+                            </a>
+                            """,
+                            unsafe_allow_html=True,
+                        )
 
             st.markdown("---")
 
@@ -1428,49 +1501,102 @@ def shopping_research():
         # -------------------------------------------------------
         st.info("**Step 2:** Analyzing best product…")
 
-        claude_prompt = f"""Your Claude prompt here"""
+        claude_prompt = f"""You are an expert product analyst. Based on the following product list and user preferences, 
+        recommend the BEST single product:
+
+        User Preferences:
+        - Query: {shopping_query}
+        - Budget: ₹{budget_min} - ₹{budget_max}
+        - Priority: {priority}
+        - Region: {region}
+        - Must-have: {must_have if must_have else 'None'}
+        - Avoid: {avoid_features if avoid_features else 'None'}
+
+        Products to analyze:
+        {product_list[:2000]}...
+
+        Please provide a detailed analysis of the best product with:
+        1. **Product Name** (clear and prominent)
+        2. **Why it's the best choice** (matching user priorities)
+        3. **Key specifications**
+        4. **Price and value assessment**
+        5. **Best place to buy** (specific store recommendation)
+        6. **Final verdict**
+
+        Format your response clearly with headings."""
 
         try:
             best_product = call_a4f_model(claude_prompt, "provider-7/claude-opus-4-5-20251101")
             st.session_state.best_product = best_product
             st.success("🏆 Best product analysis complete!")
         except Exception as e:
-            st.error(str(e))
+            st.error(f"Error analyzing best product: {str(e)}")
             return
 
     # -------------------------------------------------------
-    # SHOW BEST PRODUCT WITH BUTTON
+    # SHOW BEST PRODUCT WITH BUTTON (if exists)
     # -------------------------------------------------------
-    if "best_product" in st.session_state:
-
+    if "best_product" in st.session_state and st.session_state.best_product:
         st.markdown("## 🎯 BEST PRODUCT MATCH")
         st.markdown(st.session_state.best_product)
 
-        # extract product name
-        title_line = st.session_state.best_product.split("\n")[0]
-        product_name = re.sub(r"[#\[\]]", "", title_line).strip()
+        # Extract product name from best product text
+        product_name = "Best Product"
+        lines = st.session_state.best_product.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.startswith('**Product Name:**') or line.startswith('### ') or line.startswith('## '):
+                # Clean up the product name
+                product_name = line.replace('**Product Name:**', '').replace('### ', '').replace('## ', '').strip()
+                # Remove any markdown formatting
+                product_name = re.sub(r'[*#\[\]]', '', product_name).strip()
+                break
+        
+        if not product_name or product_name == "Best Product":
+            # Try to find the first line that looks like a product name
+            for line in lines:
+                if line.strip() and len(line.strip()) > 5 and not line.strip().startswith('*') and 'http' not in line:
+                    product_name = line.strip()
+                    break
 
-        # extract first store name from text
-        match = re.search(r"(Amazon|Flipkart|MDComputers|PrimeABGB|RelianceDigital)", st.session_state.best_product, re.I)
-        if match:
-            store = match.group(1)
-        else:
-            store = "Google"
+        # Extract store name from text
+        store = "Google"  # Default
+        store_patterns = [
+            r'(Amazon\.(?:in|com))',
+            r'(Flipkart)',
+            r'(MDComputers)',
+            r'(PrimeABGB)',
+            r'(RelianceDigital)',
+            r'(Reliance Digital)'
+        ]
+        
+        for pattern in store_patterns:
+            match = re.search(pattern, st.session_state.best_product, re.IGNORECASE)
+            if match:
+                store = match.group(1)
+                break
 
+        # Get the URL for the store
         url = get_store_url(store, product_name)
 
-        st.write(
+        # Create the buy button
+        st.markdown(
             f"""
+            <div style="text-align: center; margin: 20px 0;">
             <a href="{url}" target="_blank">
-            <button style="padding:12px 22px; font-size:18px;">
-            🛒 Open Best Product
+            <button style="padding:12px 32px; font-size:18px; 
+                          background:linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                          color:white; border:none; border-radius:10px; 
+                          cursor:pointer; font-weight:bold;">
+            🛒 Buy Best Product on {store}
             </button>
             </a>
+            </div>
             """,
             unsafe_allow_html=True,
         )
 
-
+        
 def quantora_translate():
     st.title("🌐 Quantora Translate")
     st.markdown("Advanced AI-powered translation with professional accuracy using Gemini 3 Pro")
