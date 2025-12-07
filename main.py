@@ -1305,62 +1305,77 @@ def sound_extractor():
 # --------------------------
 # SHOPPING RESEARCH MODULE
 # --------------------------
+# -----------------------------------------------------------
+# Function to open Chrome with shopping search
+# -----------------------------------------------------------
+def open_shopping_search(product_name: str):
+    encoded = urllib.parse.quote(product_name)
+    url = f"https://www.google.com/search?q={encoded}+shopping"
+    st.experimental_open_browser(url)
+
+
+# -----------------------------------------------------------
+# MAIN SHOPPING RESEARCH FUNCTION
+# -----------------------------------------------------------
 def shopping_research():
+
     st.title("🛒 Shopping Research Assistant")
     st.markdown("Find the perfect product with AI-powered shopping research")
-    
+
     # Step 1: User input
     st.subheader("🔍 Step 1: What are you looking for?")
-    
+
     shopping_query = st.text_area(
         "Describe what you want to buy in detail:",
         height=120,
         placeholder="Example: 'Looking for a gaming laptop under $1500 with at least RTX 4060, 16GB RAM, good cooling system, and at least 6-hour battery life for college and gaming.'",
         help="Be as specific as possible about features, budget, and use case"
     )
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         budget_min = st.number_input("Minimum Budget ($)", 0, 10000, 0, 50)
         budget_max = st.number_input("Maximum Budget ($)", 0, 10000, 1000, 50)
-    
+
     with col2:
         priority = st.selectbox(
             "Primary Priority",
             ["Best Value", "Highest Quality", "Best Features", "Most Reliable", "Lowest Price"]
         )
-        
+
         region = st.selectbox(
             "Shopping Region",
             ["United States", "Europe", "India", "Canada", "Australia", "Global"]
         )
-    
+
     # Additional preferences
     with st.expander("Additional Preferences"):
         brand_preference = st.text_input("Preferred brands (comma-separated)", 
                                         placeholder="e.g., Dell, ASUS, Lenovo")
-        
+
         exclude_brands = st.text_input("Brands to avoid", 
                                       placeholder="e.g., Acer, HP")
-        
+
         must_have = st.text_area("Must-have features", 
                                 placeholder="e.g., USB-C charging, backlit keyboard, warranty")
-        
+
         avoid_features = st.text_area("Features to avoid", 
                                      placeholder="e.g., soldered RAM, poor thermals")
-    
-    # Research button
-    if st.button("🔍 Start Shopping Research", type="primary") and shopping_query.strip():
+
+    # -----------------------------------------------------------
+    # Start Research
+    # -----------------------------------------------------------
+    if st.button("🔍 Start Shopping Research") and shopping_query.strip():
+
         with st.spinner("🤖 Researching products... This may take 30-60 seconds"):
-            # Step 1: Generate product list using Gemini
             st.info("**Step 1:** Generating product list")
-            
+
             gemini_prompt = f"""
             You are an expert shopping assistant. Based on the following query, generate a list of 5-7 specific products that match the criteria.
-            
+
             SHOPPING QUERY: {shopping_query}
-            
+
             ADDITIONAL DETAILS:
             - Budget: ${budget_min} - ${budget_max}
             - Priority: {priority}
@@ -1369,7 +1384,7 @@ def shopping_research():
             - Brands to Avoid: {exclude_brands if exclude_brands else 'None specified'}
             - Must-have Features: {must_have if must_have else 'None specified'}
             - Features to Avoid: {avoid_features if avoid_features else 'None specified'}
-            
+
             FOR EACH PRODUCT, PROVIDE:
             1. Product Name (exact model if possible)
             2. Current Approximate Price (in USD)
@@ -1378,143 +1393,130 @@ def shopping_research():
             5. Cons (2-3 bullet points)
             6. Best For (who should buy this)
             7. Where to Buy (Amazon, Best Buy, manufacturer website, etc.)
-            8. Availability Status (In Stock, Limited Stock, Pre-order, etc.)
-            9. 100% Working Non-Brokwn links, for each product, it the link does not needs to be of one product, and it opens any other product also.
-            
-            Format each product as a separate section with clear headings.
-            Focus on REAL products available for purchase in {region}.
-            Include a mix of price points within the budget range.
-            Prioritize products that match the "{priority}" criteria.
-            
-            Make sure the information is accurate and up-to-date for current year shopping.
+            8. Availability Status
+            9. 100% Working NON-BROKEN links (can be any product page)
+
+            Format each product as a separate section.
+            Focus on REAL products available today.
             """
-            
+
             try:
-                # Call Gemini model
+                # FIXED: this was missing before
                 product_list = call_a4f_model(gemini_prompt, "provider-2/gemini-3-pro-preview")
+
                 st.session_state.product_list = product_list
                 st.success("✅ Product list generated!")
-                
-                # Display product list
+
                 with st.expander("📋 Generated Product List", expanded=True):
                     st.markdown(product_list)
-                
+
             except Exception as e:
                 st.error(f"Error generating product list: {str(e)}")
                 return
-        
-        # Step 2: Analyze and pick best product using Claude Opus
+
+        # -----------------------------------------------------------
+        # Step 2 — Analysis
+        # -----------------------------------------------------------
         with st.spinner("🤔 Analyzing products to find the best one..."):
-            st.info("**Step 2:** Analyzing products ")
-            
+            st.info("**Step 2:** Analyzing products")
+
             claude_prompt = f"""
-            You are an expert shopping analyst. Analyze the following list of products and select the SINGLE BEST OPTION based on the original query.
-            
+            You are an expert shopping analyst. Analyze the following list of products and select the SINGLE BEST OPTION.
+
             ORIGINAL SHOPPING QUERY: {shopping_query}
             BUDGET: ${budget_min} - ${budget_max}
             PRIORITY: {priority}
             REGION: {region}
-            
+
             PRODUCT LIST:
-            {product_list if 'product_list' in locals() else st.session_state.get('product_list', '')}
-            
-            YOUR TASK:
-            1. Review ALL products thoroughly
-            2. Compare them against the original requirements
-            3. Select the SINGLE BEST product that best matches the user's needs
-            4. Provide a detailed explanation of WHY this product was chosen
-            5. Mention any compromises or trade-offs
-            6. Provide final recommendation
-            7. Do Web Search and check that the links provided in the list are not broken if they are broke, give the fixed link
-            
+            {product_list}
+
             FORMAT YOUR RESPONSE AS:
-            
+
             ## 🏆 BEST PRODUCT RECOMMENDATION
-            
+
             ### [Product Name]
-            
+
             **Price:** [Exact or approximate price]
-            
+
             **Why This is the Best Choice:**
-            [3-4 paragraphs explaining why this product is the best match]
-            
+            (3–4 paragraphs)
+
             **Key Advantages:**
-            - Advantage 1
-            - Advantage 2
-            - Advantage 3
-            - Advantage 4
-            
-            **Considerations to Note:**
-            - Consideration 1
-            - Consideration 2
-            
-            **Final Verdict:**
-            [Strong concluding statement about why this is the recommended choice]
-            
+            - Point
+            - Point
+
+            **Considerations:**
+            - Point
+
             **Where to Buy:**
-            - [Store 1 with working non-broken link if available]
-            - [Store 2 with working non-broken link if available]
-            
-            **Next Steps:**
-            [Actionable advice for the user]
-            
-            ONLY SHOW THE SINGLE BEST PRODUCT. Do not mention other products or include a comparison table.
-            Focus on why THIS product is the perfect match for the user's specific needs.
+            - Store (working link)
+
+            **Next Steps:** (Advice)
             """
-            
+
             try:
-                # Call Claude Opus model
                 best_product = call_a4f_model(claude_prompt, "provider-7/claude-opus-4-5-20251101")
                 st.session_state.best_product = best_product
                 st.success("✅ Best product analysis complete!")
-                
             except Exception as e:
                 st.error(f"Error analyzing products: {str(e)}")
                 return
-    
-    # Display results
-    if hasattr(st.session_state, 'best_product') and st.session_state.best_product:
+
+
+    # -----------------------------------------------------------
+    # DISPLAY RESULTS
+    # -----------------------------------------------------------
+    if "best_product" in st.session_state:
+
         st.markdown("---")
         st.subheader("🎯 Your Perfect Product Match")
-        
-        # Display best product with nice formatting
+
         st.markdown(st.session_state.best_product)
-        
-        # Additional features
+
+        # -----------------------------------------------------------
+        # AUTO-DETECT PRODUCT NAME
+        # -----------------------------------------------------------
+        match = re.search(r"###\s*\[(.*?)\]", st.session_state.best_product)
+        product_name = match.group(1) if match else "Best Product"
+
+        st.success(f"Detected Product: {product_name}")
+
+        # -----------------------------------------------------------
+        # SHOPPING SEARCH BUTTON
+        # -----------------------------------------------------------
+        if st.button("🛒 Search This Product Online (Chrome)", use_container_width=True):
+            open_shopping_search(product_name)
+
+        # -----------------------------------------------------------
+        # Extra Buttons
+        # -----------------------------------------------------------
         col1, col2, col3 = st.columns(3)
-        
+
         with col1:
-            if st.button("📧 Email This Recommendation", use_container_width=True):
-                st.info("Email feature would open your default email client with the recommendation.")
-        
+            if st.button("📧 Email This Recommendation"):
+                st.info("This would open your email client.")
+
         with col2:
-            if st.button("📋 Copy to Clipboard", use_container_width=True):
-                st.info("Recommendation copied to clipboard!")
-        
+            if st.button("📋 Copy to Clipboard"):
+                st.info("Copied!")
+
         with col3:
-            if st.button("💾 Save as PDF", use_container_width=True):
-                st.info("PDF generation would start here.")
-        
-        # Comparison table (optional)
-        with st.expander("📊 See Detailed Comparison", expanded=False):
-            if hasattr(st.session_state, 'product_list'):
-                st.markdown(st.session_state.product_list)
-        
-        # Start new search
-        if st.button("🔄 Start New Search", type="secondary"):
-            for key in ['product_list', 'best_product']:
-                if hasattr(st.session_state, key):
-                    delattr(st.session_state, key)
+            if st.button("💾 Save as PDF"):
+                st.info("PDF generation not implemented yet.")
+
+        with st.expander("📊 See Detailed Comparison"):
+            st.markdown(st.session_state.product_list)
+
+        if st.button("🔄 Start New Search"):
+            st.session_state.clear()
             st.rerun()
-    
-    elif hasattr(st.session_state, 'product_list') and not hasattr(st.session_state, 'best_product'):
-        st.warning("Product list generated but analysis failed. Please try again.")
-    
+
     else:
-        # Show examples
+        # Example suggestions
         st.markdown("---")
         st.subheader("💡 Examples to Try")
-        
+
         examples = [
             "Gaming laptop under $1200 with good battery life for college",
             "Wireless noise-cancelling headphones under $300 for travel",
@@ -1522,20 +1524,14 @@ def shopping_research():
             "Gaming chair with lumbar support under $250",
             "4K monitor for photo editing under $400"
         ]
-        
+
         cols = st.columns(3)
         for i, example in enumerate(examples):
             with cols[i % 3]:
                 if st.button(f"🎯 {example}", use_container_width=True):
                     st.session_state.shopping_example = example
                     st.rerun()
-        
-        if 'shopping_example' in st.session_state:
-            st.text_area("Try this example:", value=st.session_state.shopping_example, key="example_fill")
-            if st.button("Use This Example"):
-                shopping_query = st.session_state.shopping_example
-                st.rerun()
-
+                    
 # --------------------------
 # QUANTORA TRANSLATE MODULE
 # --------------------------
