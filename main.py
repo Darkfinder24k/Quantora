@@ -5917,10 +5917,10 @@ if st.session_state.pro_unlocked:
         mode = st.radio(
             "Select Mode",
             ["AI", "AI Content Detector", "AI Humanizer", "Quantora News", "Quantora Trade Charts", 
-             "Quantora Social Media", "Heart Health Analyzer", "Brain Health Analyzer", 
-             "Cancer Risk Assessor", "History", "FrameLab", "Quantum CreativeStudio", 
-             "Quantum LM", "Quantomise My Trip", "Coding", "App Building", "Quantora Weather",
-             "Collage Maker", "Sound Extractor", "Shopping Research", "Quantora Translate"],  # Added Quantora Translate
+              "Heart Health Analyzer", "Brain Health Analyzer", 
+             "Cancer Risk Assessor", "FrameLab", "Quantum CreativeStudio", 
+              "Quantomise My Trip", "Coding", "App Building", "Quantora Weather",
+             "Collage Maker", "Sound Extractor", "Shopping Research"],  # Added Quantora Translate
             index=0,
             key="current_mode"
         )
@@ -6183,22 +6183,16 @@ elif mode == "Quantora News":
     quantora_news()
 elif mode == "Quantora Trade Charts":
     quantora_trade_charts()
-elif mode == "Quantora Social Media":
-    quantora_social_media()
 elif mode == "Heart Health Analyzer":
     heart_health_analyzer()
 elif mode == "Brain Health Analyzer":
     brain_health_analyzer()
 elif mode == "Cancer Risk Assessor":
     cancer_risk_assessor()
-elif mode == "History":
-    show_history()
 elif mode == "FrameLab":
     framelab()
 elif mode == "Quantum CreativeStudio":
     quantum_creativestudio()
-elif mode == "Quantum LM":
-    quantum_lm()
 elif mode == "Quantomise My Trip":
     quantomise_my_trip()
 elif mode == "Coding":
@@ -6213,8 +6207,7 @@ elif mode == "Sound Extractor":
     sound_extractor()
 elif mode == "Shopping Research":
     shopping_research()
-elif mode == "Quantora Translate":
-    quantora_translate()
+
 
 st.markdown(
     """
