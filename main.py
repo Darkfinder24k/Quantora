@@ -1277,7 +1277,14 @@ def sound_extractor():
                         os.remove(p)
 
             except Exception as e:
-                st.error("❌ Error: " + str(e))
+                error_message = str(e)
+            
+                # Detect missing FFmpeg
+                if "No such file or directory: 'ffmpeg'" in error_message or "ffmpeg" in error_message.lower():
+                    st.error("🚧 This feature is currently under construction and will soon be available.")
+                else:
+                    st.error(f"❌ Error: {error_message}")
+
 
     # -------------------------
     # DOWNLOAD SECTION
