@@ -1318,7 +1318,6 @@ def open_shopping_search(product_name: str):
 # MAIN SHOPPING RESEARCH FUNCTION
 # -----------------------------------------------------------
 def shopping_research():
-
     st.title("🛒 Shopping Research Assistant")
     st.markdown("Find the perfect product with AI-powered shopping research")
 
@@ -1328,7 +1327,7 @@ def shopping_research():
     shopping_query = st.text_area(
         "Describe what you want to buy in detail:",
         height=120,
-        placeholder="Example: 'Looking for a gaming laptop under $1500 with at least RTX 4060, 16GB RAM, good cooling system, and at least 6-hour battery life for college and gaming.'",
+        placeholder="Example: 'Looking for a gaming laptop under $1500 with at least RTX 4060, 16GB RAM, good cooling system, and at least 6-hour battery life.'",
         help="Be as specific as possible about features, budget, and use case"
     )
 
@@ -1349,189 +1348,153 @@ def shopping_research():
             ["United States", "Europe", "India", "Canada", "Australia", "Global"]
         )
 
-    # Additional preferences
     with st.expander("Additional Preferences"):
-        brand_preference = st.text_input("Preferred brands (comma-separated)", 
-                                        placeholder="e.g., Dell, ASUS, Lenovo")
-
-        exclude_brands = st.text_input("Brands to avoid", 
-                                      placeholder="e.g., Acer, HP")
-
-        must_have = st.text_area("Must-have features", 
-                                placeholder="e.g., USB-C charging, backlit keyboard, warranty")
-
-        avoid_features = st.text_area("Features to avoid", 
-                                     placeholder="e.g., soldered RAM, poor thermals")
+        brand_preference = st.text_input("Preferred brands (comma-separated)", placeholder="e.g., Dell, ASUS, Lenovo")
+        exclude_brands = st.text_input("Brands to avoid", placeholder="e.g., Acer, HP")
+        must_have = st.text_area("Must-have features", placeholder="e.g., USB-C charging, backlit keyboard")
+        avoid_features = st.text_area("Features to avoid", placeholder="e.g., soldered RAM, poor thermals")
 
     # -----------------------------------------------------------
-    # Start Research
+    # Step 1: Start Research
     # -----------------------------------------------------------
     if st.button("🔍 Start Shopping Research") and shopping_query.strip():
 
-        with st.spinner("🤖 Researching products... This may take 30-60 seconds"):
+        with st.spinner("🤖 Researching products..."):
             st.info("**Step 1:** Generating product list")
 
             gemini_prompt = f"""
-            You are an expert shopping assistant. Based on the following query, generate a list of 5-7 specific products that match the criteria.
+            You are an expert shopping assistant. Generate a list of 5–7 REAL products.
 
-            SHOPPING QUERY: {shopping_query}
+            USER QUERY: {shopping_query}
 
-            ADDITIONAL DETAILS:
-            - Budget: ${budget_min} - ${budget_max}
+            DETAILS:
+            - Budget: ${budget_min} – ${budget_max}
             - Priority: {priority}
             - Region: {region}
-            - Brand Preference: {brand_preference if brand_preference else 'None specified'}
-            - Brands to Avoid: {exclude_brands if exclude_brands else 'None specified'}
-            - Must-have Features: {must_have if must_have else 'None specified'}
-            - Features to Avoid: {avoid_features if avoid_features else 'None specified'}
+            - Preferred Brands: {brand_preference or 'None'}
+            - Avoid Brands: {exclude_brands or 'None'}
+            - Must Have: {must_have or 'None'}
+            - Avoid: {avoid_features or 'None'}
 
-            FOR EACH PRODUCT, PROVIDE:
-            1. Product Name (exact model if possible)
-            2. Current Approximate Price (in USD)
-            3. Key Specifications (bullet points)
-            4. Pros (3-5 bullet points)
-            5. Cons (2-3 bullet points)
-            6. Best For (who should buy this)
-            7. Where to Buy (Amazon, Best Buy, manufacturer website, etc.)
-            8. Availability Status
-            9. 100% Working NON-BROKEN links (can be any product page)
+            For EACH product return:
 
-            Format each product as a separate section.
-            Focus on REAL products available today.
+            ### [PRODUCT NAME]
+            **Price:** ...
+            **Specs:** (3–5 bullets)
+            **Pros:** (3–5 bullets)
+            **Cons:** (2–3 bullets)
+            **Best For:** ...
+            **Buy Links:** (working URLs)
             """
 
             try:
-                # FIXED: this was missing before
-                product_list = call_a4f_model(gemini_prompt, "provider-2/gemini-3-pro-preview")
+                product_list = call_a4f_model(
+                    gemini_prompt, 
+                    "provider-2/gemini-3-pro-preview"
+                )
 
                 st.session_state.product_list = product_list
                 st.success("✅ Product list generated!")
 
-                with st.expander("📋 Generated Product List", expanded=True):
-                    st.markdown(product_list)
-
             except Exception as e:
-                st.error(f"Error generating product list: {str(e)}")
+                st.error(f"Error: {str(e)}")
                 return
 
         # -----------------------------------------------------------
-        # Step 2 — Analysis
+        # Display EACH product separately with buttons
         # -----------------------------------------------------------
-        with st.spinner("🤔 Analyzing products to find the best one..."):
-            st.info("**Step 2:** Analyzing products")
+        st.subheader("🛍️ Product List")
 
+        products = product_list.split("### ")
+        for p in products:
+            if p.strip() == "":
+                continue
+
+            st.markdown("### " + p)
+
+            # --- YOUR SPECIAL BUTTON under every product ---
+            st.write(
+                '<a href="https://creativestudio-3ata6gv6.manus.space" target="_blank">'
+                '<button style="padding:10px 20px; font-size:16px; margin-bottom:15px;">🚀 Open CreativeStudio</button>'
+                '</a>',
+                unsafe_allow_html=True,
+            )
+
+        # -----------------------------------------------------------
+        # Step 2 — Claude Analysis
+        # -----------------------------------------------------------
+        with st.spinner("🤔 Finding the BEST product..."):
             claude_prompt = f"""
-            You are an expert shopping analyst. Analyze the following list of products and select the SINGLE BEST OPTION.
-
-            ORIGINAL SHOPPING QUERY: {shopping_query}
-            BUDGET: ${budget_min} - ${budget_max}
-            PRIORITY: {priority}
-            REGION: {region}
+            Analyze this product list and choose ONE BEST PRODUCT.
 
             PRODUCT LIST:
             {product_list}
 
-            FORMAT YOUR RESPONSE AS:
+            Format:
 
             ## 🏆 BEST PRODUCT RECOMMENDATION
-
             ### [Product Name]
 
-            **Price:** [Exact or approximate price]
-
-            **Why This is the Best Choice:**
-            (3–4 paragraphs)
-
-            **Key Advantages:**
-            - Point
-            - Point
-
-            **Considerations:**
-            - Point
-
-            **Where to Buy:**
-            - Store (working link)
-
-            **Next Steps:** (Advice)
+            **Price:** ...
+            **Why This is the Best Choice:** (3–4 paragraphs)
+            **Key Advantages:** (bullets)
+            **Considerations:** (bullets)
+            **Where to Buy:** (Links)
             """
 
             try:
-                best_product = call_a4f_model(claude_prompt, "provider-7/claude-opus-4-5-20251101")
-                st.session_state.best_product = best_product
-                st.success("✅ Best product analysis complete!")
+                best = call_a4f_model(
+                    claude_prompt, 
+                    "provider-7/claude-opus-4-5-20251101"
+                )
+                st.session_state.best_product = best
+                st.success("🏆 Best product identified!")
+
             except Exception as e:
-                st.error(f"Error analyzing products: {str(e)}")
+                st.error(f"Error: {str(e)}")
                 return
 
-
     # -----------------------------------------------------------
-    # DISPLAY RESULTS
+    # Display Final Best Product
     # -----------------------------------------------------------
     if "best_product" in st.session_state:
 
         st.markdown("---")
-        st.subheader("🎯 Your Perfect Product Match")
-
+        st.subheader("🎯 Your Perfect Match")
         st.markdown(st.session_state.best_product)
 
-        # -----------------------------------------------------------
-        # AUTO-DETECT PRODUCT NAME
-        # -----------------------------------------------------------
+        # --- Special Button BELOW Claude's response ---
+        st.write(
+            '<a href="https://creativestudio-3ata6gv6.manus.space" target="_blank">'
+            '<button style="padding:12px 22px; font-size:18px;">🚀 Open CreativeStudio</button>'
+            '</a>',
+            unsafe_allow_html=True,
+        )
+
+        # Auto-detect product name
         match = re.search(r"###\s*\[(.*?)\]", st.session_state.best_product)
-        product_name = match.group(1) if match else "Best Product"
+        product_name = match.group(1) if match else "Product"
 
         st.success(f"Detected Product: {product_name}")
 
-        # -----------------------------------------------------------
-        # SHOPPING SEARCH BUTTON
-        # -----------------------------------------------------------
-        if st.button("🛒 Search This Product Online (Chrome)", use_container_width=True):
+        if st.button("🛒 Search This Product Online"):
             open_shopping_search(product_name)
 
-        # -----------------------------------------------------------
-        # Extra Buttons
-        # -----------------------------------------------------------
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            if st.button("📧 Email This Recommendation"):
-                st.info("This would open your email client.")
+            st.button("📧 Email This Recommendation")
 
         with col2:
-            if st.button("📋 Copy to Clipboard"):
-                st.info("Copied!")
+            st.button("📋 Copy to Clipboard")
 
         with col3:
-            if st.button("💾 Save as PDF"):
-                st.info("PDF generation not implemented yet.")
-
-        with st.expander("📊 See Detailed Comparison"):
-            st.markdown(st.session_state.product_list)
+            st.button("💾 Save as PDF")
 
         if st.button("🔄 Start New Search"):
             st.session_state.clear()
             st.rerun()
 
-    else:
-        # Example suggestions
-        st.markdown("---")
-        st.subheader("💡 Examples to Try")
-
-        examples = [
-            "Gaming laptop under $1200 with good battery life for college",
-            "Wireless noise-cancelling headphones under $300 for travel",
-            "Smartphone with best camera under $800 for photography",
-            "Gaming chair with lumbar support under $250",
-            "4K monitor for photo editing under $400"
-        ]
-
-        cols = st.columns(3)
-        for i, example in enumerate(examples):
-            with cols[i % 3]:
-                if st.button(f"🎯 {example}", use_container_width=True):
-                    st.session_state.shopping_example = example
-                    st.rerun()
-                    
 # --------------------------
 # QUANTORA TRANSLATE MODULE
 # --------------------------
