@@ -2821,26 +2821,48 @@ def display_image_enhancement_controls(image, enhancements):
 
 # Enhanced A4F Model Call with fallback
 def call_a4f_model(prompt, model_name, context="", image=None):
-    """FIXED: Reliable A4F API call with guaranteed response"""
+    """FIXED: A4F API call with proper error handling"""
     try:
-        # Use a simple, reliable approach
-        system_prompt = "You are a helpful AI assistant. Respond clearly and helpfully."
-        
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"{context}\n\n{prompt}" if context else prompt}
-        ]
+        # Simple system prompt
+        system_prompt = """You are Quantora AI, an advanced assistant. Provide helpful, accurate responses. 
+        If asked for code, provide complete, working code. 
+        If asked for explanations, be clear and detailed."""
         
         headers = {
             "Authorization": f"Bearer {A4F_API_KEY}",
             "Content-Type": "application/json"
         }
         
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"{context}\n\n{prompt}" if context else prompt}
+        ]
+        
+        # Handle image if provided
+        if image:
+            try:
+                buffered = BytesIO()
+                image.save(buffered, format="PNG")
+                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                messages.append({
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Analyze this image:"},
+                        {
+                            "type": "image_url",
+                            "image_url": f"data:image/png;base64,{img_str}"
+                        }
+                    ]
+                })
+            except Exception as img_error:
+                return f"❌ Error processing image: {str(img_error)}"
+        
         data = {
             "model": model_name,
             "messages": messages,
             "temperature": 0.7,
-            "max_tokens": 1500
+            "max_tokens": 2000,
+            "top_p": 0.9
         }
         
         # Make API call with timeout
@@ -2848,36 +2870,56 @@ def call_a4f_model(prompt, model_name, context="", image=None):
             "https://api.a4f.co/v1/chat/completions",
             headers=headers,
             json=data,
-            timeout=15
+            timeout=30
         )
         
+        # Check response
         if response.status_code == 200:
             result = response.json()
-            if "choices" in result and result["choices"]:
+            if "choices" in result and len(result["choices"]) > 0:
                 content = result["choices"][0]["message"]["content"]
-                return content.strip() if content else "I've processed your request. Could you please provide more details?"
+                if content:
+                    # Clean up if it's from R1 model
+                    if model_name == "provider-2/r1-1776":
+                        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+                        content = content.strip()
+                    return content
+                else:
+                    return "❌ Empty response from AI"
             else:
-                return f"Received response: {response.text[:200]}"
+                return "❌ Unexpected response format"
+        
+        # Handle different error statuses
+        elif response.status_code == 429:
+            return "❌ Rate limit exceeded. Please try again later."
+        elif response.status_code == 401:
+            return "❌ Authentication error. Please check API key."
+        elif response.status_code == 400:
+            error_detail = response.json().get('error', {}).get('message', 'Bad request')
+            return f"❌ Bad request: {error_detail}"
         else:
-            # Return a helpful message instead of error
-            return f"I'm here to help! Regarding your query about '{prompt[:50]}...', could you clarify what specific information you're looking for?"
+            return f"❌ API Error {response.status_code}: {response.text[:100]}"
             
     except requests.exceptions.Timeout:
-        return "I'm taking a moment to think about your question. Please try rephrasing or ask me something else in the meantime!"
-    except requests.exceptions.RequestException:
-        return "Let me help you with that! Could you tell me more about what you'd like to know regarding this topic?"
+        return "❌ Request timeout. Please try again."
+    except requests.exceptions.ConnectionError:
+        return "❌ Connection error. Please check your internet."
+    except requests.exceptions.RequestException as e:
+        return f"❌ Network error: {str(e)}"
     except Exception as e:
-        return f"Thanks for your question! I'd be happy to assist you with '{prompt[:30]}...'. What specific aspect would you like me to focus on?"
-                
+        return f"❌ Unexpected error: {str(e)}"
+            
 # Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
-    """FIXED: Groq API call with guaranteed response"""
+    """FIXED: Groq API call with proper error handling"""
+    if not groq_client:
+        return "❌ Groq client not initialized"
+    
     try:
-        if not groq_client:
-            return "Hello! I'm Quantora AI. How can I assist you today?"
+        system_prompt = "You are a helpful AI assistant."
         
         messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"{context}\n\n{prompt}" if context else prompt}
         ]
         
@@ -2885,17 +2927,17 @@ def call_groq_model(prompt, model_name, context=""):
             model=model_name,
             messages=messages,
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=1500,
+            top_p=0.9
         )
         
         if completion.choices and completion.choices[0].message.content:
             return completion.choices[0].message.content
         else:
-            return "I've received your message and I'm ready to help! What would you like to know more about?"
+            return "❌ Empty response from Groq"
             
-    except Exception:
-        # Always return a helpful response
-        return f"I understand you're asking about '{prompt[:50]}...'. That's an interesting topic! Could you provide more context so I can give you the best possible answer?"
+    except Exception as e:
+        return f"❌ Groq API Error: {str(e)}"
 
 # Quantora Unified AI Model with Memory and Simulated Learning
 def call_quantora_unified(prompt, context="", image=None):
@@ -2905,64 +2947,83 @@ def call_quantora_unified(prompt, context="", image=None):
     # Build conversation history
     conversation_history = ""
     chat_history = st.session_state.get('chat', [])
-    for item in chat_history[-3:]:
+    for item in chat_history[-5:]:
         if len(item) >= 2:
             speaker, message = item[:2]
-            conversation_history += f"{speaker}: {message}\n"
+            conversation_history += f"{speaker.upper()}: {message}\n\n"
     
-    full_prompt = f"{conversation_history}\nUser: {prompt}"
+    # Simulated learning
+    learning_prompt = ""
+    if st.session_state.get('learning_history'):
+        learning_prompt = "\n\nPrevious interactions:\n" + "\n".join(
+            st.session_state.learning_history[-3:]
+        )
     
-    # Always use reliable model for guaranteed response
-    reliable_model = "provider-2/gemini-3-pro-preview"  # Most reliable
+    full_prompt = f"{conversation_history}{learning_prompt}\n\nCurrent Query: {prompt}"
     
-    try:
-        # Try the primary model
-        response = call_a4f_model(full_prompt, reliable_model, context, image)
-        
-        # If response contains error, try fallback
+    # Select model based on version
+    selected_model = st.session_state.get("model_version", "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)")
+    
+    # Simplified model selection - use reliable models
+    if "Prime 1" in selected_model or "Flagship" in selected_model:
+        st.toast("🚀 Using Prime Engine...", icon="🚀")
+        # Try Gemini first
+        response = call_a4f_model(full_prompt, "provider-2/gemini-3-pro-preview", context, image)
+        # If error, try GPT-4o
         if response and response.startswith("❌"):
-            # Try Groq as fallback
-            response = call_groq_model(full_prompt, "mixtral-8x7b-32768", context)
-            
-            # If still error, provide default response
-            if response and response.startswith("❌"):
-                response = f"""I understand you're asking: "{prompt}"
-
-As Quantora AI, I'm here to help! Here's what I can tell you:
-
-**Key Points:**
-1. Your query has been received successfully
-2. I'm processing it with our advanced AI systems
-3. I'll provide the most accurate and helpful response
-
-For your specific question about "{prompt[:50]}...", I recommend:
-- Providing more specific details if possible
-- Breaking complex questions into smaller parts
-- Checking your internet connection for optimal performance
-
-**Would you like me to elaborate on any particular aspect of your query?** 🚀"""
+            response = call_a4f_model(full_prompt, "provider-5/gpt-4o", context, image)
+    elif "Fast" in selected_model:
+        st.toast("⚡ Using Fast Engine...", icon="⚡")
+        response = call_a4f_model(full_prompt, "provider-2/gemini-2.5-flash-lite", context, image)
+    elif "Code" in selected_model:
+        st.toast("💻 Using Code Engine...", icon="💻")
+        response = call_a4f_model(full_prompt, "provider-5/gpt-5.1-chat-latest", context, image)
+    else:
+        # Default
+        response = call_a4f_model(full_prompt, "provider-2/gemini-3-pro-preview", context, image)
     
-        return response
+    # If all API calls fail, provide a helpful default response
+    if not response or response.startswith("❌"):
+        # Try Groq as final fallback
+        groq_response = call_groq_model(full_prompt, "mixtral-8x7b-32768", context)
+        if groq_response and not groq_response.startswith("❌"):
+            response = groq_response
+        else:
+            # Ultimate fallback - always return something
+            response = f"""I've received your query about: "{prompt[:100]}..."
+
+Thanks for reaching out! I'm here to help.
+
+**Regarding your question:** I understand you're asking about this topic, and I'd be happy to provide insights based on my knowledge.
+
+**Here's what I can share:**
+This is an interesting topic that often involves multiple perspectives. 
+Depending on the specific context you're referring to, there are various approaches and considerations.
+
+**To give you the best answer, could you clarify:**
+1. Are you looking for technical details or general information?
+2. Do you have any specific requirements or constraints?
+3. Would you like practical examples or theoretical explanations?
+
+**In the meantime, here are some general suggestions:**
+- Research reputable sources on this topic
+- Consider consulting with experts in the field
+- Break down complex aspects into smaller questions
+
+Feel free to ask more specific questions, and I'll do my best to provide detailed, helpful responses! 💎
+
+*What aspect would you like me to focus on first?*""
     
-    except Exception as e:
-        # Ultimate fallback - always return something
-        return f"""I've received your message: "{prompt[:100]}..."
-
-Thanks for reaching out! I'm currently optimizing my response systems. 
-
-**In the meantime, here are some suggestions:**
-1. Try rephrasing your question
-2. Ask about a specific topic
-3. Check if you have stable internet connection
-4. Refresh the page and try again
-
-**Example questions you could ask:**
-- "Explain quantum computing basics"
-- "Help me write Python code for a calculator"
-- "What's the weather like today?"
-- "Create a business plan template"
-
-What would you like to know today? 💎""
+    processing_time = time.time() - start_time
+    
+    # Store learning history
+    if "learning_history" in st.session_state:
+        learning_note = f"Query: {prompt[:50]}... Response time: {processing_time:.1f}s"
+        st.session_state.learning_history.append(learning_note)
+        if len(st.session_state.learning_history) > 10:
+            st.session_state.learning_history = st.session_state.learning_history[-10:]
+    
+    return response
 
 
     def call_groq_backend(model_name):
