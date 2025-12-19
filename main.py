@@ -28,6 +28,17 @@ import random
 import subprocess
 from moviepy.editor import VideoFileClip, AudioFileClip
 
+app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
+
+st.set_page_config(
+    page_title=app_name,
+    layout="wide",
+    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
+)
+
+st.title(app_name)
+
+
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
@@ -2352,22 +2363,6 @@ if "pro_unlocked" not in st.session_state:
 
 if "pro_verified" not in st.session_state:
     st.session_state.pro_verified = False
-
-
-# ==============================
-# 📄 PAGE CONFIG
-# ==============================
-
-app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
-
-st.set_page_config(
-    page_title=app_name,
-    layout="wide",
-    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
-)
-
-st.title(app_name)
-
 
 # ==============================
 # 🌱 VERIFICATION FLOW (NO AUTO UNLOCK)
