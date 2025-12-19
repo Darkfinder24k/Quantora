@@ -3388,16 +3388,19 @@ else:
     greeting = "🌌 Good Night!"
 
 # Header with Quantora branding
-st.markdown("""
+# Header with Quantora branding
+header_html = f"""
 <div class="main-header">
     <div class="logo">
-        <div class="logo-icon">\U0001f48e</div>
-        <div class="logo-text">{}</div>
+        <div class="logo-icon">&#x1f48e;</div>
+        <div class="logo-text">{app_name}</div>
         <div class="status-indicator"></div>
     </div>
-    <div style="color: var(--text-muted);">{}</div>
+    <div style="color: var(--text-muted);">{greeting}</div>
 </div>
-""".format(app_name, greeting), unsafe_allow_html=True)
+"""
+
+st.markdown(header_html, unsafe_allow_html=True)
 
 # --------------------------
 # QUANTORA TRADE CHARTS MODULE
