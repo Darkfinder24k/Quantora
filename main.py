@@ -2370,7 +2370,7 @@ if "pro_verified" not in st.session_state:
 
 if not st.session_state.pro_verified:
 
-    st.subheader("🌱 Unlock Premium by Planting 2 Plants")
+    st.subheader("🌱 Unlock Premium by Planting Plants")
 
     st.markdown(
         """
@@ -2380,7 +2380,7 @@ if not st.session_state.pro_verified:
     )
 
     st.markdown(
-        "[🌿 Buy 2 Plants Now](https://www.grow-trees.com/plant/monthly.php?a=KushagraSrivastava)",
+        "[🌿 Buy Plants Now](https://www.grow-trees.com/plant/monthly.php?a=KushagraSrivastava)",
         unsafe_allow_html=True
     )
 
