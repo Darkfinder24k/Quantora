@@ -38,6 +38,67 @@ st.set_page_config(
 
 st.title(app_name)
 
+SKIP_IMPORTS = False
+
+# First, try to run a minimal version
+try:
+    import streamlit as st
+    from datetime import datetime
+    
+    # Set page config immediately to prevent health check failures
+    st.set_page_config(
+        page_title="Quantora AI",
+        layout="wide",
+        initial_sidebar_state="collapsed"
+    )
+    
+    # Show loading message immediately
+    st.title("🚀 Starting Quantora AI...")
+    status = st.status("Initializing...", expanded=True)
+    
+    with status:
+        st.write("Checking dependencies...")
+        time.sleep(0.5)
+        
+        # Try imports one by one
+        try:
+            import json
+            st.write("✓ JSON loaded")
+        except:
+            st.write("⚠️ JSON import issue")
+            
+        try:
+            import requests
+            st.write("✓ Requests loaded")
+        except:
+            st.write("⚠️ Requests import issue")
+            
+        try:
+            import pandas as pd
+            st.write("✓ Pandas loaded")
+        except:
+            st.write("⚠️ Pandas import issue")
+        
+        st.write("Finalizing setup...")
+    
+    # Clear the loading screen
+    status.update(label="Ready!", state="complete", expanded=False)
+    time.sleep(0.5)
+    
+except Exception as e:
+    # If even basic imports fail, show minimal error
+    import streamlit as st
+    st.set_page_config(page_title="Quantora Error", layout="centered")
+    st.error(f"🚨 Critical Error: {str(e)}")
+    st.info("""
+    **Quick Fixes:**
+    1. Check your Python version (3.9+ recommended)
+    2. Install missing packages: `pip install streamlit pandas requests`
+    3. Clear cache: `rm -rf .streamlit/`
+    4. Restart the app
+    """)
+    st.stop()
+
 
 # ✅ API Configuration
 API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
