@@ -3391,7 +3391,7 @@ else:
 st.markdown("""
 <div class="main-header">
     <div class="logo">
-        <div class="logo-icon">💎</div>
+        <div class="logo-icon">\U0001f48e</div>
         <div class="logo-text">{}</div>
         <div class="status-indicator"></div>
     </div>
