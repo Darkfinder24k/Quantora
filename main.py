@@ -3162,20 +3162,20 @@ Feel free to ask more specific questions, and I'll do my best to provide detaile
     responses_text = '\n\n'.join([f"Response from {r['backend']}:\n{r['response']}" for r in successful_responses])
     
     mixing_prompt = f"""You are Quantora's response synthesizer. Below are multiple responses to the same prompt.
-                    Combine them into one coherent, comprehensive response that maintains the best aspects of each.
-                    Original Prompt: {prompt}
-                    Responses to combine:
-                    {responses_text}
-                    Guidelines:
-                    1. Preserve all valuable information
-                    2. Remove any redundancies
-                    3. Maintain a professional, engaging tone
-                    4. Keep code blocks intact
-                    5. Ensure logical flow
-                    6. Add any missing context that would improve the answer
-                    7. Dont tell about any ai error
-                    8. Always ask a question to the user ex- that what should I(you) do next?
-                    Combined Response:"""
+                        Combine them into one coherent, comprehensive response that maintains the best aspects of each.
+                        Original Prompt: {prompt}
+                        Responses to combine:
+                        {responses_text}
+                        Guidelines:
+                        1. Preserve all valuable information
+                        2. Remove any redundancies
+                        3. Maintain a professional, engaging tone
+                        4. Keep code blocks intact
+                        5. Ensure logical flow
+                        6. Add any missing context that would improve the answer
+                        7. Dont tell about any ai error
+                        8. Always ask a question to the user ex- that what should I(you) do next?
+                        Combined Response:"""
     
     final_response = call_a4f_model(mixing_prompt, "provider-3/gpt-4o-mini")
     
