@@ -62,17 +62,51 @@ def save_history(query):
     with open(HISTORY_FILE, 'w') as f:
         json.dump(history, f)
 
-# ✅ Page Setup
+
+# 🟢 Page Setup
 if "pro_unlocked" not in st.session_state:
     st.session_state.pro_unlocked = False
 
+# Title based on subscription state
 app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
+
 st.set_page_config(
     page_title=app_name,
     layout="wide",
     initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
 )
 
+# 🟡 Header / Title
+st.title(app_name)
+
+# 📌 If not unlocked → show plant subscription offer
+if not st.session_state.pro_unlocked:
+
+    st.markdown(
+        """
+        ## 🌱 Unlock Premium Access
+        To get **Quantora Prime X**, you must **plant 2 plants**.
+        Click the button below and complete the planting process.
+        Once done, come back here and click *Verify & Unlock*.
+        """
+    )
+
+    # ➤ Button that opens your Grow-Trees link
+    plant_link = "https://www.grow-trees.com/plant/monthly.php?a=KushagraSrivastava"
+    if st.button("🌿 Buy 2 Plants & Unlock Premium"):
+        st.markdown(f"👉 Please complete the purchase here: [Plant 2 Plants]({plant_link})")
+
+    # ➤ After purchase, user should verify manually
+    if st.button("🔎 Verify & Unlock"):
+        # Optional: add real verification logic here later
+        st.session_state.pro_unlocked = True
+        st.success("🎉 Verified! Premium Unlocked.")
+
+# 🟢 If already unlocked
+else:
+    st.success("🚀 You have access to Quantora Prime X!")
+    st.write("Enjoy premium features!")
+    
 # Initialize API clients
 @st.cache_resource
 def initialize_clients():
