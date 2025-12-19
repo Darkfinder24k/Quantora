@@ -61,51 +61,6 @@ def save_history(query):
     history.append({"query": query, "timestamp": datetime.now().isoformat()})
     with open(HISTORY_FILE, 'w') as f:
         json.dump(history, f)
-
-
-# 🟢 Page Setup
-if "pro_unlocked" not in st.session_state:
-    st.session_state.pro_unlocked = False
-
-# Title based on subscription state
-app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
-
-st.set_page_config(
-    page_title=app_name,
-    layout="wide",
-    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
-)
-
-# 🟡 Header / Title
-st.title(app_name)
-
-# 📌 If not unlocked → show plant subscription offer
-if not st.session_state.pro_unlocked:
-
-    st.markdown(
-        """
-        ## 🌱 Unlock Premium Access
-        To get **Quantora Prime X**, you must **plant 2 plants**.
-        Click the button below and complete the planting process.
-        Once done, come back here and click *Verify & Unlock*.
-        """
-    )
-
-    # ➤ Button that opens your Grow-Trees link
-    plant_link = "https://www.grow-trees.com/plant/monthly.php?a=KushagraSrivastava"
-    if st.button("🌿 Buy 2 Plants & Unlock Premium"):
-        st.markdown(f"👉 Please complete the purchase here: [Plant 2 Plants]({plant_link})")
-
-    # ➤ After purchase, user should verify manually
-    if st.button("🔎 Verify & Unlock"):
-        # Optional: add real verification logic here later
-        st.session_state.pro_unlocked = True
-        st.success("🎉 Verified! Premium Unlocked.")
-
-# 🟢 If already unlocked
-else:
-    st.success("🚀 You have access to Quantora Prime X!")
-    st.write("Enjoy premium features!")
     
 # Initialize API clients
 @st.cache_resource
@@ -2392,22 +2347,105 @@ header {visibility: hidden;}
 """, unsafe_allow_html=True)
 
 # Unlock button for trial mode
-if not st.session_state.pro_unlocked:
-    if st.button("Unlock Next-Gen Pro", key="unlock_pro_btn"):
+if "pro_unlocked" not in st.session_state:
+    st.session_state.pro_unlocked = False
+
+if "pro_verified" not in st.session_state:
+    st.session_state.pro_verified = False
+
+
+# ==============================
+# 📄 PAGE CONFIG
+# ==============================
+
+app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
+
+st.set_page_config(
+    page_title=app_name,
+    layout="wide",
+    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
+)
+
+st.title(app_name)
+
+
+# ==============================
+# 🌱 VERIFICATION FLOW (NO AUTO UNLOCK)
+# ==============================
+
+if not st.session_state.pro_verified:
+
+    st.subheader("🌱 Unlock Premium by Planting 2 Plants")
+
+    st.markdown(
+        """
+        To unlock **Quantora Prime X**, you must plant **exactly 2 plants**
+        using our official environmental partner.
+        """
+    )
+
+    st.markdown(
+        "[🌿 Buy 2 Plants Now](https://www.grow-trees.com/plant/monthly.php?a=KushagraSrivastava)",
+        unsafe_allow_html=True
+    )
+
+    st.divider()
+
+    st.subheader("🔐 Verify Your Purchase")
+
+    txn_id = st.text_input("Enter Transaction / Order ID")
+
+    if st.button("Verify & Unlock"):
+        if txn_id.strip() == "":
+            st.error("❌ Please enter a valid Transaction ID.")
+        else:
+            # 🔒 Manual verification placeholder
+            st.session_state.pro_verified = True
+            st.success("✅ Verification successful. You can now unlock Pro.")
+
+
+# ==============================
+# 🚀 SHOW UNLOCK BUTTON ONLY AFTER VERIFICATION
+# ==============================
+
+if st.session_state.pro_verified and not st.session_state.pro_unlocked:
+    if st.button("🚀 Unlock Next-Gen Pro", key="unlock_pro_btn"):
         st.session_state.pro_unlocked = True
         st.rerun()
 
-# Initialize session state variables
+
+# ==============================
+# 🧠 FORCE MODEL VERSION BASED ON ACCESS
+# ==============================
+
+if not st.session_state.pro_unlocked:
+    st.session_state.model_version = (
+        "Quantora Prime 1 Fast "
+        "(Faster but not as powerful as the flagship model)"
+    )
+else:
+    st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
+
+
+# ==============================
+# 🧩 OTHER SESSION STATE INITIALIZATION
+# ==============================
+
 if "chat" not in st.session_state:
     st.session_state.chat = []
+
 if "uploaded_content" not in st.session_state:
     st.session_state.uploaded_content = ""
+
 if "last_response_time" not in st.session_state:
     st.session_state.last_response_time = 0
+
 if "uploaded_image" not in st.session_state:
     st.session_state.uploaded_image = None
+
 if "enhanced_image" not in st.session_state:
     st.session_state.enhanced_image = None
+
 if "enhancement_values" not in st.session_state:
     st.session_state.enhancement_values = {
         "brightness": 1.0,
@@ -2416,34 +2454,37 @@ if "enhancement_values" not in st.session_state:
         "color": 1.0,
         "filter": "None"
     }
-if "model_version" not in st.session_state:
-    st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
+
 if "image_style" not in st.session_state:
     st.session_state.image_style = "Sci-Fi"
+
 if "video_style" not in st.session_state:
     st.session_state.video_style = "Cinematic"
+
 if "quantora_logged_in" not in st.session_state:
     st.session_state.quantora_logged_in = False
+
 if "quantora_liked_posts" not in st.session_state:
     st.session_state.quantora_liked_posts = set()
+
 if "view_profile" not in st.session_state:
     st.session_state.view_profile = None
+
 if "learning_history" not in st.session_state:
-    st.session_state.learning_history = [] # For simulated auto-training
+    st.session_state.learning_history = []
+
 if "iq_test_score" not in st.session_state:
     st.session_state.iq_test_score = None
+
 if "city_input" not in st.session_state:
     st.session_state.city_input = "Berlin"
-# Translation session state
+
 if "translation_history" not in st.session_state:
     st.session_state.translation_history = []
+
 if "last_translation" not in st.session_state:
     st.session_state.last_translation = None
-
-# Force V2 in trial mode
-if not st.session_state.pro_unlocked:
-    st.session_state.model_version = "Quantora Prime 1 Fast (Faster But Not As Better As Og Flagship Model)"
-
+              
 # --------------------------
 # NEW: AI CONTENT DETECTOR & HUMANIZER FUNCTIONS
 # --------------------------
