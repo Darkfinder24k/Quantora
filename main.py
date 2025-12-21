@@ -3310,24 +3310,7 @@ def quantora_trade_charts():
             
                 # AI Analysis
                 st.subheader("📈 Quantora AI Analysis")
-                analysis_prompt = f"""
-                Provide a technical analysis of {ticker} stock based on the following data:
-                - Current Price: ${stock.info.get('currentPrice', 'N/A')}
-                - 52 Week Range: ${stock.info.get('fiftyTwoWeekLow', 'N/A')} - ${stock.info.get('fiftyTwoWeekHigh', 'N/A')}
-                - PE Ratio: {stock.info.get('trailingPE', 'N/A')}
-                - Market Cap: ${stock.info.get('marketCap', 'N/A'):,}
-                - Recent Performance:
-                  {hist.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].to_string()}
-            
-                Provide insights on:
-                1. Current trend
-                2. Key support/resistance levels
-                3. Volume analysis
-                4. Technical indicators summary
-                5. Short-term and long-term outlook
-            
-                Keep the analysis professional but accessible to retail investors.
-                """
+                analysis_prompt = f""Provide a technical analysis of {ticker} stock based on the following data: - Current Price: ${stock.info.get('currentPrice', 'N/A')} - 52 Week Range: ${stock.info.get('fiftyTwoWeekLow', 'N/A')} - ${stock.info.get('fiftyTwoWeekHigh', 'N/A')} - PE Ratio: {stock.info.get('trailingPE', 'N/A')} - Market Cap: ${stock.info.get('marketCap', 'N/A'):,} - Recent Performance: {hist.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].to_string()} Provide insights on:1. Current trend 2. Key support/resistance levels 3. Volume analysis 4. Technical indicators summary 5. Short-term and long-term outlook Keep the analysis professional but accessible to retail investors.""
             
                 with st.spinner("Generating AI analysis..."):
                     st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
