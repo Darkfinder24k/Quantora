@@ -3212,7 +3212,7 @@ app_name = "Quantora Prime X" if st.session_state.get('pro_unlocked', False) els
 st.markdown(f"""
 <div class="main-header">
     <div class="logo">
-        <div class="logo-icon">💎</div>
+        <div class="logo-icon">&#x1F48E;</div>
         <div class="logo-text">{app_name}</div>
         <div class="status-indicator"></div>
     </div>
