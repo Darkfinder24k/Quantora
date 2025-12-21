@@ -4,86 +4,71 @@ import time
 import os
 from PyPDF2 import PdfReader
 import json
-from groq import Groq
-import concurrent.futures
-import re
-from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
-import docx
-import pandas as pd
-import io
 import requests
 from io import BytesIO
 import base64
-import yfinance as yf
-import plotly.graph_objects as go
+import pandas as pd
 import numpy as np
-import replicate
-import sys
-from pathlib import Path
+from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
+import plotly.graph_objects as go
+import docx
+import yfinance as yf
 import folium
 from streamlit_folium import st_folium
 from dateutil import tz
 import random
-# Removed: import cv2
+from pathlib import Path
+import re
+import urllib.parse
 import subprocess
 from moviepy.editor import VideoFileClip, AudioFileClip
+import replicate
+import concurrent.futures
 
-app_name = "Quantora Prime X" if st.session_state.pro_unlocked else "Quantora"
+# Initialize session state variables early
+if 'pro_unlocked' not in st.session_state:
+    st.session_state.pro_unlocked = False
+if 'pro_verified' not in st.session_state:
+    st.session_state.pro_verified = False
 
+# Set page config FIRST (before any other st calls)
 st.set_page_config(
-    page_title=app_name,
+    page_title="Quantora AI",
     layout="wide",
-    initial_sidebar_state="expanded" if st.session_state.pro_unlocked else "collapsed"
+    initial_sidebar_state="collapsed"
 )
 
-st.title(app_name)
+# Show loading state
+st.title("🚀 Starting Quantora AI...")
+status = st.status("Initializing...", expanded=True)
 
-SKIP_IMPORTS = False
+with status:
+    st.write("Checking dependencies...")
+    time.sleep(0.1)
+    
+    try:
+        import json
+        st.write("✓ JSON loaded")
+    except:
+        st.write("⚠️ JSON import issue")
+        
+    try:
+        import requests
+        st.write("✓ Requests loaded")
+    except:
+        st.write("⚠️ Requests import issue")
+        
+    try:
+        import pandas as pd
+        st.write("✓ Pandas loaded")
+    except:
+        st.write("⚠️ Pandas import issue")
+    
+    st.write("Finalizing setup...")
+    time.sleep(0.1)
 
-# First, try to run a minimal version
-try:
-    import streamlit as st
-    from datetime import datetime
-    
-    # Set page config immediately to prevent health check failures
-    st.set_page_config(
-        page_title="Quantora AI",
-        layout="wide",
-        initial_sidebar_state="collapsed"
-    )
-    
-    # Show loading message immediately
-    st.title("🚀 Starting Quantora AI...")
-    status = st.status("Initializing...", expanded=True)
-    
-    with status:
-        st.write("Checking dependencies...")
-        time.sleep(0.5)
-        
-        # Try imports one by one
-        try:
-            import json
-            st.write("✓ JSON loaded")
-        except:
-            st.write("⚠️ JSON import issue")
-            
-        try:
-            import requests
-            st.write("✓ Requests loaded")
-        except:
-            st.write("⚠️ Requests import issue")
-            
-        try:
-            import pandas as pd
-            st.write("✓ Pandas loaded")
-        except:
-            st.write("⚠️ Pandas import issue")
-        
-        st.write("Finalizing setup...")
-    
-    # Clear the loading screen
-    status.update(label="Ready!", state="complete", expanded=False)
-    time.sleep(0.5)
+status.update(label="Ready!", state="complete", expanded=False)
+time.sleep(0.1)
     
 except Exception as e:
     # If even basic imports fail, show minimal error
