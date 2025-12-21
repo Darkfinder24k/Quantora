@@ -86,10 +86,9 @@ except Exception as e:
 
 
 # ✅ API Configuration
-API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-API_URL = "https://api.a4f.co/v1/chat/completions"
+# ✅ API Configuration - Put this near the top after imports
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-A4F_BASE_URL = "https://api.a4f.co/v1"
+API_URL = "https://api.a4f.co/v1/chat/completions"
 IMAGE_MODEL = "provider-2/nano-banana-pro"
 EDIT_MODEL = "provider-2/nano-banana-pro"
 VIDEO_MODEL = "provider-6/wan-2.1"
@@ -101,7 +100,7 @@ FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
 ICON_URL = "https://openweathermap.org/img/wn/{}@4x.png"
 
 # Replicate API for Video Generation
-os.environ["REPLICATE_API_TOKEN"] = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
+REPLICATE_API_TOKEN = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
 
 # History persistence
 HISTORY_FILE = "quantora_history.json"
@@ -121,24 +120,67 @@ def save_history(query):
     
 # Initialize API clients
 @st.cache_resource
+# ✅ Simplified API clients initialization
 def initialize_clients():
+    """Initialize API clients with proper error handling"""
     try:
-        groq_api_key = os.environ.get("Groq_API_TOKEN", "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")
+        # Try to import Groq
+        try:
+            from groq import Groq
+            groq_api_key = os.environ.get("Groq_API_TOKEN", "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")
+            groq_client = Groq(api_key=groq_api_key)
+            # Test the client with a simple call
+            test_response = groq_client.chat.completions.create(
+                model="mixtral-8x7b-32768",
+                messages=[{"role": "user", "content": "test"}],
+                max_tokens=5
+            )
+            groq_available = True
+        except Exception as groq_error:
+            groq_client = None
+            groq_available = False
+            st.sidebar.warning(f"⚠️ Groq client unavailable: {str(groq_error)[:50]}...")
+        
+        # Always initialize A4F client (fallback)
         a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-    
-        groq_client = Groq(api_key=groq_api_key)
-    
         a4f_client = {
             "api_key": a4f_api_key,
-            "api_url": "https://api.a4f.co/v1/chat/completions"
+            "api_url": "https://api.a4f.co/v1/chat/completions",
+            "available": True
         }
-    
-        return groq_client, a4f_client
+        
+        # Test A4F connection
+        try:
+            test_response = requests.get(
+                "https://api.a4f.co/v1/models",
+                headers={"Authorization": f"Bearer {a4f_api_key}"},
+                timeout=5
+            )
+            a4f_available = test_response.status_code == 200
+        except:
+            a4f_available = False
+            st.sidebar.error("⚠️ A4F API connection failed")
+        
+        # Return clients
+        return groq_client, a4f_client, groq_available, a4f_available
+        
     except Exception as e:
-        st.error(f"API Configuration Error: {e}")
-        return None, None
+        st.error(f"❌ API Configuration Error: {str(e)[:100]}")
+        # Return safe defaults
+        return None, {"api_key": "", "api_url": "", "available": False}, False, False
 
-groq_client, a4f_client = initialize_clients()
+# Initialize clients
+groq_client, a4f_client, groq_available, a4f_available = initialize_clients()
+
+# Show API status
+if not groq_available and not a4f_available:
+    st.sidebar.error("⚠️ All API connections failed - limited functionality")
+elif not groq_available:
+    st.sidebar.warning("⚠️ Groq API unavailable - using A4F only")
+elif not a4f_available:
+    st.sidebar.warning("⚠️ A4F API unavailable - using Groq only")
+else:
+    st.sidebar.success("✅ APIs connected")
 
 # --------------------------
 # QUANTORA WEATHER MODULE
@@ -1953,454 +1995,73 @@ Translation Details:
     </div>
     """, unsafe_allow_html=True)
 
-# Custom CSS with sidebar toggle and canvas background
+# Custom CSS
 st.markdown("""
 <style>
-    .sidebar-toggle {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 999;
+    /* Basic styling */
+    .main-header {
+        text-align: center;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+    .logo-icon {
+        width: 48px;
+        height: 48px;
         background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        font-size: 20px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 24px;
     }
-    .sidebar-toggle:hover {
-        transform: scale(1.1);
-    }
-    [data-testid="stSidebar"] {
-        transition: transform 300ms ease-in-out;
-    }
-    [data-testid="stSidebar"][aria-expanded="false"] {
-        transform: translateX(-100%);
-    }
-    /* Canvas background */
-    body {
-        background-color: #000;
-        overflow: hidden;
-    }
-    #stars {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -1;
-    }
-    /* Fixed input at bottom */
-    .input-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding: 1rem;
-        background: rgba(0, 0, 0, 0.8);
-        z-index: 1000;
-    }
-    /* Rest of the CSS remains the same */
-    #MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-.stDeployButton {visibility: hidden;}
-[data-testid="stToolbar"] {visibility: hidden;}
-[data-testid="stDecoration"] {visibility: hidden;}
-.st-emotion-cache-zq5wmm {visibility: hidden;}
-/* Quantora Premium UI */
-:root {
-    --primary: #0f172a;
-    --primary-light: #1e293b;
-    --primary-lighter: #334155;
-    --accent: #8b5cf6;
-    --accent-light: #a78bfa;
-    --accent-dark: #7c3aed;
-    --text: #f8fafc;
-    --text-muted: #94a3b8;
-    --text-dim: #64748b;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --error: #ef4444;
-    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-@keyframes gradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-@keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.05); opacity: 0.8; }
-}
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
-}
-.stApp {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #252f3f 50%, #1e293b 75%, #0f172a 100%);
-    background-size: 400% 400%;
-    animation: gradient 20s ease infinite;
-    color: var(--text);
-    font-family: var(--font-sans);
-}
-.main-header {
-    text-align: center;
-    padding: 2rem 0;
-    margin-bottom: 2rem;
-    position: relative;
-}
-.logo {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    justify-content: center;
-    margin-bottom: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-.logo:hover {
-    transform: translateY(-2px);
-}
-.logo-icon {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-light));
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-md);
-    animation: pulse 3s ease-in-out infinite;
-}
-.logo-text {
-    font-size: 2.5rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #f8fafc, #a78bfa, #60a5fa);
-    background-size: 200% 200%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: 0.05em;
-    animation: gradient 5s ease infinite;
-}
-.status-indicator {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    width: 12px;
-    height: 12px;
-    background: var(--success);
-    border-radius: 50%;
-    border: 2px solid var(--primary);
-    animation: pulse 2s infinite;
-}
-.chat-message {
-    padding: 1.5rem;
-    margin: 1rem 0;
-    border-radius: 16px;
-    background: var(--primary-light);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: var(--shadow-md);
-    position: relative;
-    overflow: hidden;
-    backdrop-filter: blur(10px);
-    animation: fadeIn 0.6s ease-out forwards;
-}
-.chat-message::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
-    z-index: -1;
-}
-.user-message {
-    background: rgba(139, 92, 246, 0.15);
-    border-color: rgba(139, 92, 246, 0.3);
-}
-.ai-message {
-    background: rgba(59, 130, 246, 0.15);
-    border-color: rgba(59, 130, 246, 0.3);
-}
-.message-header {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.user-message .message-header {
-    color: #a78bfa;
-}
-.ai-message .message-header {
-    color: #7dd3fc;
-}
-.message-time {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    margin-left: auto;
-}
-.input-container {
-    position: relative;
-    margin-top: 2rem;
-}
-.input-wrapper {
-    position: relative;
-    border-radius: 20px;
-    background: rgba(255, 255, 255, 0.9) !important;
-    backdrop-filter: blur(20px);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-    overflow: hidden;
-}
-.input-wrapper:focus-within {
-    border-color: rgba(139, 92, 246, 0.5);
-    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
-}
-.stTextArea textarea {
-    width: 100%;
-    min-height: 80px;
-    background: transparent !important;
-    border: none;
-    padding: 1.25rem 1.5rem;
-    color: #000000 !important;
-    font-size: 0.95rem;
-    font-family: inherit;
-    resize: none;
-    line-height: 1.5;
-    outline: none;
-}
-.stTextArea textarea::placeholder {
-    color: #666666 !important;
-}
-.stButton button {
-    background: linear-gradient(135deg, var(--accent), var(--accent-light));
-    color: white;
-    border: none;
-    border-radius: 12px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: var(--shadow-sm);
-}
-.stButton button:hover {
-    background: linear-gradient(135deg, var(--accent-dark), var(--accent));
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-.welcome-container {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    border-radius: 20px;
-    padding: 2rem;
-    margin: 2rem auto;
-    max-width: 800px;
-    text-align: center;
-    animation: fadeIn 0.8s ease-out;
-}
-.welcome-title {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    background: linear-gradient(135deg, #f8fafc, #a78bfa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-.welcome-features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin: 2rem 0;
-}
-.feature-card {
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 1.5rem;
-    transition: all 0.3s ease;
-}
-.feature-card:hover {
-    transform: translateY(-5px);
-    background: rgba(30, 41, 59, 0.8);
-    border-color: var(--accent);
-    box-shadow: var(--shadow-lg);
-}
-.feature-icon {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-    color: var(--accent);
-}
-.enhancement-controls {
-    background: rgba(30, 41, 59, 0.8);
-    border-radius: 12px;
-    padding: 1rem;
-    margin: 1rem 0;
-}
-.enhancement-slider {
-    margin: 0.5rem 0;
-}
-.generated-image {
-    animation: float 4s ease-in-out infinite;
-    border: 2px solid var(--accent);
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
-    transition: all 0.3s ease;
-}
-.generated-image:hover {
-    transform: scale(1.02);
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.8);
-}
-.generated-video {
-    animation: float 6s ease-in-out infinite;
-}
-@media (max-width: 768px) {
     .logo-text {
-        font-size: 1.8rem;
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #f8fafc, #a78bfa, #60a5fa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        background: #10b981;
+        border-radius: 50%;
+        margin-left: 10px;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    /* Fix streamlit containers */
+    .stTextArea textarea {
+        background-color: white !important;
+        color: black !important;
+    }
+    
+    /* Chat messages */
     .chat-message {
         padding: 1rem;
+        margin: 0.5rem 0;
+        border-radius: 10px;
+        background: rgba(30, 41, 59, 0.5);
     }
-    .welcome-container {
-        padding: 1.5rem;
+    .user-message {
+        background: rgba(139, 92, 246, 0.2);
     }
-}
-.pro-button {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-    background: linear-gradient(135deg, #ff00ff, #00ffff);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    transition: all 0.3s ease;
-}
-.pro-button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
-}
-/* Permanent white searchbar */
-.stTextArea > div > div > textarea {
-    background-color: white !important;
-    color: black !important;
-}
-/* AI Content Detector Styles */
-.detector-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 15px;
-    padding: 2rem;
-    margin: 1rem 0;
-    color: white;
-}
-.detector-result {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin: 1rem 0;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-.humanizer-container {
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-    border-radius: 15px;
-    padding: 2rem;
-    margin: 1rem 0;
-    color: white;
-}
-/* Translation specific styles */
-.translation-container {
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-    border-radius: 15px;
-    padding: 2rem;
-    margin: 1rem 0;
-    color: white;
-}
-.translation-result {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin: 1rem 0;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-.language-flag {
-    font-size: 1.5rem;
-    margin-right: 10px;
-}
+    .ai-message {
+        background: rgba(59, 130, 246, 0.2);
+    }
 </style>
-<canvas id="stars"></canvas>
-<script>
-    function toggleSidebar() {
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
-        sidebar.setAttribute('aria-expanded', !isExpanded);
-        // Force Streamlit to update the layout
-        window.dispatchEvent(new Event('resize'));
-    }
-    var canvas = document.getElementById('stars');
-    var ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    var stars = [];
-    for(var i = 0; i < 200; i++) {
-        stars.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            radius: Math.random() * 1 + 1,
-            vx: Math.floor(Math.random() * 50) - 25,
-            vy: Math.floor(Math.random() * 50) - 25
-        });
-    }
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.globalCompositeOperation = "lighter";
-        for(var i = 0; i < stars.length; i++) {
-            var s = stars[i];
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, s.radius, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-    }
-    function update() {
-        for(var i = 0; i < stars.length; i++) {
-            var s = stars[i];
-            s.x += s.vx / 60;
-            s.y += s.vy / 60;
-            if(s.x < 0 || s.x > canvas.width) s.vx = -s.vx;
-            if(s.y < 0 || s.y > canvas.height) s.vy = -s.vy;
-        }
-    }
-    function tick() {
-        draw();
-        update();
-        requestAnimationFrame(tick);
-    }
-    tick();
-    window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    });
-</script>
 """, unsafe_allow_html=True)
 
 # Unlock button for trial mode
@@ -2411,38 +2072,151 @@ if "pro_verified" not in st.session_state:
     st.session_state.pro_verified = False
 
 # ==============================
-# 🌱 VERIFICATION FLOW (NO AUTO UNLOCK)
+# 🧩 COMPLETE SESSION STATE INITIALIZATION
+# ==============================
+
+def initialize_session_state():
+    """Initialize all session state variables to prevent errors"""
+    # Core chat and content
+    if 'chat' not in st.session_state:
+        st.session_state.chat = []
+    if 'uploaded_content' not in st.session_state:
+        st.session_state.uploaded_content = ""
+    
+    # Model and feature settings
+    if 'model_version' not in st.session_state:
+        st.session_state.model_version = "Quantora Prime 1 Fast"
+    if 'image_style' not in st.session_state:
+        st.session_state.image_style = "Realistic"
+    if 'video_style' not in st.session_state:
+        st.session_state.video_style = "Cinematic"
+    
+    # Image handling
+    if 'uploaded_image' not in st.session_state:
+        st.session_state.uploaded_image = None
+    if 'enhanced_image' not in st.session_state:
+        st.session_state.enhanced_image = None
+    if 'generated_image' not in st.session_state:
+        st.session_state.generated_image = None
+    if 'edited_image' not in st.session_state:
+        st.session_state.edited_image = None
+    if 'generated_video' not in st.session_state:
+        st.session_state.generated_video = None
+    
+    # Enhancement controls
+    if 'enhancement_values' not in st.session_state:
+        st.session_state.enhancement_values = {
+            "brightness": 1.0,
+            "contrast": 1.0,
+            "sharpness": 1.0,
+            "color": 1.0,
+            "filter": "None"
+        }
+    
+    # Response tracking
+    if 'last_response_time' not in st.session_state:
+        st.session_state.last_response_time = 0
+    
+    # Pro features and verification
+    if 'pro_unlocked' not in st.session_state:
+        st.session_state.pro_unlocked = False
+    if 'pro_verified' not in st.session_state:
+        st.session_state.pro_verified = False
+    
+    # Social media features
+    if 'quantora_logged_in' not in st.session_state:
+        st.session_state.quantora_logged_in = False
+    if 'quantora_liked_posts' not in st.session_state:
+        st.session_state.quantora_liked_posts = set()
+    if 'view_profile' not in st.session_state:
+        st.session_state.view_profile = None
+    
+    # Learning and IQ
+    if 'learning_history' not in st.session_state:
+        st.session_state.learning_history = []
+    if 'iq_test_score' not in st.session_state:
+        st.session_state.iq_test_score = None
+    
+    # Weather module
+    if 'city_input' not in st.session_state:
+        st.session_state.city_input = "Berlin"
+    
+    # Translation module
+    if 'translation_history' not in st.session_state:
+        st.session_state.translation_history = []
+    if 'last_translation' not in st.session_state:
+        st.session_state.last_translation = None
+    
+    # Shopping research
+    if 'product_list' not in st.session_state:
+        st.session_state.product_list = None
+    if 'best_product' not in st.session_state:
+        st.session_state.best_product = None
+    
+    # Collage maker
+    if 'collage_image' not in st.session_state:
+        st.session_state.collage_image = None
+    
+    # Sound extractor
+    if 'extracted_audio' not in st.session_state:
+        st.session_state.extracted_audio = None
+    if 'audio_filename' not in st.session_state:
+        st.session_state.audio_filename = None
+    
+    # Health analyzers
+    if 'heart_rate_data' not in st.session_state:
+        st.session_state.heart_rate_data = None
+    if 'cognitive_data' not in st.session_state:
+        st.session_state.cognitive_data = None
+    if 'image_analysis' not in st.session_state:
+        st.session_state.image_analysis = None
+    
+    # Content detector
+    if 'ai_response' not in st.session_state:
+        st.session_state.ai_response = None
+
+# Run initialization
+initialize_session_state()
+
+# ==============================
+# 🌱 VERIFICATION FLOW
 # ==============================
 
 if not st.session_state.pro_verified:
+    with st.sidebar:
+        st.subheader("🌱 Unlock Premium")
+        st.markdown("Plant 2 plants to unlock Quantora Prime X")
+        
+        if st.button("🌿 Visit Plant Store"):
+            st.markdown("[Open Plant Store](https://www.grow-trees.com/plant/monthly.php?a=KushagraSrivastava)")
+        
+        st.divider()
+        
+        txn_id = st.text_input("Enter Transaction ID")
+        
+        if st.button("Verify Purchase"):
+            if txn_id and len(txn_id) > 5:
+                st.session_state.pro_verified = True
+                st.success("Verification successful!")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("Please enter a valid transaction ID")
 
-    st.subheader("🌱 Unlock Premium by Planting Plants")
+# Unlock Pro button
+if st.session_state.pro_verified and not st.session_state.pro_unlocked:
+    with st.sidebar:
+        if st.button("🚀 Unlock Pro Features"):
+            st.session_state.pro_unlocked = True
+            st.success("Pro features unlocked!")
+            time.sleep(1)
+            st.rerun()
 
-    st.markdown(
-        """
-        To unlock **Quantora Prime X**, you must plant **exactly 2 plants**
-        using our official environmental partner.
-        """
-    )
-
-    st.markdown(
-        "[🌿 Buy Plants Now](https://www.grow-trees.com/plant/monthly.php?a=KushagraSrivastava)",
-        unsafe_allow_html=True
-    )
-
-    st.divider()
-
-    st.subheader("🔐 Verify Your Purchase")
-
-    txn_id = st.text_input("Enter Transaction / Order ID")
-
-    if st.button("Verify & Unlock"):
-        if txn_id.strip() == "":
-            st.error("❌ Please enter a valid Transaction ID.")
-        else:
-            # 🔒 Manual verification placeholder
-            st.session_state.pro_verified = True
-            st.success("✅ Verification successful. You can now unlock Pro.")
+# Set model version based on access
+if not st.session_state.pro_unlocked:
+    st.session_state.model_version = "Quantora Prime 1 Fast"
+else:
+    st.session_state.model_version = "Quantora Prime 1"
 
 
 # ==============================
@@ -2867,94 +2641,133 @@ def display_image_enhancement_controls(image, enhancements):
 
 # Enhanced A4F Model Call with fallback
 def call_a4f_model(prompt, model_name, context="", image=None):
-    """FIXED: A4F API call with proper error handling"""
+    """FIXED: A4F API call with proper error handling and image support"""
     try:
-        # Simple system prompt
-        system_prompt = """You are Quantora AI, an advanced assistant. Provide helpful, accurate responses. 
-        If asked for code, provide complete, working code. 
-        If asked for explanations, be clear and detailed."""
+        # API Configuration
+        A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
+        API_URL = "https://api.a4f.co/v1/chat/completions"
         
         headers = {
             "Authorization": f"Bearer {A4F_API_KEY}",
             "Content-Type": "application/json"
         }
         
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"{context}\n\n{prompt}" if context else prompt}
-        ]
+        # Build messages array
+        messages = []
         
-        # Handle image if provided
-        if image:
+        # Add system prompt if needed
+        if "gemini" in model_name.lower() or "gpt" in model_name.lower():
+            messages.append({
+                "role": "system",
+                "content": "You are a helpful AI assistant. Provide clear, accurate, and detailed responses."
+            })
+        
+        # Build the content
+        content_parts = []
+        
+        # Add text content
+        full_prompt = f"{context}\n\n{prompt}" if context else prompt
+        content_parts.append({
+            "type": "text",
+            "text": full_prompt
+        })
+        
+        # Add image if provided
+        if image is not None:
             try:
+                # Convert PIL Image to base64
                 buffered = BytesIO()
                 image.save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                messages.append({
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "Analyze this image:"},
-                        {
-                            "type": "image_url",
-                            "image_url": f"data:image/png;base64,{img_str}"
-                        }
-                    ]
+                
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{img_str}"
+                    }
                 })
             except Exception as img_error:
-                return f"❌ Error processing image: {str(img_error)}"
+                st.error(f"Image processing error: {str(img_error)}")
+                # Continue without image if there's an error
         
+        # Add user message with content
+        messages.append({
+            "role": "user",
+            "content": content_parts
+        })
+        
+        # Prepare request data
         data = {
             "model": model_name,
             "messages": messages,
             "temperature": 0.7,
-            "max_tokens": 2000,
-            "top_p": 0.9
+            "max_tokens": 4000,  # Increased for better responses
+            "top_p": 0.9,
+            "stream": False
         }
         
-        # Make API call with timeout
+        # Make the API request
         response = requests.post(
-            "https://api.a4f.co/v1/chat/completions",
+            API_URL,
             headers=headers,
             json=data,
-            timeout=30
+            timeout=60  # Increased timeout for image analysis
         )
         
-        # Check response
+        # Handle response
         if response.status_code == 200:
             result = response.json()
+            
             if "choices" in result and len(result["choices"]) > 0:
-                content = result["choices"][0]["message"]["content"]
-                if content:
-                    # Clean up if it's from R1 model
-                    if model_name == "provider-2/r1-1776":
-                        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+                if "message" in result["choices"][0]:
+                    content = result["choices"][0]["message"]["content"]
+                    
+                    # Clean up response if needed
+                    if content:
+                        # Remove any thinking tags from models like R1
+                        if "r1" in model_name.lower() or "think" in content.lower():
+                            content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+                            content = content.strip()
+                        
+                        # Remove any system prompts that might have leaked
+                        content = re.sub(r'^.*?(?=\n\n|$)', '', content, flags=re.DOTALL)
                         content = content.strip()
-                    return content
+                        
+                        return content
+                    else:
+                        return "🤖 I received an empty response. Please try again with a different prompt."
                 else:
-                    return "❌ Empty response from AI"
+                    return "⚠️ Unexpected response format from AI model."
             else:
-                return "❌ Unexpected response format"
+                return "⚠️ No valid choices in AI response."
         
-        # Handle different error statuses
-        elif response.status_code == 429:
-            return "❌ Rate limit exceeded. Please try again later."
+        # Handle specific error codes
         elif response.status_code == 401:
-            return "❌ Authentication error. Please check API key."
-        elif response.status_code == 400:
-            error_detail = response.json().get('error', {}).get('message', 'Bad request')
-            return f"❌ Bad request: {error_detail}"
+            return "🔒 Authentication failed. Please check your API key."
+        elif response.status_code == 403:
+            return "🚫 Access forbidden. You may not have permission to use this model."
+        elif response.status_code == 404:
+            return "❌ Model not found. Please check the model name."
+        elif response.status_code == 429:
+            return "⏳ Rate limit exceeded. Please wait a moment and try again."
+        elif response.status_code == 500:
+            return "⚙️ Server error. The AI provider is experiencing issues."
+        elif response.status_code == 503:
+            return "🔄 Service unavailable. Please try again in a few moments."
         else:
-            return f"❌ API Error {response.status_code}: {response.text[:100]}"
-            
+            return f"⚠️ API Error {response.status_code}: {response.text[:200]}"
+    
     except requests.exceptions.Timeout:
-        return "❌ Request timeout. Please try again."
+        return "⏱️ Request timed out. The server took too long to respond."
     except requests.exceptions.ConnectionError:
-        return "❌ Connection error. Please check your internet."
+        return "🌐 Connection error. Please check your internet connection."
     except requests.exceptions.RequestException as e:
-        return f"❌ Network error: {str(e)}"
+        return f"🔗 Network error: {str(e)[:100]}"
+    except json.JSONDecodeError:
+        return "📄 Invalid response from server. Could not parse JSON."
     except Exception as e:
-        return f"❌ Unexpected error: {str(e)}"
-            
+        return f"❌ Unexpected error: {str(e)[:150]}"
+                      
 # Enhanced Groq Model Calls
 def call_groq_model(prompt, model_name, context=""):
     """FIXED: Groq API call with proper error handling"""
@@ -3259,36 +3072,55 @@ def format_response_with_code(response):
 
 # Image Generation Functions
 def generate_image(prompt, style):
-    headers = {
-        "Authorization": f"Bearer {A4F_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
-    payload = {
-        "model": IMAGE_MODEL,
-        "prompt": enhanced_prompt,
-        "num_images": 1,
-        "width": 1024,
-        "height": 1024
-    }
-    
+    """Generate image using A4F API"""
     try:
+        headers = {
+            "Authorization": f"Bearer {A4F_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        enhanced_prompt = f"{prompt}, {style} style, high quality, photorealistic, 4k resolution"
+        
+        # Use a more reliable endpoint structure
+        payload = {
+            "model": "provider-2/nano-banana-pro",  # Ensure this is a valid model
+            "prompt": enhanced_prompt,
+            "size": "1024x1024",
+            "num_images": 1,
+            "response_format": "url"
+        }
+        
+        # Try the correct endpoint
         response = requests.post(
-            f"{A4F_BASE_URL}/images/generations",
+            "https://api.a4f.co/v1/images/generations",
             headers=headers,
             json=payload,
             timeout=60
         )
+        
         if response.status_code == 200:
             result = response.json()
             if 'data' in result and len(result['data']) > 0:
                 image_url = result['data'][0]['url']
-                image_response = requests.get(image_url)
-                return Image.open(BytesIO(image_response.content))
+                # Download the image
+                image_response = requests.get(image_url, timeout=30)
+                if image_response.status_code == 200:
+                    return Image.open(BytesIO(image_response.content))
+                else:
+                    st.error(f"Failed to download image: {image_response.status_code}")
+                    return None
+            else:
+                st.error(f"No data in response: {result}")
+                return None
+        else:
+            st.error(f"Image generation API error: {response.status_code} - {response.text}")
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        st.error(f"Network error: {str(e)}")
         return None
     except Exception as e:
-        st.error(f"Image generation error: {str(e)}")
+        st.error(f"Unexpected error: {str(e)}")
         return None
 
 def edit_image(image, edit_prompt):
@@ -3362,6 +3194,7 @@ def generate_video_replicate(prompt, style):
         return None
 
 # Time-based greeting
+# Time-based greeting
 hour = datetime.now().hour
 if 6 <= hour < 12:
     greeting = "🌅 Good Morning!"
@@ -3372,20 +3205,20 @@ elif 18 <= hour < 24:
 else:
     greeting = "🌌 Good Night!"
 
-# Header with Quantora branding
-# Header with Quantora branding
-header_html = f"""
+# App name based on pro status
+app_name = "Quantora Prime X" if st.session_state.get('pro_unlocked', False) else "Quantora AI"
+
+# Header with Quantora branding - using markdown directly
+st.markdown(f"""
 <div class="main-header">
     <div class="logo">
-        <div class="logo-icon">&#x1f48e;</div>
+        <div class="logo-icon">💎</div>
         <div class="logo-text">{app_name}</div>
         <div class="status-indicator"></div>
     </div>
-    <div style="color: var(--text-muted);">{greeting}</div>
+    <div style="color: #94a3b8; font-size: 1.1rem; margin-top: 0.5rem;">{greeting}</div>
 </div>
-"""
-
-st.markdown(header_html, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # --------------------------
 # QUANTORA TRADE CHARTS MODULE
