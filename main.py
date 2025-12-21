@@ -3190,7 +3190,6 @@ def generate_video_replicate(prompt, style):
         return None
 
 # Time-based greeting
-# Time-based greeting
 hour = datetime.now().hour
 if 6 <= hour < 12:
     greeting = "🌅 Good Morning!"
@@ -3204,18 +3203,19 @@ else:
 # App name based on pro status
 app_name = "Quantora Prime X" if st.session_state.get('pro_unlocked', False) else "Quantora AI"
 
-# Header with Quantora branding - using markdown directly
-st.markdown(f"""
+# Use string concatenation instead of f-string
+header_html = '''
 <div class="main-header">
     <div class="logo">
-        <div class="logo-icon">&#x1F48E;</div>
-        <div class="logo-text">{app_name}</div>
+        <div class="logo-icon">💎</div>
+        <div class="logo-text">''' + app_name + '''</div>
         <div class="status-indicator"></div>
     </div>
-    <div style="color: #94a3b8; font-size: 1.1rem; margin-top: 0.5rem;">{greeting}</div>
+    <div style="color: #94a3b8; font-size: 1.1rem; margin-top: 0.5rem;">''' + greeting + '''</div>
 </div>
-""", unsafe_allow_html=True)
+'''
 
+st.markdown(header_html, unsafe_allow_html=True)
 # --------------------------
 # QUANTORA TRADE CHARTS MODULE
 # --------------------------
