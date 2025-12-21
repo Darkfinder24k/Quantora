@@ -3068,7 +3068,7 @@ def format_response_with_code(response):
 
 # Image Generation Functions
 def generate_image(prompt, style):
-    """Generate image using A4F API"""
+    #Generate image using A4F API
     try:
         headers = {
             "Authorization": f"Bearer {A4F_API_KEY}",
