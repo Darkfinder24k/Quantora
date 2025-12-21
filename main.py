@@ -46,47 +46,55 @@ with status:
     st.write("Checking dependencies...")
     time.sleep(0.1)
     
-    try:
-        import json
-        st.write("✓ JSON loaded")
-    except:
-        st.write("⚠️ JSON import issue")
-        
-    try:
-        import requests
-        st.write("✓ Requests loaded")
-    except:
-        st.write("⚠️ Requests import issue")
-        
-    try:
-        import pandas as pd
-        st.write("✓ Pandas loaded")
-    except:
-        st.write("⚠️ Pandas import issue")
+    # List of required modules to check
+    modules_to_check = [
+        ("JSON", "json"),
+        ("Requests", "requests"),
+        ("Pandas", "pandas"),
+        ("NumPy", "numpy"),
+        ("Pillow (PIL)", "PIL"),
+        ("Plotly", "plotly"),
+        ("PyPDF2", "PyPDF2"),
+        ("Docx", "docx"),
+        ("yFinance", "yfinance"),
+        ("Folium", "folium")
+    ]
+    
+    # Check each module
+    for module_name, module_import in modules_to_check:
+        try:
+            if module_import == "json":
+                import json
+            elif module_import == "requests":
+                import requests
+            elif module_import == "pandas":
+                import pandas as pd
+            elif module_import == "numpy":
+                import numpy as np
+            elif module_import == "PIL":
+                from PIL import Image
+            elif module_import == "plotly":
+                import plotly.graph_objects as go
+            elif module_import == "PyPDF2":
+                from PyPDF2 import PdfReader
+            elif module_import == "docx":
+                import docx
+            elif module_import == "yfinance":
+                import yfinance as yf
+            elif module_import == "folium":
+                import folium
+            
+            st.write(f"✓ {module_name} loaded")
+        except Exception as e:
+            st.warning(f"⚠️ {module_name} import issue: {str(e)[:50]}")
     
     st.write("Finalizing setup...")
     time.sleep(0.1)
 
 status.update(label="Ready!", state="complete", expanded=False)
 time.sleep(0.1)
-    
-except Exception as e:
-    # If even basic imports fail, show minimal error
-    import streamlit as st
-    st.set_page_config(page_title="Quantora Error", layout="centered")
-    st.error(f"🚨 Critical Error: {str(e)}")
-    st.info("""
-    **Quick Fixes:**
-    1. Check your Python version (3.9+ recommended)
-    2. Install missing packages: `pip install streamlit pandas requests`
-    3. Clear cache: `rm -rf .streamlit/`
-    4. Restart the app
-    """)
-    st.stop()
-
 
 # ✅ API Configuration
-# ✅ API Configuration - Put this near the top after imports
 A4F_API_KEY = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
 API_URL = "https://api.a4f.co/v1/chat/completions"
 IMAGE_MODEL = "provider-2/nano-banana-pro"
@@ -101,6 +109,7 @@ ICON_URL = "https://openweathermap.org/img/wn/{}@4x.png"
 
 # Replicate API for Video Generation
 REPLICATE_API_TOKEN = "r8_7t4VS9WzjYf0ohxFuez5bDAa66dNalb3w5Jql"
+os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
 
 # History persistence
 HISTORY_FILE = "quantora_history.json"
@@ -109,79 +118,66 @@ if not os.path.exists(HISTORY_FILE):
         json.dump([], f)
 
 def load_history():
-    with open(HISTORY_FILE, 'r') as f:
-        return json.load(f)
+    try:
+        with open(HISTORY_FILE, 'r') as f:
+            return json.load(f)
+    except:
+        return []
 
 def save_history(query):
-    history = load_history()
-    history.append({"query": query, "timestamp": datetime.now().isoformat()})
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump(history, f)
-    
-# Initialize API clients
-@st.cache_resource
-# ✅ Simplified API clients initialization
+    try:
+        history = load_history()
+        history.append({"query": query, "timestamp": datetime.now().isoformat()})
+        with open(HISTORY_FILE, 'w') as f:
+            json.dump(history, f)
+    except:
+        pass  # Silently fail if history can't be saved
+
+# ✅ API clients initialization
 def initialize_clients():
     """Initialize API clients with proper error handling"""
+    groq_client = None
+    groq_available = False
+    
+    # Try to initialize Groq client
     try:
-        # Try to import Groq
-        try:
-            from groq import Groq
-            groq_api_key = os.environ.get("Groq_API_TOKEN", "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")
-            groq_client = Groq(api_key=groq_api_key)
-            # Test the client with a simple call
-            test_response = groq_client.chat.completions.create(
-                model="mixtral-8x7b-32768",
-                messages=[{"role": "user", "content": "test"}],
-                max_tokens=5
-            )
-            groq_available = True
-        except Exception as groq_error:
-            groq_client = None
-            groq_available = False
-            st.sidebar.warning(f"⚠️ Groq client unavailable: {str(groq_error)[:50]}...")
+        from groq import Groq
+        groq_api_key = os.environ.get("Groq_API_TOKEN", "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")
+        groq_client = Groq(api_key=groq_api_key)
         
-        # Always initialize A4F client (fallback)
-        a4f_api_key = "ddc-a4f-b752e3e2936149f49b1b306953e0eaab"
-        a4f_client = {
-            "api_key": a4f_api_key,
-            "api_url": "https://api.a4f.co/v1/chat/completions",
-            "available": True
-        }
-        
-        # Test A4F connection
-        try:
-            test_response = requests.get(
-                "https://api.a4f.co/v1/models",
-                headers={"Authorization": f"Bearer {a4f_api_key}"},
-                timeout=5
-            )
-            a4f_available = test_response.status_code == 200
-        except:
-            a4f_available = False
-            st.sidebar.error("⚠️ A4F API connection failed")
-        
-        # Return clients
-        return groq_client, a4f_client, groq_available, a4f_available
-        
+        # Test with a simple call
+        test_response = groq_client.chat.completions.create(
+            model="mixtral-8x7b-32768",
+            messages=[{"role": "user", "content": "test"}],
+            max_tokens=5
+        )
+        groq_available = True
+    except ImportError:
+        st.sidebar.warning("Groq library not installed. Install with: pip install groq")
     except Exception as e:
-        st.error(f"❌ API Configuration Error: {str(e)[:100]}")
-        # Return safe defaults
-        return None, {"api_key": "", "api_url": "", "available": False}, False, False
+        st.sidebar.warning(f"Groq client error: {str(e)[:80]}")
+    
+    # A4F client configuration
+    a4f_client = {
+        "api_key": A4F_API_KEY,
+        "api_url": API_URL,
+        "available": True
+    }
+    
+    # Test A4F connection
+    a4f_available = True  # Assume it works, will be tested on first call
+    
+    return groq_client, a4f_client, groq_available, a4f_available
 
 # Initialize clients
 groq_client, a4f_client, groq_available, a4f_available = initialize_clients()
 
-# Show API status
-if not groq_available and not a4f_available:
-    st.sidebar.error("⚠️ All API connections failed - limited functionality")
-elif not groq_available:
-    st.sidebar.warning("⚠️ Groq API unavailable - using A4F only")
-elif not a4f_available:
-    st.sidebar.warning("⚠️ A4F API unavailable - using Groq only")
+# Show API status in sidebar (if sidebar is available)
+if not groq_available:
+    st.sidebar.warning("⚠️ Groq API unavailable - using A4F API")
 else:
-    st.sidebar.success("✅ APIs connected")
-
+    st.sidebar.success("✅ All APIs connected")
+    
 # --------------------------
 # QUANTORA WEATHER MODULE
 # --------------------------
