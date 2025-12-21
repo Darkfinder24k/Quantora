@@ -3371,7 +3371,7 @@ def quantora_news():
     st.markdown("---")
     st.markdown("""
         <div style='text-align: center; font-size: 0.85em; color: gray; padding-top: 10px;'>
-             Powered by Quantora AI • Delivering Intelligence, Not Just Information.
+             Powered by Quantora AI . Delivering Intelligence, Not Just Information.
         </div>
     """, unsafe_allow_html=True)
 
