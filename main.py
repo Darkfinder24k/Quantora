@@ -245,7 +245,7 @@ def quantora_weather():
             transform: translateZ(0);
             filter: drop-shadow(0 8px 40px rgba(0,0,0,0.45));
         }
-        /* cloud motion — different speeds and sizes */
+        /* cloud motion -- different speeds and sizes */
         @keyframes cloudMove1 { from {transform: translateX(-20%);} to {transform: translateX(120%);} }
         @keyframes cloudMove2 { from {transform: translateX(-30%);} to {transform: translateX(110%);} }
         @keyframes cloudFloat { 0%{transform:translateY(0);}50%{transform:translateY(-6px);}100%{transform:translateY(0);} }
@@ -554,7 +554,7 @@ def quantora_weather():
         precip_avg_pct = int(df['pop'].mean()*100) if ("pop" in df.columns and not df['pop'].isna().all()) else 0
         st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>Precip</div><div style='font-weight:700'>{precip_avg_pct}%</div></div>", unsafe_allow_html=True)
         st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>Wind</div><div style='font-weight:700'>{wind} {'m/s' if units=='metric' else 'mph'}</div></div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>UV</div><div style='font-weight:700'>—</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>UV</div><div style='font-weight:700'>-</div></div>", unsafe_allow_html=True)
         st.markdown(f"<div class='day-pill'><div style='font-size:12px' class='muted'>Visibility</div><div style='font-weight:700'>{int(visibility/1000)} km</div></div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
@@ -715,7 +715,7 @@ def quantora_weather():
 # ✅ NEW: Quantomise My Trip
 def quantomise_my_trip():
     st.title("✈️ Quantomise My Trip")
-    st.markdown("Let AI plan your perfect trip — budget, flights, hotels, and more — tailored just you.")
+    st.markdown("Let AI plan your perfect trip -- budget, flights, hotels, and more -- tailored just you.")
     
     if "trip_data" not in st.session_state:
         st.session_state.trip_data = {}
@@ -792,20 +792,20 @@ def coding_workspace():
             return
         
         prompt = f"Write a single self-contained {lang} file that: {intent}\n\n- Full code, no placeholders\n- Add short usage comment at top"
-        with st.spinner("Generating…"):
+        with st.spinner("Generating..."):
             code = call_a4f_model(prompt, "provider-2/gemini-3-pro-preview")
         
         st.code(code, language=lang.lower())
         st.download_button("📥 Download file", data=code, file_name=f"code.{lang.lower()}", mime="text/plain")
 
 # ---------------------------------------------------------
-# 1️⃣ APP-BUILDER WORKSPACE – UX unchanged
+# 1️⃣ APP-BUILDER WORKSPACE -- UX unchanged
 # ---------------------------------------------------------
 def app_builder_workspace():
     st.title("🏗️ Streamlit App Builder")
     st.markdown("Describe an app idea")
     
-    idea = st.text_area("Your app idea (1–2 sentences):", placeholder="e.g., an app that predicts house prices from CSV upload")
+    idea = st.text_area("Your app idea (1-2 sentences):", placeholder="e.g., an app that predicts house prices from CSV upload")
     
     if st.button("Build & Run", type="primary"):
         if not idea.strip():
@@ -824,7 +824,7 @@ def app_builder_workspace():
         Path("generated_apps").mkdir(exist_ok=True)
         file_path = Path("generated_apps/app_generated.py")
         file_path.write_text(generated_code, encoding="utf-8")
-        st.success("✅ App generated – running below")
+        st.success("✅ App generated - running below")
         
         with st.expander("📋 Generated code"):
             st.code(generated_code, language="python")
@@ -833,7 +833,7 @@ def app_builder_workspace():
         run_app_inline(str(file_path))
 
 # ---------------------------------------------------------
-# 2️⃣ INLINE RUNNER – no subprocess, no ports
+# 2️⃣ INLINE RUNNER -- no subprocess, no ports
 # ---------------------------------------------------------
 def run_app_inline(script_path: str):
     """
@@ -1426,7 +1426,7 @@ def shopping_research():
     shopping_query = st.text_area(
         "Describe what you want to buy:",
         height=120,
-        placeholder="Example: 'Gaming mouse under ₹800 with RGB and 3200 DPI…'",
+        placeholder="Example: 'Gaming mouse under ₹800 with RGB and 3200 DPI...'",
     )
 
     col1, col2 = st.columns(2)
@@ -1449,10 +1449,10 @@ def shopping_research():
         avoid_features = st.text_area("Features to Avoid")
 
     # -------------------------------------------------------
-    # STEP 1 — GENERATE PRODUCTS
+    # STEP 1 -- GENERATE PRODUCTS
     # -------------------------------------------------------
     if st.button("🔍 Start Shopping Research") and shopping_query.strip():
-        st.info("**Step 1:** Generating product list…")
+        st.info("**Step 1:** Generating product list...")
 
         # Prepare the Gemini prompt with all user inputs
         gemini_prompt = f"""You are an expert shopping assistant. Generate a list of products based on these criteria:
@@ -1581,9 +1581,9 @@ Provide at least 3-5 relevant products."""
             st.markdown("---")
 
         # -------------------------------------------------------
-        # STEP 2 — BEST PRODUCT ANALYSIS (CLAUDE)
+        # STEP 2 -- BEST PRODUCT ANALYSIS (CLAUDE)
         # -------------------------------------------------------
-        st.info("**Step 2:** Analyzing best product…")
+        st.info("**Step 2:** Analyzing best product...")
 
         claude_prompt = f"""You are an expert product analyst. Based on the following product list and user preferences, 
         recommend the BEST single product:
@@ -1886,7 +1886,7 @@ def quantora_translate():
             <div style="display: flex; justify-content: space-between;">
                 <div>
                     <strong>📊 Translation Stats:</strong><br>
-                    • Words: {source_words} → {translated_words}<br>
+                    • Words: {source_words} -> {translated_words}<br>
                     • Language: {st.session_state.last_translation['target_language']}<br>
                     • Style: {st.session_state.last_translation['tone_style']}<br>
                     • Time: {st.session_state.last_translation['timestamp']}
@@ -2304,18 +2304,18 @@ def ai_content_detector(text):
     prompt = f"""You are an advanced AI content detector similar to ZeroGPT.
 Analyze the following text for signs of AI generation.
 You must estimate two main values:
-1. Perplexity — how predictable the text is.
-2. Burstiness — how much variation exists in sentence length and structure.
+1. Perplexity - how predictable the text is.
+2. Burstiness - how much variation exists in sentence length and structure.
 Rules:
-- If both perplexity and burstiness are LOW → Mark the text as likely AI-generated.
-- If both perplexity and burstiness are HIGH → Mark the text as likely human-written.
-- If results are mixed → Mark it as partially AI-generated.
+- If both perplexity and burstiness are LOW -> Mark the text as likely AI-generated.
+- If both perplexity and burstiness are HIGH -> Mark the text as likely human-written.
+- If results are mixed -> Mark it as partially AI-generated.
 Return your analysis as follows:
 ----------------------------------------------------
 🧠 AI Content Detection Report:
-Perplexity: [number from 0–100, where lower = more AI-like]
-Burstiness: [number from 0–100, where lower = more AI-like]
-AI Probability: [percentage from 0–100% showing how likely it's AI-generated]
+Perplexity: [number from 0-100, where lower = more AI-like]
+Burstiness: [number from 0-100, where lower = more AI-like]
+AI Probability: [percentage from 0-100% showing how likely it's AI-generated]
 Verdict: [AI-generated / Human-written / Mixed]
 ----------------------------------------------------
 Here is the text to analyze:
@@ -2867,7 +2867,7 @@ Depending on the specific context you're referring to, there are various approac
 
 Feel free to ask more specific questions, and I'll do my best to provide detailed, helpful responses! 💎
 
-*What aspect would you like me to focus on first?*""
+*What aspect would you like me to focus on first?*"""
     
     processing_time = time.time() - start_time
     
@@ -3016,7 +3016,7 @@ Feel free to ask more specific questions, and I'll do my best to provide detaile
     
     responses_text = '\n\n'.join([f"Response from {r['backend']}:\n{r['response']}" for r in successful_responses])
     
-    mixing_prompt = f"You are the response synthesizer fo Quantora. Below are multiple responses to the same prompt. Combine them into one coherent, comprehensive response that maintains the best aspects of each.
+    mixing_prompt = f"""You are the response synthesizer fo Quantora. Below are multiple responses to the same prompt. Combine them into one coherent, comprehensive response that maintains the best aspects of each.
                         Original Prompt: {prompt}
                         Responses to combine:
                         {responses_text}
@@ -3029,7 +3029,7 @@ Feel free to ask more specific questions, and I'll do my best to provide detaile
                         6. Add any missing context that would improve the answer
                         7. Dont tell about any ai error
                         8. Always ask a question to the user ex- that what should I(you) do next?
-                        Combined Response:"
+                        Combined Response:"""
     
     final_response = call_a4f_model(mixing_prompt, "provider-3/gpt-4o-mini")
     
@@ -3310,7 +3310,7 @@ def quantora_trade_charts():
             
                 # AI Analysis
                 st.subheader("📈 Quantora AI Analysis")
-                analysis_prompt = f""Provide a technical analysis of {ticker} stock based on the following data: - Current Price: ${stock.info.get('currentPrice', 'N/A')} - 52 Week Range: ${stock.info.get('fiftyTwoWeekLow', 'N/A')} - ${stock.info.get('fiftyTwoWeekHigh', 'N/A')} - PE Ratio: {stock.info.get('trailingPE', 'N/A')} - Market Cap: ${stock.info.get('marketCap', 'N/A'):,} - Recent Performance: {hist.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].to_string()} Provide insights on:1. Current trend 2. Key support/resistance levels 3. Volume analysis 4. Technical indicators summary 5. Short-term and long-term outlook Keep the analysis professional but accessible to retail investors.""
+                analysis_prompt = f"""Provide a technical analysis of {ticker} stock based on the following data: - Current Price: ${stock.info.get('currentPrice', 'N/A')} - 52 Week Range: ${stock.info.get('fiftyTwoWeekLow', 'N/A')} - ${stock.info.get('fiftyTwoWeekHigh', 'N/A')} - PE Ratio: {stock.info.get('trailingPE', 'N/A')} - Market Cap: ${stock.info.get('marketCap', 'N/A'):,} - Recent Performance: {hist.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].to_string()} Provide insights on:1. Current trend 2. Key support/resistance levels 3. Volume analysis 4. Technical indicators summary 5. Short-term and long-term outlook Keep the analysis professional but accessible to retail investors."""
             
                 with st.spinner("Generating AI analysis..."):
                     st.session_state.model_version = "Quantora Prime 1 (Latest Flagship Model)"
@@ -3338,14 +3338,14 @@ def quantora_news():
     st.markdown(header_html, unsafe_allow_html=True)
     
     # Dynamically dated prompt - using raw string to avoid escape issues
-    prompt = r"""
+    prompt = """
     You are Quantora AI, a cutting-edge real-time news analysis system. Give the MOST Trending news for {today}. Create the top news digest for {today} based on live global and Indian events 'like' operation sindoor, using a professional journalist tone.
     Structure your summary into the following categories:
     1. Topic - 1 (2 detailed paragraphs)
     2. Topic - 2 (1 paragraph)
-    3. Topic - 3 (2–3 bullet points)
-    4. Topic - 4 (2–3 bullet points)
-    5. Topic - 5 (2–3 bullet points)
+    3. Topic - 3 (2-3 bullet points)
+    4. Topic - 4 (2-3 bullet points)
+    5. Topic - 5 (2-3 bullet points)
     6. Topic - 6 (1 paragraph)
     Only include realistic and relevant news that would appear on Aaj Tak, ABP News, Zee News, and BBC for {today}.
     """.format(today=today)
@@ -4252,7 +4252,7 @@ def heart_health_analyzer():
                         st.session_state.current_question -= 1
                         st.rerun()
             with col3:
-                if st.button("Next →", key="next_btn"):
+                if st.button("Next ->", key="next_btn"):
                     st.session_state.answers[question['id']] = answer
                     if question['id'] == 21:
                         if answer == "Yes, record my heartbeat":
@@ -4640,7 +4640,7 @@ def brain_health_analyzer():
                 np.random.shuffle(numbers)
             
                 st.write("Connect the numbers in order from 1 to 8:")
-                st.write(" → ".join([str(n) for n in numbers]))
+                st.write(" -> ".join([str(n) for n in numbers]))
             
                 start_time = time.time()
                 user_input = st.text_input("Enter the numbers in order separated by spaces (e.g., '1 2 3...'):")
@@ -4865,7 +4865,7 @@ def brain_health_analyzer():
                         st.session_state.current_question -= 1
                         st.rerun()
             with col3:
-                if st.button("Next →", key="next_btn"):
+                if st.button("Next ->", key="next_btn"):
                     st.session_state.answers[question['id']] = answer
                     if question['id'] == 21:
                         if answer == "Yes, perform cognitive tests":
@@ -5586,7 +5586,7 @@ def cancer_risk_assessor():
                         st.session_state.current_question -= 1
                         st.rerun()
             with col3:
-                if st.button("Next →", key="next_btn"):
+                if st.button("Next ->", key="next_btn"):
                     st.session_state.answers[question['id']] = answer
                     if question['id'] == 24:
                         if answer.startswith("Yes"):
@@ -6208,7 +6208,7 @@ st.markdown("---")
 st.markdown(
     '<div style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">'
     '💎 Quantora AI - Advanced AI Assistant | '
-    'Powered by Groq Models, A4F Models | Double-check — Quantora isn\'t perfect. |'
+    'Powered by Groq Models, A4F Models | Double-check - Quantora isn\'t perfect. |'
     f'Session started: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
     '</div>',
     unsafe_allow_html=True
