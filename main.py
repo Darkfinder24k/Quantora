@@ -147,7 +147,7 @@ def initialize_clients():
         
         # Test with a simple call
         test_response = groq_client.chat.completions.create(
-            model="mixtral-8x7b-32768",
+            model="qwen/qwen3-32b",
             messages=[{"role": "user", "content": "test"}],
             max_tokens=5
         )
@@ -2840,7 +2840,7 @@ def call_quantora_unified(prompt, context="", image=None):
     # If all API calls fail, provide a helpful default response
     if not response or response.startswith("❌"):
         # Try Groq as final fallback
-        groq_response = call_groq_model(full_prompt, "mixtral-8x7b-32768", context)
+        groq_response = call_groq_model(full_prompt, "qwen/qwen3-32b", context)
         if groq_response and not groq_response.startswith("❌"):
             response = groq_response
         else:
